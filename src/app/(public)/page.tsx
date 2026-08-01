@@ -19,7 +19,7 @@ export default function HomePage() {
 
   return (
     <Container className="space-y-16 py-6 sm:space-y-20 sm:py-10 lg:py-12">
-      <Hero image={{ src: "/images/hero/joaco-ro-hero-principal.webp", alt: "Selección de artículos útiles para el hogar, cocina y vida diaria sobre una mesa iluminada con luz natural." }} title={"Cosas útiles\na buenos precios."} description="Para el hogar y el día a día." />
+      <Hero image={{ src: "/images/hero/portada.webp", alt: "Portada de JOACO RO con su dueño, productos para el hogar y el mensaje Muy buen día, distinguida clientela." }} />
       <ProductRail id="best-sellers-title" title="Productos destacados" description="Una selección para el hogar y el día a día." icon="best-sellers" products={bestSellers} ariaLabel="Productos destacados" />
       <ProductRail id="opportunities-title" title="Oportunidades" description="Productos útiles a precios convenientes." icon="opportunities" products={opportunities} ariaLabel="Oportunidades de la tienda" />
       <ProductRail id="new-arrivals-title" title="Novedades" description="Productos que se suman a la selección." icon="new-arrivals" products={newArrivals} ariaLabel="Productos nuevos" />

@@ -11,7 +11,7 @@ export function PublicHeader() {
   return (
     <header className="border-b border-border bg-background">
       <Container className="flex min-h-[4.5rem] items-center gap-2">
-        <Logo className="shrink-0 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" />
+        <Logo wordmark="HIDROPONÍA" className="shrink-0 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" />
         <MainNavigation />
         <div className="ml-auto flex items-center gap-1">
           <AccountTrigger />

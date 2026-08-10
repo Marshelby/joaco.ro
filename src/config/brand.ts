@@ -1,7 +1,7 @@
 export const BRAND = {
-  name: "JOACO RO",
-  shortName: "JOACO RO",
-  description: "Plataforma de productos, pedidos y gestión de JOACO RO.",
+  name: "Hidro Leufú",
+  shortName: "HIDRO LEUFÚ",
+  description: "Hidro Leufú — productos frescos, hidropónicos, verduras, frutas y más con delivery.",
   locale: "es-CL",
   currency: "CLP",
 } as const;

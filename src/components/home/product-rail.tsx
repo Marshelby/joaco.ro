@@ -16,6 +16,7 @@ const railIcons = {
 
 type ProductRailProps = {
   id: string;
+  eyebrow?: string;
   title: string;
   description?: string;
   icon: ProductRailIcon;
@@ -23,7 +24,7 @@ type ProductRailProps = {
   ariaLabel: string;
 };
 
-export function ProductRail({ id, title, description, icon, products, ariaLabel }: ProductRailProps) {
+export function ProductRail({ id, eyebrow, title, description, icon, products, ariaLabel }: ProductRailProps) {
   const railRef = useRef<HTMLDivElement>(null);
   const [canScrollBackward, setCanScrollBackward] = useState(false);
   const [canScrollForward, setCanScrollForward] = useState(false);
@@ -59,6 +60,7 @@ export function ProductRail({ id, title, description, icon, products, ariaLabel 
     <section aria-labelledby={id} className="space-y-5">
       <div className="flex items-end justify-between gap-4">
         <div id={id} className="min-w-0">
+          {eyebrow ? <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent">{eyebrow}</p> : null}
           <div className="flex items-center gap-2">
             <Icon className="size-4 shrink-0 text-accent" aria-hidden="true" />
             <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{title}</h2>
@@ -105,10 +107,10 @@ export function ProductRail({ id, title, description, icon, products, ariaLabel 
             scroll("forward");
           }
         }}
-        className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+        className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
       >
         {products.map((product) => (
-          <div key={product.id} className="w-[82%] shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[23.5%]">
+          <div key={product.id} className="w-[78%] shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[23.5%]">
             <ProductCard product={product} variant="rail" />
           </div>
         ))}

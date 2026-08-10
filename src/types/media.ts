@@ -5,6 +5,10 @@ export type ImageAsset = {
 };
 
 export type ImageFallbackKind =
+  | "fresh-produce"
+  | "fruit"
+  | "herb"
+  | "package"
   | "cookware"
   | "thermos"
   | "bedding"
@@ -12,11 +16,4 @@ export type ImageFallbackKind =
   | "lighting"
   | "organization"
   | "cleaning"
-  | "toys"
-  | "storage"
-  | "tools"
-  | "pets"
-  | "garden"
-  | "home"
-  | "technology"
-  | "seasonal";
+  | "storage";

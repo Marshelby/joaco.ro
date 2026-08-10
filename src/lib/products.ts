@@ -1,4 +1,16 @@
-import type { MockProduct, ProductAvailability } from "@/types/product";
+import type { MockProduct, ProductAvailability, ProductSaleUnit } from "@/types/product";
+
+const saleUnitLabels: Record<ProductSaleUnit, string> = {
+  kg: "por kg",
+  unit: "por unidad",
+  sack: "por saco",
+  dozen: "por docena",
+  "100g": "por 100 g",
+};
+
+export function getProductSaleUnitLabel(unit: ProductSaleUnit) {
+  return saleUnitLabels[unit];
+}
 
 const availabilityContent: Record<
   ProductAvailability,

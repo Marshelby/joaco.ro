@@ -6,8 +6,7 @@ import { Container } from "@/components/layout/container";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 import { filterCatalogProducts, parseCatalogFilters, sortCatalogProducts, type CatalogSearchParams } from "@/lib/catalog";
-import { HOME_CATEGORIES } from "@/mocks/home";
-import { HOME_PRODUCTS } from "@/mocks/products";
+import { getStorefrontCategories, getStorefrontProducts } from "@/lib/storefront-catalog";
 
 export const metadata: Metadata = { title: "Catálogo" };
 
@@ -16,18 +15,26 @@ type CatalogPageProps = {
 };
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const categories = HOME_CATEGORIES.map((category) => category.name);
-  const filters = parseCatalogFilters(await searchParams, categories);
-  const products = sortCatalogProducts(
-    filterCatalogProducts(HOME_PRODUCTS, filters),
-    filters.sort,
-  );
+  let categories: string[];
+  let products;
+  try {
+    const [storefrontProducts, storefrontCategories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
+    categories = storefrontCategories.map((category) => category.name);
+    const filters = parseCatalogFilters(await searchParams, categories);
+    products = sortCatalogProducts(filterCatalogProducts(storefrontProducts, filters), filters.sort);
+    return <CatalogContent categories={categories} filters={filters} products={products} />;
+  } catch {
+    return <Container className="py-10 sm:py-14"><PageHeader eyebrow="Selección fresca" title="Catálogo" description="No pudimos cargar el catálogo. Inténtalo nuevamente en unos momentos." /></Container>;
+  }
+}
+
+function CatalogContent({ categories, filters, products }: { categories: string[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> }) {
   const hasActiveFilters = Boolean(filters.query || filters.category || filters.sort !== "recommended");
   const resultsLabel = `${products.length} ${products.length === 1 ? "producto" : "productos"}${filters.query ? ` para “${filters.query}”` : ""}${filters.category ? `${filters.query ? " en" : " en"} ${filters.category}` : ""}`;
 
   return (
     <Container className="space-y-8 py-8 sm:space-y-10 sm:py-12 lg:py-14">
-      <PageHeader eyebrow="Selección completa" title="Catálogo" description="Productos útiles, oportunidades y novedades para el hogar y el día a día." />
+      <PageHeader eyebrow="Selección fresca" title="Catálogo" description="Explora productos seleccionados para complementar tu pedido." />
 
       <CatalogToolbar categories={categories} filters={filters} />
 

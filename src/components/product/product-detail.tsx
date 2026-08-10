@@ -8,7 +8,7 @@ import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { getCatalogHref } from "@/lib/catalog";
 import { formatCLP } from "@/lib/formatters";
-import { getProductAvailabilityContent } from "@/lib/products";
+import { getProductAvailabilityContent, getProductSaleUnitLabel } from "@/lib/products";
 import type { MockProduct } from "@/types/product";
 
 type ProductDetailProps = {
@@ -17,10 +17,6 @@ type ProductDetailProps = {
 };
 
 export function ProductDetail({ product, relatedProducts }: ProductDetailProps) {
-  const wholesale =
-    product.wholesalePrice !== undefined && product.wholesaleMinimum !== undefined
-    ? { price: product.wholesalePrice, minimum: product.wholesaleMinimum }
-    : undefined;
   const availability = getProductAvailabilityContent(product.availability);
   const categoryHref = getCatalogHref({ category: product.category });
 
@@ -58,22 +54,11 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
 
             <dl className="mt-7 border-y border-border py-5">
               <div>
-                <dt className="text-sm font-medium text-muted-foreground">Precio unitario</dt>
+                <dt className="text-sm font-medium text-muted-foreground">Precio con IVA · {getProductSaleUnitLabel(product.saleUnit)}</dt>
                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
                   {formatCLP(product.unitPrice)}
                 </dd>
               </div>
-              {wholesale ? (
-                <div className="mt-5 border-t border-border pt-5">
-                  <dt className="text-sm font-medium text-muted-foreground">Precio mayorista</dt>
-                  <dd className="mt-1 text-lg font-semibold text-foreground">
-                    {formatCLP(wholesale.price)}
-                  </dd>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Disponible desde {wholesale.minimum} unidades.
-                  </p>
-                </div>
-              ) : null}
             </dl>
 
             <section className="mt-6" aria-labelledby="availability-title">
@@ -114,7 +99,7 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
                 También puede interesarte
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Más productos para seguir explorando la selección de JOACO RO.
+                Más productos para seguir explorando la selección de Hidro Leufú.
               </p>
             </div>
             <div className="mt-6">

@@ -4,14 +4,13 @@ import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
-import { searchAdminProducts } from "@/lib/admin-products";
-import type { MockProduct } from "@/types/product";
+import type { ProductoAdmin } from "@/lib/admin/catalogo";
 
 import { ProductListItem } from "./product-list-item";
 
-export function ProductList({ products }: { products: readonly MockProduct[] }) {
+export function ProductList({ products }: { products: readonly ProductoAdmin[] }) {
   const [query, setQuery] = useState("");
-  const filteredProducts = useMemo(() => searchAdminProducts(products, query), [products, query]);
+  const filteredProducts = useMemo(() => products.filter((product) => `${product.nombre} ${product.categoria}`.toLocaleLowerCase("es-CL").includes(query.toLocaleLowerCase("es-CL"))), [products, query]);
 
   return (
     <section aria-labelledby="product-list-title" className="space-y-5">

@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 
 import { AdminHeader } from "@/components/layout/admin-header";
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
+import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
-export default function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/iniciar-sesion");
+  const { data: perfil } = await supabase.from("perfiles").select("rol").eq("usuario_id", user.id).maybeSingle();
+  if (perfil?.rol !== "admin") redirect("/");
   return (
     <div className="flex min-h-full flex-1 bg-muted/20">
       <AdminSidebar />

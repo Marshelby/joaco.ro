@@ -1,30 +1,39 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/layout/container";
 import { CategorySelector } from "@/components/home/category-selector";
-import { Hero } from "@/components/home/hero";
 import { ProductRail } from "@/components/home/product-rail";
 import { ProductSection } from "@/components/home/product-section";
 import { SectionTitle } from "@/components/home/section-title";
-import { HOME_CATEGORIES } from "@/mocks/home";
-import { HOME_PRODUCTS } from "@/mocks/products";
+import { B2bIntro } from "@/components/home/b2b-intro";
+import { B2bBanner } from "@/components/home/b2b-banner";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { getStorefrontCategories, getStorefrontProducts } from "@/lib/storefront-catalog";
 
 export const metadata: Metadata = {
   title: "Inicio",
 };
 
-export default function HomePage() {
-  const bestSellers = HOME_PRODUCTS.filter((product) => product.bestSeller);
-  const opportunities = HOME_PRODUCTS.filter((product) => product.opportunity);
-  const newArrivals = HOME_PRODUCTS.filter((product) => product.newArrival);
+export default async function HomePage() {
+  let products;
+  let categories;
+  try {
+    [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
+  } catch {
+    return <Container className="py-10 sm:py-14"><EmptyState title="No pudimos cargar el catálogo" description="Inténtalo nuevamente en unos momentos." /></Container>;
+  }
+  const bestSellers = products.filter((product) => product.bestSeller);
+  const featured = products.filter((product) => product.featured);
+  const newArrivals = products.filter((product) => product.newArrival);
 
   return (
-    <Container className="space-y-16 py-6 sm:space-y-20 sm:py-10 lg:py-12">
-      <Hero image={{ src: "/images/hero/portada.webp", alt: "Portada de JOACO RO con su dueño, productos para el hogar y el mensaje Muy buen día, distinguida clientela." }} />
-      <ProductRail id="best-sellers-title" title="Productos destacados" description="Una selección para el hogar y el día a día." icon="best-sellers" products={bestSellers} ariaLabel="Productos destacados" />
-      <ProductRail id="opportunities-title" title="Oportunidades" description="Productos útiles a precios convenientes." icon="opportunities" products={opportunities} ariaLabel="Oportunidades de la tienda" />
-      <ProductRail id="new-arrivals-title" title="Novedades" description="Productos que se suman a la selección." icon="new-arrivals" products={newArrivals} ariaLabel="Productos nuevos" />
-      <section aria-labelledby="categories-title" className="space-y-8"><div id="categories-title"><SectionTitle eyebrow="Exploración por tipo" title="Encuentra lo que buscas" description="Explora las categorías y encuentra más rápido eso que necesitas." /></div><CategorySelector categories={HOME_CATEGORIES} /></section>
-      <ProductSection id="all-products-title" title="Todos los productos" description="Explora una selección de productos para el hogar y el día a día." products={HOME_PRODUCTS} countLabel={`${HOME_PRODUCTS.length} productos`} />
+    <Container className="space-y-12 py-4 sm:space-y-16 sm:py-8 lg:py-10">
+      <B2bBanner />
+      <B2bIntro />
+      <ProductRail id="best-sellers-title" eyebrow="Nuestra especialidad" title="Hidropónicos" description="Frescos, seleccionados y preparados para abastecer tu negocio." icon="best-sellers" products={bestSellers} ariaLabel="Productos hidropónicos destacados" />
+      <ProductRail id="opportunities-title" title="Más productos frescos" description="Encuentra productos para complementar tu pedido." icon="opportunities" products={featured} ariaLabel="Más productos frescos" />
+      <ProductRail id="new-arrivals-title" title="Recién seleccionados" description="Nuevos productos que se suman a nuestra selección." icon="new-arrivals" products={newArrivals} ariaLabel="Productos recién seleccionados" />
+      <section aria-labelledby="categories-title" className="space-y-8"><div id="categories-title"><SectionTitle eyebrow="Explora por categoría" title="Encuentra productos para cada ocasión" description="Revisa las categorías disponibles y descubre nuevos productos." /></div><CategorySelector categories={categories} /></section>
+      <ProductSection id="all-products-title" title="Catálogo completo" description="Explora la selección disponible de Hidro Leufú." products={products} countLabel={`${products.length} productos`} />
     </Container>
   );
 }

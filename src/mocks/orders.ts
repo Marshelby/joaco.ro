@@ -2,8 +2,8 @@ import type { CustomerOrderMock } from "@/types/account";
 
 export const CUSTOMER_ORDERS_MOCK = [
   {
-    id: "jr-1024",
-    number: "JR-1024",
+    id: "demo-1024",
+    number: "DEMO-1024",
     createdAt: "2026-07-20T14:30:00-04:00",
     status: "preparing",
     items: [
@@ -15,7 +15,7 @@ export const CUSTOMER_ORDERS_MOCK = [
     deliveryFee: 3030,
     total: 24990,
     deliveryMethod: "delivery",
-    deliveryDetails: { address: "Los Carrera 1245", commune: "Quilpué", region: "Región de Valparaíso", addressType: "Casa", recipientName: "Joaquín Rojas", recipientPhone: "+56 9 8765 4321" },
+    deliveryDetails: { address: "Dirección de ejemplo 1245", commune: "Comuna de ejemplo", region: "Región de ejemplo", addressType: "Casa", recipientName: "Cliente Demo", recipientPhone: "+56 9 0000 0000" },
     paymentMethod: "bank_transfer",
     paymentStatus: "paid",
     statusHistory: [
@@ -26,8 +26,8 @@ export const CUSTOMER_ORDERS_MOCK = [
     ],
   },
   {
-    id: "jr-1018",
-    number: "JR-1018",
+    id: "demo-1018",
+    number: "DEMO-1018",
     createdAt: "2026-07-12T11:20:00-04:00",
     status: "confirmed",
     items: [
@@ -41,7 +41,7 @@ export const CUSTOMER_ORDERS_MOCK = [
     deliveryFee: 4040,
     total: 38990,
     deliveryMethod: "delivery",
-    deliveryDetails: { address: "Avenida Valparaíso 680", commune: "Villa Alemana", region: "Región de Valparaíso", addressType: "Departamento", recipientName: "Joaquín Rojas", recipientPhone: "+56 9 8765 4321" },
+    deliveryDetails: { address: "Avenida de ejemplo 680", commune: "Comuna de ejemplo", region: "Región de ejemplo", addressType: "Departamento", recipientName: "Cliente Demo", recipientPhone: "+56 9 0000 0000" },
     paymentMethod: "bank_transfer",
     paymentStatus: "paid",
     statusHistory: [
@@ -51,8 +51,8 @@ export const CUSTOMER_ORDERS_MOCK = [
     ],
   },
   {
-    id: "jr-1007",
-    number: "JR-1007",
+    id: "demo-1007",
+    number: "DEMO-1007",
     createdAt: "2026-06-29T10:15:00-04:00",
     status: "delivered",
     items: [
@@ -63,7 +63,7 @@ export const CUSTOMER_ORDERS_MOCK = [
     deliveryFee: 0,
     total: 17990,
     deliveryMethod: "pickup",
-    deliveryDetails: { pickupLocation: "Punto de retiro JOACO RO", commune: "Quilpué", instructions: "Presenta el número de pedido al momento de retirar." },
+    deliveryDetails: { pickupLocation: "Punto de retiro de ejemplo", commune: "Comuna de ejemplo", instructions: "Presenta el número de pedido al momento de retirar." },
     paymentMethod: "cash",
     paymentStatus: "paid",
     statusHistory: [
@@ -75,8 +75,8 @@ export const CUSTOMER_ORDERS_MOCK = [
     ],
   },
   {
-    id: "jr-0994",
-    number: "JR-0994",
+    id: "demo-0994",
+    number: "DEMO-0994",
     createdAt: "2026-06-10T16:05:00-04:00",
     status: "cancelled",
     items: [
@@ -86,7 +86,7 @@ export const CUSTOMER_ORDERS_MOCK = [
     deliveryFee: 0,
     total: 8990,
     deliveryMethod: "delivery",
-    deliveryDetails: { address: "Los Carrera 1245", commune: "Quilpué", region: "Región de Valparaíso", addressType: "Casa", recipientName: "Joaquín Rojas", recipientPhone: "+56 9 8765 4321" },
+    deliveryDetails: { address: "Dirección de ejemplo 1245", commune: "Comuna de ejemplo", region: "Región de ejemplo", addressType: "Casa", recipientName: "Cliente Demo", recipientPhone: "+56 9 0000 0000" },
     paymentMethod: "bank_transfer",
     paymentStatus: "pending",
     statusHistory: [

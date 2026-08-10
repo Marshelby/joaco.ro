@@ -27,7 +27,7 @@ export function AccountSummary({ summary, lastOrder, primaryAddress, featuredBen
           </div>
           <div className="min-w-0">
             <h2 id="profile-title" className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{profile.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Cliente JOACO RO</p>
+            <p className="mt-1 text-sm text-muted-foreground">Cliente Hidro Leufú</p>
           </div>
         </div>
         <dl className="mt-7 grid gap-5 text-sm sm:grid-cols-3">
@@ -88,7 +88,7 @@ export function AccountSummary({ summary, lastOrder, primaryAddress, featuredBen
         <div className="flex gap-3">
           <Gift className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden="true" />
           <div>
-            <h2 id="benefit-title" className="text-lg font-semibold tracking-tight text-foreground">Beneficios JOACO RO</h2>
+            <h2 id="benefit-title" className="text-lg font-semibold tracking-tight text-foreground">Beneficios Hidro Leufú</h2>
             <p className="mt-2 font-medium text-foreground">{featuredBenefit.title}</p>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{featuredBenefit.eligibilityText}</p>
             <Link href={ROUTES.accountBenefits} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary outline-none transition-colors hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50">

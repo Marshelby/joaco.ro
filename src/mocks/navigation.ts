@@ -4,11 +4,10 @@ import type { NavigationItem } from "@/types/navigation";
 export const PUBLIC_NAVIGATION = [
   { label: "Inicio", href: ROUTES.home, icon: "home" },
   { label: "Catálogo", href: ROUTES.catalog, icon: "catalog" },
-  { label: "Administrador", href: ROUTES.admin, icon: "settings" },
 ] as const satisfies readonly NavigationItem[];
 
 export const PUBLIC_ACCOUNT_NAVIGATION = [
-  { label: "Mi cuenta", href: ROUTES.account, icon: "account" },
+  { label: "Acceso clientes", href: "/iniciar-sesion", icon: "account" },
 ] as const satisfies readonly NavigationItem[];
 
 export const CUSTOMER_NAVIGATION = [

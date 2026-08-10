@@ -3,26 +3,26 @@ import type { HomeSectionMock } from "@/types/home-section";
 export const ADMIN_HOME_SECTIONS_MOCK: readonly HomeSectionMock[] = [
   {
     id: "featured",
-    title: "Productos destacados",
-    description: "Una selección editorial para recibir a quienes visitan la tienda.",
-    productIds: ["mock-sarten-24", "mock-termo-uno-litro", "mock-cobertor-liviano", "mock-almohada-confort", "mock-lampara-solar", "mock-organizador-modular"],
+    title: "Frescos de Hidro Leufú",
+    description: "Una selección prioritaria de productos hidropónicos.",
+    productIds: ["prod-lechuga-hidroponica", "prod-flores-comestibles-50-und", "prod-microgreens-50-gr", "prod-albahaca-en-rama", "prod-ciboulette-75-gr", "prod-berro-hidroponico", "prod-rucula", "prod-tomate-cherry"],
   },
   {
     id: "best-sellers",
-    title: "Lo más vendido",
-    description: "Un escaparate editorial con productos que quieres destacar.",
-    productIds: ["mock-sarten-24", "mock-termo-uno-litro", "mock-cobertor-liviano", "mock-almohada-confort", "mock-set-limpieza", "mock-cama-mascota"],
+    title: "Productos destacados",
+    description: "Productos seleccionados para la vitrina principal.",
+    productIds: ["prod-lechuga-hidroponica", "prod-flores-comestibles-50-und", "prod-microgreens-50-gr", "prod-albahaca-en-rama", "prod-berro-hidroponico", "prod-rucula"],
   },
   {
     id: "opportunities",
-    title: "Oportunidades",
-    description: "Productos seleccionados manualmente para esta vitrina.",
-    productIds: ["mock-sarten-24", "mock-almohada-confort", "mock-lampara-solar", "mock-organizador-modular", "mock-set-limpieza", "mock-set-contenedores"],
+    title: "Más productos frescos",
+    description: "Productos seleccionados manualmente para complementar la vitrina.",
+    productIds: ["prod-brocoli", "prod-pimenton-rojo-primera", "prod-palta-peruana-1ra", "prod-naranja", "prod-tomate-primera", "prod-cilantro", "prod-saco-papa-lavada-25-kg"],
   },
   {
     id: "new-arrivals",
-    title: "Novedades",
-    description: "Productos que quieres presentar como una selección reciente.",
-    productIds: ["mock-lampara-solar", "mock-juego-bloques", "mock-set-contenedores", "mock-set-herramientas", "mock-cama-mascota"],
+    title: "Recién seleccionados",
+    description: "Productos que se suman a la selección disponible.",
+    productIds: ["prod-apio", "prod-tomate-primera", "prod-aji-amarillo", "prod-platano-macho", "prod-tomate-primera-caja-17-kg"],
   },
 ];

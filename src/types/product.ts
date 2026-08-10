@@ -7,6 +7,8 @@ export type ProductAvailability =
 
 export type ProductVisibilityStatus = "active" | "hidden";
 
+export type ProductSaleUnit = "kg" | "unit" | "sack" | "dozen" | "100g";
+
 export type MockProduct = {
   id: string;
   name: string;
@@ -17,9 +19,9 @@ export type MockProduct = {
   category: string;
   subcategory?: string;
   description: string;
+  netPrice: number;
   unitPrice: number;
-  wholesalePrice?: number;
-  wholesaleMinimum?: number;
+  saleUnit: ProductSaleUnit;
   badge?: string;
   availability: ProductAvailability;
   adminStatus: ProductVisibilityStatus;

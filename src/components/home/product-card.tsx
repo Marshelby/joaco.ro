@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CatalogImage } from "@/components/media/catalog-image";
+import { CartProductAction } from "@/components/cart/cart-product-action";
 import { ROUTES } from "@/config/routes";
 import { formatCLP } from "@/lib/formatters";
 import { getProductAvailabilityContent, getProductSaleUnitLabel } from "@/lib/products";
@@ -14,7 +15,8 @@ type ProductCardProps = {
 export function ProductCard({ product, variant = "grid" }: ProductCardProps) {
   return (
     <article className="h-full">
-      <Link href={ROUTES.product(product.slug)} aria-label={`Ver ${product.name}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card outline-none transition duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transform-none motion-reduce:transition-none">
+      <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card transition duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
+        <Link href={ROUTES.product(product.slug)} aria-label={`Ver ${product.name}`} className="flex flex-1 flex-col rounded-t-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <div className={variant === "rail" ? "relative aspect-[4/3] min-h-[190px] overflow-hidden bg-white p-1.5" : "relative aspect-[4/3] overflow-hidden bg-white p-1.5"}>
           <CatalogImage
             image={product.image}
@@ -35,7 +37,9 @@ export function ProductCard({ product, variant = "grid" }: ProductCardProps) {
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{getProductSaleUnitLabel(product.saleUnit)}</p>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">{getProductAvailabilityContent(product.availability).label}</p>
         </div>
-      </Link>
+        </Link>
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5"><CartProductAction product={product} className="w-full" /></div>
+      </div>
     </article>
   );
 }

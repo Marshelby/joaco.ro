@@ -1,4 +1,5 @@
 import { AccountTrigger } from "@/components/navigation/account-trigger";
+import { CartTrigger } from "@/components/navigation/cart-trigger";
 import { MainNavigation } from "@/components/navigation/main-navigation";
 import { MobileNavigation } from "@/components/navigation/mobile-navigation";
 import { Container } from "@/components/layout/container";
@@ -15,6 +16,7 @@ export function PublicHeader() {
         <MainNavigation />
         <div className="ml-auto flex items-center gap-1">
           <AccountTrigger />
+          <CartTrigger />
           <MobileNavigation items={mobileItems} label="Navegación principal" title="Navegación" className="md:hidden" />
         </div>
       </Container>

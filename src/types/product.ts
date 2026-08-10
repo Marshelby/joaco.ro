@@ -22,6 +22,10 @@ export type MockProduct = {
   netPrice: number;
   unitPrice: number;
   saleUnit: ProductSaleUnit;
+  presentationId?: string;
+  presentationName?: string;
+  presentationQuantity?: number;
+  presentationUnit?: string;
   badge?: string;
   availability: ProductAvailability;
   adminStatus: ProductVisibilityStatus;

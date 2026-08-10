@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ProductGrid } from "@/components/home/product-grid";
+import { CartProductAction } from "@/components/cart/cart-product-action";
 import { Container } from "@/components/layout/container";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { ProductMedia } from "@/components/product/product-media";
@@ -69,6 +70,8 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
                 {availability.description}
               </p>
             </section>
+
+            <CartProductAction product={product} className="mt-6 w-full sm:w-auto" />
 
             <section className="mt-7 rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="purchase-process-title">
               <h2 id="purchase-process-title" className="text-base font-semibold text-foreground">

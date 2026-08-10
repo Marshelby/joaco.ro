@@ -17,6 +17,7 @@ type CatalogRow = {
   orden: number;
   categorias: { nombre: string; slug: string } | null;
   presentaciones_producto: Array<{
+    id: string;
     nombre: string;
     cantidad: number | string;
     unidad: string;
@@ -69,6 +70,10 @@ export function mapStorefrontProduct(row: CatalogRow): MockProduct | null {
     netPrice: Number(presentation.precio_neto),
     unitPrice: Number(presentation.precio_final),
     saleUnit: getSaleUnit(presentation),
+    presentationId: presentation.id,
+    presentationName: presentation.nombre,
+    presentationQuantity: Number(presentation.cantidad),
+    presentationUnit: presentation.unidad,
     badge: row.nuevo ? "Nuevo" : row.destacado ? "Destacado" : undefined,
     availability: row.disponible ? "available_subject_to_confirmation" : "out_of_stock",
     adminStatus: row.activo ? "active" : "hidden",
@@ -83,7 +88,7 @@ async function queryProducts(options?: { slug?: string; onlyAvailable?: boolean 
   const supabase = await crearClienteSupabaseServidor();
   let query = supabase
     .from("productos")
-    .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias(nombre,slug),presentaciones_producto(nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
+    .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias(nombre,slug),presentaciones_producto(id,nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
     .eq("activo", true)
     .order("orden");
   if (options?.onlyAvailable) query = query.eq("disponible", true);

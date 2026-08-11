@@ -35,10 +35,19 @@ function cartReducer(state: CartState, action: CartAction): CartState {
   return { items: state.items.filter((item) => !sameItem(item, action.productoId, action.presentacionId)) };
 }
 
-function isCartItem(value: unknown): value is CartItem {
+type StoredCartItem = Omit<CartItem, "cantidad"> & { cantidad?: number };
+
+function isStoredCartItem(value: unknown): value is StoredCartItem {
   if (!value || typeof value !== "object") return false;
-  const item = value as Partial<CartItem>;
-  return typeof item.productoId === "string" && typeof item.slug === "string" && typeof item.presentacionId === "string" && typeof item.nombre === "string" && typeof item.presentacionNombre === "string" && typeof item.unidad === "string" && typeof item.imageFallback === "string" && Number.isInteger(item.cantidad) && item.cantidad > 0 && typeof item.cantidadPresentacion === "number" && Number.isFinite(item.precioFinalReferencia);
+  const item = value as Partial<StoredCartItem>;
+  return typeof item.productoId === "string" && typeof item.slug === "string" && typeof item.presentacionId === "string" && typeof item.nombre === "string" && typeof item.presentacionNombre === "string" && typeof item.unidad === "string" && typeof item.imageFallback === "string" && typeof item.cantidadPresentacion === "number" && Number.isFinite(item.cantidadPresentacion) && typeof item.precioFinalReferencia === "number" && Number.isFinite(item.precioFinalReferencia);
+}
+
+function normalizeCartItem(value: unknown): CartItem | null {
+  if (!isStoredCartItem(value)) return null;
+  const cantidad = value.cantidad ?? 1;
+  if (!Number.isInteger(cantidad) || cantidad <= 0) return null;
+  return { ...value, cantidad };
 }
 
 type CartContextValue = {
@@ -63,7 +72,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]");
-      if (Array.isArray(parsed)) dispatch({ type: "hydrate", items: parsed.filter(isCartItem) });
+      if (Array.isArray(parsed)) dispatch({ type: "hydrate", items: parsed.flatMap((item) => {
+        const normalizado = normalizeCartItem(item);
+        return normalizado ? [normalizado] : [];
+      }) });
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
     } finally {

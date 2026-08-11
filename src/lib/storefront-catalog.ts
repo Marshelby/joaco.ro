@@ -45,17 +45,24 @@ function getImageAlt(name: string) {
 function getSaleUnit(presentation: CatalogRow["presentaciones_producto"][number]): ProductSaleUnit {
   const unit = presentation.unidad.toUpperCase();
   const quantity = Number(presentation.cantidad);
-  if (presentation.nombre.toLocaleLowerCase("es-CL").includes("docena")) return "dozen";
-  if (presentation.nombre.toLocaleLowerCase("es-CL").includes("saco")) return "sack";
+  const name = presentation.nombre.trim().toLocaleLowerCase("es-CL");
+  const displayUnit = unit === "UND" ? "und" : unit.toLocaleLowerCase("es-CL");
+
+  if (name.includes("docena")) return "presentation:docena";
+  for (const format of ["paquete", "malla", "saco", "caja"] as const) {
+    if (!name.includes(format)) continue;
+    if (quantity === 1 && unit === "UND") return `presentation:${format}`;
+    return `presentation:${format} ${quantity} ${displayUnit}`;
+  }
   if (unit === "KG") return "kg";
-  if (unit === "GR" && quantity === 100) return "100g";
+  if (unit === "UND" && quantity === 1) return "unit";
+  if (unit === "GR" && quantity === 100) return "presentation:100 gr";
+  if (quantity !== 1) return `presentation:${quantity} ${displayUnit}`;
   return "unit";
 }
 
 export function mapStorefrontProduct(row: CatalogRow): MockProduct | null {
-  const presentation = row.presentaciones_producto
-    .filter((item) => item.activa)
-    .sort((a, b) => Number(b.es_principal) - Number(a.es_principal) || a.orden - b.orden)[0];
+  const presentation = row.presentaciones_producto[0];
   const category = row.categorias;
   if (!presentation || !category) return null;
 
@@ -84,14 +91,17 @@ export function mapStorefrontProduct(row: CatalogRow): MockProduct | null {
   };
 }
 
-async function queryProducts(options?: { slug?: string; onlyAvailable?: boolean }) {
+async function queryProducts(options?: { slug?: string }) {
   const supabase = await crearClienteSupabaseServidor();
   let query = supabase
     .from("productos")
-    .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias(nombre,slug),presentaciones_producto(id,nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
+    .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias!inner(nombre,slug,descripcion,activa,orden),presentaciones_producto!inner(id,nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
     .eq("activo", true)
+    .eq("disponible", true)
+    .eq("categorias.activa", true)
+    .eq("presentaciones_producto.activa", true)
+    .eq("presentaciones_producto.es_principal", true)
     .order("orden");
-  if (options?.onlyAvailable) query = query.eq("disponible", true);
   if (options?.slug) query = query.eq("slug", options.slug);
   const { data, error } = await query;
   if (error) throw new Error("No fue posible cargar el catálogo.");
@@ -99,7 +109,7 @@ async function queryProducts(options?: { slug?: string; onlyAvailable?: boolean 
 }
 
 export async function getStorefrontProducts() {
-  return queryProducts({ onlyAvailable: true });
+  return queryProducts();
 }
 
 export async function getStorefrontProduct(slug: string) {

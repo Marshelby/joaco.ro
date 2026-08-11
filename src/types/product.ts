@@ -7,7 +7,13 @@ export type ProductAvailability =
 
 export type ProductVisibilityStatus = "active" | "hidden";
 
-export type ProductSaleUnit = "kg" | "unit" | "sack" | "dozen" | "100g";
+export type ProductSaleUnit =
+  | "kg"
+  | "unit"
+  | "sack"
+  | "dozen"
+  | "100g"
+  | `presentation:${string}`;
 
 export type MockProduct = {
   id: string;

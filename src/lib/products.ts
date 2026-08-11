@@ -9,6 +9,7 @@ const saleUnitLabels: Record<ProductSaleUnit, string> = {
 };
 
 export function getProductSaleUnitLabel(unit: ProductSaleUnit) {
+  if (unit.startsWith("presentation:")) return unit.slice("presentation:".length);
   return saleUnitLabels[unit];
 }
 

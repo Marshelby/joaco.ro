@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { FloatingCartButton } from "@/components/cart/floating-cart-button";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicHeader } from "@/components/layout/public-header";
@@ -10,6 +11,7 @@ export default function PublicLayout({ children }: Readonly<{ children: ReactNod
       <PublicHeader />
       <main id="main-content" tabIndex={-1} className="flex-1 outline-none">{children}</main>
       <PublicFooter />
+      <FloatingCartButton />
     </div></CartProvider>
   );
 }

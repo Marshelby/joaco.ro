@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
 
+import { getCartLineSubtotal, getCartQuantityStep, isValidCartQuantity } from "@/lib/cart-quantity";
 import type { CartItem, CartProductInput } from "@/types/cart";
 
 const STORAGE_KEY = "hidro-leufu-cart-v1";
@@ -9,9 +10,10 @@ const STORAGE_KEY = "hidro-leufu-cart-v1";
 type CartState = { items: CartItem[] };
 type CartAction =
   | { type: "hydrate"; items: CartItem[] }
-  | { type: "add"; item: CartProductInput }
+  | { type: "add"; item: CartProductInput; cantidad?: number }
   | { type: "increment"; productoId: string; presentacionId: string }
   | { type: "decrement"; productoId: string; presentacionId: string }
+  | { type: "set-quantity"; productoId: string; presentacionId: string; cantidad: number }
   | { type: "remove"; productoId: string; presentacionId: string }
   | { type: "clear" };
 
@@ -27,11 +29,32 @@ function cartReducer(state: CartState, action: CartAction): CartState {
   if (action.type === "add") {
     const existing = state.items.find((item) => sameItem(item, action.item.productoId, action.item.presentacionId));
     return existing
-      ? { items: state.items.map((item) => sameItem(item, action.item.productoId, action.item.presentacionId) ? { ...item, cantidad: item.cantidad + 1 } : item) }
-      : { items: [...state.items, { ...action.item, cantidad: 1 }] };
+      ? { items: state.items.map((item) => {
+        if (!sameItem(item, action.item.productoId, action.item.presentacionId)) return item;
+        if (action.cantidad !== undefined) {
+          return isValidCartQuantity(item, action.cantidad) ? { ...item, cantidad: action.cantidad } : item;
+        }
+        const nextQuantity = item.cantidad + getCartQuantityStep(item);
+        return isValidCartQuantity(item, nextQuantity) ? { ...item, cantidad: nextQuantity } : item;
+      }) }
+      : isValidCartQuantity(action.item, action.cantidad ?? 1)
+        ? { items: [...state.items, { ...action.item, cantidad: action.cantidad ?? 1 }] }
+        : state;
   }
-  if (action.type === "increment") return { items: state.items.map((item) => sameItem(item, action.productoId, action.presentacionId) ? { ...item, cantidad: item.cantidad + 1 } : item) };
-  if (action.type === "decrement") return { items: state.items.flatMap((item) => !sameItem(item, action.productoId, action.presentacionId) ? [item] : item.cantidad > 1 ? [{ ...item, cantidad: item.cantidad - 1 }] : []) };
+  if (action.type === "increment") return { items: state.items.map((item) => {
+    if (!sameItem(item, action.productoId, action.presentacionId)) return item;
+    const nextQuantity = item.cantidad + getCartQuantityStep(item);
+    return isValidCartQuantity(item, nextQuantity) ? { ...item, cantidad: nextQuantity } : item;
+  }) };
+  if (action.type === "decrement") return { items: state.items.flatMap((item) => {
+    if (!sameItem(item, action.productoId, action.presentacionId)) return [item];
+    const nextQuantity = item.cantidad - getCartQuantityStep(item);
+    return isValidCartQuantity(item, nextQuantity) ? [{ ...item, cantidad: nextQuantity }] : [];
+  }) };
+  if (action.type === "set-quantity") return { items: state.items.map((item) => {
+    if (!sameItem(item, action.productoId, action.presentacionId)) return item;
+    return isValidCartQuantity(item, action.cantidad) ? { ...item, cantidad: action.cantidad } : item;
+  }) };
   return { items: state.items.filter((item) => !sameItem(item, action.productoId, action.presentacionId)) };
 }
 
@@ -46,18 +69,20 @@ function isStoredCartItem(value: unknown): value is StoredCartItem {
 function normalizeCartItem(value: unknown): CartItem | null {
   if (!isStoredCartItem(value)) return null;
   const cantidad = value.cantidad ?? 1;
-  if (!Number.isInteger(cantidad) || cantidad <= 0) return null;
+  if (!isValidCartQuantity(value, cantidad)) return null;
   return { ...value, cantidad };
 }
 
 type CartContextValue = {
   items: CartItem[];
   cantidadTotal: number;
+  numeroItems: number;
   totalEstimado: number;
   isHydrated: boolean;
-  agregarItem: (item: CartProductInput) => void;
+  agregarItem: (item: CartProductInput, cantidadInicial?: number) => void;
   incrementar: (productoId: string, presentacionId: string) => void;
   disminuir: (productoId: string, presentacionId: string) => void;
+  setQuantity: (productoId: string, presentacionId: string, cantidad: number) => void;
   eliminar: (productoId: string, presentacionId: string) => void;
   vaciar: () => void;
   obtenerCantidad: (productoId: string, presentacionId: string) => number;
@@ -90,11 +115,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartContextValue>(() => ({
     items: state.items,
     cantidadTotal: state.items.reduce((total, item) => total + item.cantidad, 0),
-    totalEstimado: state.items.reduce((total, item) => total + item.cantidad * item.precioFinalReferencia, 0),
+    numeroItems: state.items.length,
+    totalEstimado: state.items.reduce((total, item) => total + getCartLineSubtotal(item), 0),
     isHydrated,
-    agregarItem: (item) => dispatch({ type: "add", item }),
+    agregarItem: (item, cantidadInicial) => dispatch({ type: "add", item, cantidad: cantidadInicial }),
     incrementar: (productoId, presentacionId) => dispatch({ type: "increment", productoId, presentacionId }),
     disminuir: (productoId, presentacionId) => dispatch({ type: "decrement", productoId, presentacionId }),
+    setQuantity: (productoId, presentacionId, cantidad) => dispatch({ type: "set-quantity", productoId, presentacionId, cantidad }),
     eliminar: (productoId, presentacionId) => dispatch({ type: "remove", productoId, presentacionId }),
     vaciar: () => dispatch({ type: "clear" }),
     obtenerCantidad: (productoId, presentacionId) => state.items.find((item) => sameItem(item, productoId, presentacionId))?.cantidad ?? 0,

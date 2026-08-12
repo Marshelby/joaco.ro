@@ -1,19 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 
+import { CartLineItem } from "@/components/cart/cart-line-item";
 import { useCart } from "@/components/cart/cart-provider";
-import { CatalogImage } from "@/components/media/catalog-image";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/config/routes";
 import { formatCLP } from "@/lib/formatters";
 
 export function CartPageContent() {
-  const { items, totalEstimado, isHydrated, incrementar, disminuir, eliminar, vaciar } = useCart();
+  const { items, totalEstimado, isHydrated, vaciar } = useCart();
 
   if (!isHydrated) return <p className="text-sm text-muted-foreground">Cargando tu pedido…</p>;
-  if (items.length === 0) return <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center sm:p-12"><ShoppingCart className="mx-auto size-7 text-muted-foreground" aria-hidden="true" /><h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Tu pedido está vacío</h1><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Agrega productos del catálogo para comenzar.</p><Button render={<Link href={ROUTES.catalog} />} className="mt-6">Ver catálogo</Button></section>;
 
-  return <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"><section><h1 className="text-3xl font-semibold tracking-tight text-foreground">Tu pedido</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">Revisa los productos antes de continuar.</p><div className="mt-6 divide-y divide-border rounded-2xl border border-border bg-card">{items.map((item) => <article key={`${item.productoId}:${item.presentacionId}`} className="grid gap-4 p-4 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-center sm:p-5"><div className="relative aspect-square overflow-hidden rounded-xl bg-white"><CatalogImage image={item.rutaImagen ? { src: item.rutaImagen, alt: item.altImagen ?? `Fotografía de ${item.nombre}`, fit: "contain" } : undefined} fallback={item.imageFallback} sizes="96px" /></div><div className="min-w-0"><h2 className="font-semibold text-foreground">{item.nombre}</h2><p className="mt-1 text-sm text-muted-foreground">{item.presentacionNombre}</p><p className="mt-2 text-sm font-medium text-foreground">{formatCLP(item.precioFinalReferencia)} <span className="font-normal text-muted-foreground">por presentación</span></p><div className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border"><Button type="button" variant="ghost" size="icon" onClick={() => disminuir(item.productoId, item.presentacionId)} aria-label={`Disminuir cantidad de ${item.nombre}`}><Minus aria-hidden="true" /></Button><span className="min-w-9 text-center text-sm font-semibold">{item.cantidad}</span><Button type="button" variant="ghost" size="icon" onClick={() => incrementar(item.productoId, item.presentacionId)} aria-label={`Aumentar cantidad de ${item.nombre}`}><Plus aria-hidden="true" /></Button></div></div><div className="flex items-end justify-between gap-4 sm:flex-col sm:items-end"><Button type="button" variant="ghost" size="icon" onClick={() => eliminar(item.productoId, item.presentacionId)} aria-label={`Eliminar ${item.nombre} del carrito`}><Trash2 className="text-destructive" aria-hidden="true" /></Button><div className="text-right"><p className="text-xs text-muted-foreground">Subtotal</p><p className="mt-1 font-semibold text-foreground">{formatCLP(item.cantidad * item.precioFinalReferencia)}</p></div></div></article>)}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><Button render={<Link href={ROUTES.catalog} />} variant="outline">Seguir viendo productos</Button><Button type="button" variant="ghost" onClick={vaciar}>Vaciar pedido</Button></div></section><aside className="rounded-2xl border border-border bg-card p-5 sm:p-6 lg:sticky lg:top-6"><h2 className="text-lg font-semibold text-foreground">Resumen</h2><div className="mt-5 flex items-end justify-between gap-4 border-y border-border py-4"><span className="text-sm font-medium text-muted-foreground">Total estimado</span><strong className="text-2xl tracking-tight text-foreground">{formatCLP(totalEstimado)}</strong></div><p className="mt-3 text-xs leading-5 text-muted-foreground">El total es referencial. Precio y disponibilidad se validarán antes de crear un pedido.</p><Button type="button" disabled className="mt-5 w-full">Continuar pedido</Button><p className="mt-2 text-center text-xs text-muted-foreground">Datos de entrega — siguiente paso</p></aside></div>;
+  if (items.length === 0) {
+    return (
+      <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center sm:p-12">
+        <ShoppingCart className="mx-auto size-7 text-muted-foreground" aria-hidden="true" />
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Tu carrito está vacío</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Agrega productos del catálogo para comenzar.</p>
+        <Button render={<Link href={ROUTES.catalog} />} className="mt-6">Ver catálogo</Button>
+      </section>
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
+      <section>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tu pedido</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Revisa los productos antes de continuar.</p>
+
+        <div className="mt-5 divide-y divide-border rounded-2xl border border-border bg-card">
+          {items.map((item) => <CartLineItem key={`${item.productoId}:${item.presentacionId}`} item={item} />)}
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <Button render={<Link href={ROUTES.catalog} />} variant="outline">Seguir viendo productos</Button>
+          <Button type="button" variant="ghost" onClick={vaciar}>Vaciar pedido</Button>
+        </div>
+      </section>
+
+      <aside className="rounded-2xl border border-border bg-card p-5 sm:p-6 lg:sticky lg:top-6">
+        <h2 className="text-lg font-semibold text-foreground">Resumen</h2>
+        <div className="mt-5 flex items-end justify-between gap-4 border-y border-border py-4">
+          <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
+          <strong className="text-2xl tracking-tight text-foreground">{formatCLP(totalEstimado)}</strong>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">El total es referencial. Precio y disponibilidad se validarán antes de crear un pedido.</p>
+        <Button type="button" disabled className="mt-5 w-full">Continuar pedido</Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">Datos de entrega — siguiente paso</p>
+      </aside>
+    </div>
+  );
 }

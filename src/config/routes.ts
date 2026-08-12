@@ -3,7 +3,7 @@ export const ROUTES = {
   catalog: "/catalogo",
   cart: "/carrito",
   checkout: "/checkout",
-  orderConfirmation: "/pedido/confirmacion",
+  orderConfirmation: (id: string) => `/pedido/confirmacion/${id}`,
   account: "/mi-cuenta",
   accountOrders: "/mi-cuenta/pedidos",
   accountAddresses: "/mi-cuenta/direcciones",

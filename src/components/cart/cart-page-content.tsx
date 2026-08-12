@@ -48,8 +48,8 @@ export function CartPageContent() {
           <strong className="text-2xl tracking-tight text-foreground">{formatCLP(totalEstimado)}</strong>
         </div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">El total es referencial. Precio y disponibilidad se validarán antes de crear un pedido.</p>
-        <Button type="button" disabled className="mt-5 w-full">Continuar pedido</Button>
-        <p className="mt-2 text-center text-xs text-muted-foreground">Datos de entrega — siguiente paso</p>
+        <Button render={<Link href={ROUTES.checkout} />} className="mt-5 w-full">Continuar pedido</Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">Revisa tus datos antes de confirmar.</p>
       </aside>
     </div>
   );

@@ -24,7 +24,7 @@ export function B2bBanner() {
       <picture>
         <source media="(min-width: 768px)" srcSet={desktopSrcSet} sizes={common.sizes} />
         <source media="(max-width: 767px)" srcSet={mobileSrcSet} sizes={common.sizes} />
-        <img {...mobileImageProps} className="h-auto w-full rounded-2xl border border-border/70 shadow-sm" />
+        <img {...mobileImageProps} alt={common.alt} className="h-auto w-full rounded-2xl border border-border/70 shadow-sm" />
       </picture>
     </section>
   );

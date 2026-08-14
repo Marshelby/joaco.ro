@@ -7,7 +7,7 @@ export const PUBLIC_NAVIGATION = [
 ] as const satisfies readonly NavigationItem[];
 
 export const PUBLIC_ACCOUNT_NAVIGATION = [
-  { label: "Acceso clientes", href: "/iniciar-sesion", icon: "account" },
+  { label: "Iniciar sesión", href: "/iniciar-sesion", icon: "account" },
 ] as const satisfies readonly NavigationItem[];
 
 export const CUSTOMER_NAVIGATION = [

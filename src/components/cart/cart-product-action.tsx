@@ -64,6 +64,12 @@ export function CartProductAction({ product, className }: { product: MockProduct
     setConfirmationMessage(`Cantidad de ${product.name} confirmada`);
   };
 
+  const cancelDraft = () => {
+    setEditingMode(null);
+    setDraftQuantity(null);
+    setConfirmationMessage("");
+  };
+
   if (isEditing) {
     return (
       <div className={`space-y-2 ${className ?? ""}`}>
@@ -77,6 +83,7 @@ export function CartProductAction({ product, className }: { product: MockProduct
           <strong className="text-foreground">{formatCLP(draftSubtotal)}</strong>
         </div>
         <Button type="button" variant="secondary" className="w-full" onClick={confirmDraft} aria-label={`Confirmar cantidad de ${product.name}`}>Listo</Button>
+        <Button type="button" variant="ghost" className="w-full" onClick={cancelDraft}>Cancelar</Button>
       </div>
     );
   }

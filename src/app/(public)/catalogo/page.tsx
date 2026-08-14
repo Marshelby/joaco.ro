@@ -15,17 +15,16 @@ type CatalogPageProps = {
 };
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  let categories: string[];
-  let products;
+  let catalog: { categories: string[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> } | null = null;
   try {
     const [storefrontProducts, storefrontCategories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
-    categories = storefrontCategories.map((category) => category.name);
+    const categories = storefrontCategories.map((category) => category.name);
     const filters = parseCatalogFilters(await searchParams, categories);
-    products = sortCatalogProducts(filterCatalogProducts(storefrontProducts, filters), filters.sort);
-    return <CatalogContent categories={categories} filters={filters} products={products} />;
-  } catch {
-    return <Container className="py-10 sm:py-14"><PageHeader eyebrow="Selección fresca" title="Catálogo" description="No pudimos cargar el catálogo. Inténtalo nuevamente en unos momentos." /></Container>;
-  }
+    catalog = { categories, filters, products: sortCatalogProducts(filterCatalogProducts(storefrontProducts, filters), filters.sort) };
+  } catch {}
+
+  if (!catalog) return <Container className="py-10 sm:py-14"><PageHeader eyebrow="Selección fresca" title="Catálogo" description="No pudimos cargar el catálogo. Inténtalo nuevamente en unos momentos." /></Container>;
+  return <CatalogContent {...catalog} />;
 }
 
 function CatalogContent({ categories, filters, products }: { categories: string[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> }) {

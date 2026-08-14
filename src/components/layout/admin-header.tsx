@@ -1,4 +1,3 @@
-import { AdminNavigation } from "@/components/navigation/admin-navigation";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { MobileNavigation } from "@/components/navigation/mobile-navigation";
 import { Logo } from "@/components/shared/logo";

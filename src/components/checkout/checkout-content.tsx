@@ -14,16 +14,11 @@ import { formatCLP } from "@/lib/formatters";
 type DireccionCheckout = { id: string; nombre: string | null; direccion: string; comuna: string; region: string; referencia: string | null };
 type ClienteCheckout = { nombre: string; telefono: string | null; email: string | null };
 
-export function CheckoutContent({ cliente, direcciones, tieneSesion }: { cliente: ClienteCheckout | null; direcciones: readonly DireccionCheckout[]; tieneSesion: boolean }) {
+export function CheckoutContent({ claveIdempotencia, cliente, direcciones, tieneSesion }: { claveIdempotencia: string; cliente: ClienteCheckout | null; direcciones: readonly DireccionCheckout[]; tieneSesion: boolean }) {
   const router = useRouter();
   const { items, totalEstimado, isHydrated, vaciar } = useCart();
   const [direccionClienteId, setDireccionClienteId] = useState(direcciones[0]?.id ?? "");
-  const [claveIdempotencia, setClaveIdempotencia] = useState("");
   const [estado, accion, pendiente] = useActionState(crearPedidoCheckout, {});
-
-  useEffect(() => {
-    setClaveIdempotencia(globalThis.crypto.randomUUID());
-  }, []);
 
   useEffect(() => {
     if (!estado.pedidoId) return;

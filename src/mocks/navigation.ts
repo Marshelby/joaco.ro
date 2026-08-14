@@ -21,6 +21,7 @@ export const ADMIN_NAVIGATION = [
   { label: "Dashboard", href: ROUTES.admin, icon: "home" },
   { label: "Productos", href: ROUTES.adminProducts, icon: "box" },
   { label: "Categorías", href: ROUTES.adminCategories, icon: "category" },
+  { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
   { label: "Secciones Inicio", href: ROUTES.adminHomeSections, icon: "catalog" },
   { label: "Configuración", href: ROUTES.adminSettings, icon: "settings" },

@@ -46,6 +46,10 @@ export function formatCartQuantity(item: CartQuantityItem, cantidad: number) {
   return isFractionalKgItem(item) ? `${cantidad} kg` : String(cantidad);
 }
 
+export function getSubtotalParaCantidad(cantidad: number, precioFinalReferencia: number) {
+  return Math.round(cantidad * precioFinalReferencia);
+}
+
 export function getCartLineSubtotal(item: Pick<CartItem, "cantidad" | "precioFinalReferencia">) {
-  return Math.round(item.cantidad * item.precioFinalReferencia);
+  return getSubtotalParaCantidad(item.cantidad, item.precioFinalReferencia);
 }

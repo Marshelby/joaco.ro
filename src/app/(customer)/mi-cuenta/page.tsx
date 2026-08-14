@@ -1,31 +1,28 @@
 import type { Metadata } from "next";
 
-import { AccountSummary } from "@/components/account/account-summary";
+import { CustomerProfileForm } from "@/components/account/customer-profile-form";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { getPrimaryCustomerAddress } from "@/lib/addresses";
-import { getFeaturedCustomerBenefit } from "@/lib/benefits";
-import { sortCustomerOrdersNewestFirst } from "@/lib/orders";
 import { PageHeader } from "@/components/shared/page-header";
-import { ACCOUNT_SUMMARY_MOCK } from "@/mocks/account";
-import { CUSTOMER_ADDRESSES_MOCK } from "@/mocks/addresses";
-import { CUSTOMER_BENEFITS_MOCK } from "@/mocks/benefits";
-import { CUSTOMER_ORDERS_MOCK } from "@/mocks/orders";
+import { ActionLink } from "@/components/ui/action-link";
+import { ROUTES } from "@/config/routes";
+import { obtenerClienteActual, obtenerIdentidadActual } from "@/lib/account/identity";
 
 export const metadata: Metadata = { title: "Mi cuenta" };
 
-export default function AccountPage() {
-  const [lastOrder] = sortCustomerOrdersNewestFirst(CUSTOMER_ORDERS_MOCK);
-  const primaryAddress = getPrimaryCustomerAddress(CUSTOMER_ADDRESSES_MOCK);
-  const featuredBenefit = getFeaturedCustomerBenefit(CUSTOMER_BENEFITS_MOCK);
+export default async function AccountPage() {
+  const [identidad, cliente] = await Promise.all([obtenerIdentidadActual(), obtenerClienteActual()]);
+  if (!identidad) return null;
 
-  if (!lastOrder || !primaryAddress || !featuredBenefit) {
-    return <EmptyState title="No pudimos mostrar toda tu información" description="Inténtalo nuevamente más tarde." />;
+  if (identidad.rol === "admin") {
+    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="Sesión administrativa de Hidro Leufú." actions={<ActionLink href={ROUTES.admin}>Ir a administración</ActionLink>} /><section className="rounded-xl border border-border bg-card p-5 sm:p-6"><p className="text-sm text-muted-foreground">Identidad</p><p className="mt-1 break-all text-lg font-semibold text-foreground">{identidad.nombreMostrado}</p><p className="mt-4 text-sm text-muted-foreground">Rol</p><p className="mt-1 font-medium text-foreground">Administrador</p></section></div>;
   }
+
+  if (!cliente) return <EmptyState title="No tienes una cuenta de cliente activa" description="Comunícate con Hidro Leufú para revisar tu acceso." />;
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Mi cuenta" description="Revisa tu pedido más reciente, tus direcciones y beneficios." />
-      <AccountSummary summary={ACCOUNT_SUMMARY_MOCK} lastOrder={lastOrder} primaryAddress={primaryAddress} featuredBenefit={featuredBenefit} />
+      <PageHeader title="Mi cuenta" description="Revisa y actualiza tus datos de contacto." />
+      <CustomerProfileForm nombre={cliente.nombre} telefono={cliente.telefono} email={cliente.email ?? identidad.email} />
     </div>
   );
 }

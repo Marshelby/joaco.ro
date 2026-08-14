@@ -2,18 +2,25 @@ import type { Metadata } from "next";
 import { ROUTES } from "@/config/routes";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
+import { notFound } from "next/navigation";
+import { CustomerAddressForm, type DireccionClienteFormulario } from "@/components/account/customer-address-form";
+import { obtenerClienteActual } from "@/lib/account/identity";
+import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Direcciones" };
 
-export default function EditCustomerAddressPage() {
+export default async function EditCustomerAddressPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const cliente = await obtenerClienteActual();
+  if (!cliente) notFound();
+  const supabase = await crearClienteSupabaseServidor();
+  const { data } = await supabase.from("direcciones_cliente").select("id,nombre,destinatario,telefono_contacto,direccion,comuna,region,referencia,es_principal").eq("id", id).eq("cliente_id", cliente.id).eq("activa", true).maybeSingle();
+  if (!data) notFound();
+  const direccion: DireccionClienteFormulario = { id: data.id, nombre: data.nombre, destinatario: data.destinatario, telefonoContacto: data.telefono_contacto, direccion: data.direccion, comuna: data.comuna, region: data.region, referencia: data.referencia, esPrincipal: data.es_principal };
   return (
     <div className="space-y-8">
-      <PageHeader title="Direcciones" description="Revisa la información que utilizas para recibir tus pedidos." />
-      <section className="rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="edit-address-title">
-        <h2 id="edit-address-title" className="text-lg font-semibold tracking-tight text-foreground">Mis direcciones</h2>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Vuelve a Mis direcciones para revisar tus datos de entrega.</p>
-        <ActionLink href={ROUTES.accountAddresses} variant="secondary" className="mt-5">Volver a Mis direcciones</ActionLink>
-      </section>
+      <PageHeader title="Editar dirección" description="Actualiza los datos de entrega que utilizas." actions={<ActionLink href={ROUTES.accountAddresses} variant="secondary">Volver a Mis direcciones</ActionLink>} />
+      <CustomerAddressForm direccion={direccion} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { MobileNavigation } from "@/components/navigation/mobile-navigation";
 import { Logo } from "@/components/shared/logo";
 import { ADMIN_NAVIGATION } from "@/mocks/navigation";
 import { cerrarSesion } from "@/app/iniciar-sesion/actions";
+import Link from "next/link";
 
 export function AdminHeader() {
   return (
@@ -15,6 +16,7 @@ export function AdminHeader() {
       <div className="min-w-0 flex-1">
         <Breadcrumbs items={[{ label: "Administración" }]} />
       </div>
+      <Link href="/" className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">Volver al sitio</Link>
       <form action={cerrarSesion}><button className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Cerrar sesión</button></form>
     </header>
   );

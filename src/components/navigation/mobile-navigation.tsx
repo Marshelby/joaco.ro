@@ -37,7 +37,7 @@ export function MobileNavigation({ items, label, title, className }: MobileNavig
                   <li key={item.href}>
                     <Dialog.Close nativeButton={false} render={<NavigationLink href={item.href} exact={item.href === "/"} />} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground">
                       <NavigationIcon name={item.icon} className="size-4" />
-                      <span>{item.label}</span>
+                      <span className="min-w-0"><span className="block truncate">{item.label}</span>{item.description ? <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">{item.description}</span> : null}</span>
                     </Dialog.Close>
                   </li>
                 ))}

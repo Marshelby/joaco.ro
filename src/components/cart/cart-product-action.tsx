@@ -9,9 +9,11 @@ import {
   formatCartQuantity,
   getCartQuantityMinimum,
   getCartQuantityStep,
+  getSubtotalParaCantidad,
   isFractionalKgItem,
   isValidCartQuantity,
 } from "@/lib/cart-quantity";
+import { formatCLP } from "@/lib/formatters";
 import type { CartProductInput } from "@/types/cart";
 import type { MockProduct } from "@/types/product";
 
@@ -57,6 +59,7 @@ export function CartProductAction({ product, className }: { product: MockProduct
   const activeDraftQuantity = draftQuantity ?? minimum;
   const canDecrease = isValidCartQuantity(item, activeDraftQuantity - step);
   const canIncrease = isValidCartQuantity(item, activeDraftQuantity + step);
+  const draftSubtotal = getSubtotalParaCantidad(activeDraftQuantity, item.precioFinalReferencia);
 
   const startEditing = (mode: Exclude<EditingMode, null>) => {
     setEditingMode(mode);
@@ -85,6 +88,10 @@ export function CartProductAction({ product, className }: { product: MockProduct
           <Button type="button" variant="ghost" size="icon" disabled={!canDecrease} onClick={() => setDraftQuantity(activeDraftQuantity - step)} aria-label={`Disminuir ${quantityLabel} de ${product.name}`}><Minus aria-hidden="true" /></Button>
           <span className="min-w-20 text-center text-sm font-semibold text-foreground">{formatCartQuantity(item, activeDraftQuantity)}</span>
           <Button type="button" variant="ghost" size="icon" disabled={!canIncrease} onClick={() => setDraftQuantity(activeDraftQuantity + step)} aria-label={`Aumentar ${quantityLabel} de ${product.name}`}><Plus aria-hidden="true" /></Button>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 px-1 text-sm">
+          <span className="text-muted-foreground">Subtotal</span>
+          <strong className="text-foreground">{formatCLP(draftSubtotal)}</strong>
         </div>
         <Button type="button" variant="secondary" className="w-full" onClick={confirmDraft} aria-label={`Confirmar cantidad de ${product.name}`}>Listo</Button>
       </div>

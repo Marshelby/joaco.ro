@@ -1,51 +1,45 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
+import { CustomerOrderStatusBadge } from "@/components/account/customer-order-status-badge";
+import { OrderRepeatAction } from "@/components/account/order-repeat-action";
 import { ROUTES } from "@/config/routes";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
-import { getOrderItemCount } from "@/lib/orders";
-import type { CustomerOrderMock } from "@/types/account";
+import type { PedidoCuentaListado } from "@/lib/account/pedidos";
 
-import { OrderStatusBadge } from "./order-status-badge";
-
-type OrderHistoryCardProps = { order: CustomerOrderMock };
-
-const deliveryLabels = { delivery: "Delivery", pickup: "Retiro" } as const;
+type OrderHistoryCardProps = { order: PedidoCuentaListado };
 
 export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
-  const itemCount = getOrderItemCount(order);
+  const itemCount = order.cantidadLineas;
 
   return (
-    <Link
-      href={ROUTES.customerOrder(order.id)}
-      className="group block rounded-xl border border-border bg-card p-5 outline-none transition-colors hover:border-primary/30 hover:bg-muted/35 focus-visible:ring-3 focus-visible:ring-ring/50 sm:p-6"
-      aria-label={`Ver pedido ${order.number}`}
-    >
+    <article className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">Pedido #{order.number}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{formatDateCL(order.createdAt)}</p>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{order.numeroPedido}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{formatDateCL(order.fechaCreacion)}</p>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div className="flex items-start gap-1">
+          <CustomerOrderStatusBadge estado={order.estado} />
+          <OrderRepeatAction pedidoId={order.id} numeroPedido={order.numeroPedido} />
+        </div>
       </div>
 
-      <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-[1fr_auto_auto] sm:items-end sm:gap-6">
-        <div>
-          <dt className="text-muted-foreground">Entrega</dt>
-          <dd className="mt-1 font-medium text-foreground">{deliveryLabels[order.deliveryMethod]} · {order.deliveryDetails.commune}</dd>
-        </div>
+      <dl className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 text-sm">
         <div>
           <dt className="text-muted-foreground">Productos</dt>
           <dd className="mt-1 font-medium text-foreground">{itemCount} {itemCount === 1 ? "producto" : "productos"}</dd>
         </div>
-        <div className="flex items-end justify-between gap-4 sm:justify-end">
-          <div>
-            <dt className="text-muted-foreground">Total</dt>
-            <dd className="mt-1 text-base font-semibold text-foreground">{formatCLP(order.total)}</dd>
-          </div>
-          <ChevronRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+        <div className="text-right">
+          <dt className="text-muted-foreground">Total</dt>
+          <dd className="mt-1 text-base font-semibold text-foreground">{formatCLP(order.total)}</dd>
         </div>
       </dl>
-    </Link>
+
+      <Link href={ROUTES.customerOrder(order.id)} className="mt-4 inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-primary outline-none transition-colors hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50" aria-label={`Ver más sobre el pedido ${order.numeroPedido}`}>
+        Ver más
+        <ChevronRight className="size-4" aria-hidden="true" />
+      </Link>
+    </article>
   );
 }

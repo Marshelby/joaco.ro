@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { HomeCategory } from "@/mocks/home";
 import type { ImageFallbackKind } from "@/types/media";
 import type { MockProduct, ProductSaleUnit } from "@/types/product";
@@ -114,6 +116,25 @@ export async function getStorefrontProducts() {
 
 export async function getStorefrontProduct(slug: string) {
   return (await queryProducts({ slug }))[0] ?? null;
+}
+
+export async function getStorefrontProductsByPresentationIds(presentationIds: readonly string[]) {
+  const ids = [...new Set(presentationIds)];
+  if (ids.length === 0) return [];
+
+  const supabase = await crearClienteSupabaseServidor();
+  const { data, error } = await supabase
+    .from("productos")
+    .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias!inner(nombre,slug,descripcion,activa,orden),presentaciones_producto!inner(id,nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
+    .in("presentaciones_producto.id", ids)
+    .eq("activo", true)
+    .eq("disponible", true)
+    .eq("categorias.activa", true)
+    .eq("presentaciones_producto.activa", true)
+    .eq("presentaciones_producto.es_principal", true);
+
+  if (error) throw new Error("No fue posible resolver los productos actuales.");
+  return (data as unknown as CatalogRow[] ?? []).map(mapStorefrontProduct).filter((product): product is MockProduct => product !== null);
 }
 
 export async function getStorefrontCategories(): Promise<HomeCategory[]> {

@@ -1,22 +1,16 @@
-import { ArrowLeft, CreditCard, Truck } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import Link from "next/link";
 
+import { CustomerOrderStatusBadge, getEtiquetaEstadoPedidoCuenta } from "@/components/account/customer-order-status-badge";
 import { ROUTES } from "@/config/routes";
-import { formatCLP, formatDateCL, formatDateTimeCL } from "@/lib/formatters";
-import { getOrderStatusDescription } from "@/lib/orders";
-import type { CustomerOrderMock } from "@/types/account";
+import type { PedidoCuentaDetalle } from "@/lib/account/pedidos";
+import { formatCLP, formatDateCL } from "@/lib/formatters";
 
 import { OrderItemRow } from "./order-item-row";
-import { OrderStatusBadge } from "./order-status-badge";
 import { OrderTrackingTimeline } from "./order-tracking-timeline";
 
-const deliveryLabels = { delivery: "Delivery", pickup: "Retiro" } as const;
-const paymentMethodLabels = { bank_transfer: "Transferencia bancaria", cash: "Efectivo" } as const;
-const paymentStatusLabels = { pending: "Pendiente", under_review: "En revisión", paid: "Pagado" } as const;
-
-export function OrderDetail({ order }: { order: CustomerOrderMock }) {
-  const isDelivery = order.deliveryMethod === "delivery";
-  const deliveryDetails = order.deliveryDetails;
+export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
+  const direccion = [order.direccionSnapshot, order.comunaSnapshot, order.regionSnapshot].filter(Boolean).join(", ");
 
   return (
     <div className="space-y-8">
@@ -27,11 +21,10 @@ export function OrderDetail({ order }: { order: CustomerOrderMock }) {
         </Link>
         <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Pedido #{order.number}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Realizado el {formatDateCL(order.createdAt)}</p>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{getOrderStatusDescription(order.status)}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{order.numeroPedido}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Realizado el {formatDateCL(order.fechaCreacion)}</p>
           </div>
-          <OrderStatusBadge status={order.status} />
+          <CustomerOrderStatusBadge estado={order.estado} />
         </div>
       </header>
 
@@ -40,35 +33,19 @@ export function OrderDetail({ order }: { order: CustomerOrderMock }) {
           <section aria-labelledby="order-products-title" className="rounded-xl border border-border bg-card p-5 sm:p-6">
             <h2 id="order-products-title" className="text-lg font-semibold tracking-tight text-foreground">Productos</h2>
             <ul className="mt-5 divide-y divide-border">
-              {order.items.map((item) => <OrderItemRow key={`${item.productId}-${item.productName}`} item={item} />)}
+              {order.items.map((item) => <OrderItemRow key={item.id} item={item} />)}
             </ul>
-          </section>
-
-          <section aria-labelledby="tracking-title" className="border-t border-border pt-6 sm:pt-8">
-            <h2 id="tracking-title" className="text-lg font-semibold tracking-tight text-foreground">Seguimiento del pedido</h2>
-            <div className="mt-5"><OrderTrackingTimeline order={order} /></div>
           </section>
 
           <section aria-labelledby="history-title" className="border-t border-border pt-6 sm:pt-8">
             <h2 id="history-title" className="text-lg font-semibold tracking-tight text-foreground">Historial</h2>
-            <ol className="mt-5 space-y-4">
-              {order.statusHistory.map((item) => (
-                <li key={`${item.status}-${item.occurredAt}`} className="border-l border-border pl-4">
-                  <p className="text-sm font-medium text-foreground">{item.label}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{formatDateTimeCL(item.occurredAt)}</p>
-                  {item.description ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p> : null}
-                </li>
-              ))}
-            </ol>
+            {order.historial.length > 0 ? <div className="mt-5"><OrderTrackingTimeline historial={order.historial} /></div> : <p className="mt-3 text-sm text-muted-foreground">Este pedido aún no registra cambios de estado.</p>}
           </section>
         </div>
 
         <aside className="space-y-5">
           <section aria-label="Resumen del pedido" className="rounded-xl border border-border bg-card p-5">
             <dl className="grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-1">
-              <div><dt className="text-muted-foreground">Estado</dt><dd className="mt-1"><OrderStatusBadge status={order.status} /></dd></div>
-              <div><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{deliveryLabels[order.deliveryMethod]}</dd></div>
-              <div><dt className="text-muted-foreground">Pago</dt><dd className="mt-1 font-medium text-foreground">{paymentMethodLabels[order.paymentMethod]} · {paymentStatusLabels[order.paymentStatus]}</dd></div>
               <div><dt className="text-muted-foreground">Total</dt><dd className="mt-1 text-lg font-semibold text-foreground">{formatCLP(order.total)}</dd></div>
             </dl>
           </section>
@@ -77,31 +54,17 @@ export function OrderDetail({ order }: { order: CustomerOrderMock }) {
             <h2 id="costs-title" className="text-base font-semibold text-foreground">Resumen de costos</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Subtotal</dt><dd className="font-medium text-foreground">{formatCLP(order.subtotal)}</dd></div>
-              <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Delivery</dt><dd className="font-medium text-foreground">{order.deliveryFee > 0 ? formatCLP(order.deliveryFee) : "Sin costo"}</dd></div>
+              <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Entrega</dt><dd className="font-medium text-foreground">{order.costoEntrega > 0 ? formatCLP(order.costoEntrega) : "Sin costo"}</dd></div>
+              <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-foreground">{order.descuento > 0 ? `-${formatCLP(order.descuento)}` : "Sin descuento"}</dd></div>
               <div className="flex items-center justify-between gap-4 border-t border-border pt-3"><dt className="font-semibold text-foreground">Total</dt><dd className="text-base font-semibold text-foreground">{formatCLP(order.total)}</dd></div>
             </dl>
           </section>
 
-          <section aria-labelledby="delivery-title" className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2 text-muted-foreground"><Truck className="size-4" aria-hidden="true" /><p className="text-sm font-medium">Entrega</p></div>
-            <h2 id="delivery-title" className="mt-3 text-base font-semibold text-foreground">{deliveryLabels[order.deliveryMethod]}</h2>
-            {isDelivery && "address" in deliveryDetails ? (
-              <div className="mt-3 space-y-4 text-sm">
-                <p className="leading-6 text-foreground">{deliveryDetails.address}<br />{deliveryDetails.commune}, {deliveryDetails.region}</p>
-                <p className="text-muted-foreground">{deliveryDetails.addressType}</p>
-                <div><p className="text-muted-foreground">Recibe</p><p className="mt-1 font-medium text-foreground">{deliveryDetails.recipientName}<br />{deliveryDetails.recipientPhone}</p></div>
-              </div>
-            ) : "pickupLocation" in deliveryDetails ? (
-              <div className="mt-3 space-y-3 text-sm"><p className="font-medium text-foreground">{deliveryDetails.pickupLocation}</p><p className="text-muted-foreground">{deliveryDetails.commune}</p>{deliveryDetails.instructions ? <p className="leading-6 text-muted-foreground">{deliveryDetails.instructions}</p> : null}</div>
-            ) : null}
-          </section>
+          <section aria-labelledby="order-state-title" className="rounded-xl border border-border bg-card p-5"><h2 id="order-state-title" className="text-sm font-medium text-muted-foreground">Estado</h2><p className="mt-2 text-base font-semibold text-foreground">{getEtiquetaEstadoPedidoCuenta(order.estado)}</p></section>
 
-          <section aria-labelledby="payment-title" className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2 text-muted-foreground"><CreditCard className="size-4" aria-hidden="true" /><p className="text-sm font-medium">Pago</p></div>
-            <h2 id="payment-title" className="mt-3 text-base font-semibold text-foreground">{paymentMethodLabels[order.paymentMethod]}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{paymentStatusLabels[order.paymentStatus]}</p>
-            <p className="mt-3 text-base font-semibold text-foreground">{formatCLP(order.total)}</p>
-          </section>
+          {direccion || order.referenciaDireccionSnapshot ? <section aria-labelledby="delivery-title" className="rounded-xl border border-border bg-card p-5"><div className="flex items-center gap-2 text-muted-foreground"><MapPin className="size-4" aria-hidden="true" /><p className="text-sm font-medium">Entrega</p></div>{direccion ? <p id="delivery-title" className="mt-3 leading-6 text-foreground">{direccion}</p> : null}{order.referenciaDireccionSnapshot ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{order.referenciaDireccionSnapshot}</p> : null}</section> : null}
+
+          {order.observacionGeneral ? <section aria-labelledby="observation-title" className="rounded-xl border border-border bg-card p-5"><h2 id="observation-title" className="text-sm font-medium text-muted-foreground">Observación</h2><p className="mt-2 text-sm leading-6 text-foreground">{order.observacionGeneral}</p></section> : null}
         </aside>
       </div>
     </div>

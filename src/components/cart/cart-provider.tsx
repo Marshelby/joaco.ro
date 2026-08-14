@@ -8,6 +8,13 @@ import type { CartItem, CartProductInput } from "@/types/cart";
 const STORAGE_KEY = "hidro-leufu-cart-v1";
 
 type CartState = { items: CartItem[] };
+export type ModoCargaCarrito = "fusionar" | "reemplazar";
+export type LineaCargaCarrito = { item: CartProductInput; cantidad: number };
+export type ResultadoCargaCarrito = {
+  agregadas: number;
+  fusionadas: number;
+  omitidas: number;
+};
 type CartAction =
   | { type: "hydrate"; items: CartItem[] }
   | { type: "add"; item: CartProductInput; cantidad?: number }
@@ -15,6 +22,7 @@ type CartAction =
   | { type: "decrement"; productoId: string; presentacionId: string }
   | { type: "set-quantity"; productoId: string; presentacionId: string; cantidad: number }
   | { type: "remove"; productoId: string; presentacionId: string }
+  | { type: "load-lines"; items: CartItem[] }
   | { type: "clear" };
 
 const initialState: CartState = { items: [] };
@@ -23,9 +31,42 @@ function sameItem(item: CartItem, productoId: string, presentacionId: string) {
   return item.productoId === productoId && item.presentacionId === presentacionId;
 }
 
+function cargarLineasEnEstado(actuales: readonly CartItem[], lineas: readonly LineaCargaCarrito[], modo: ModoCargaCarrito) {
+  const items = modo === "reemplazar" ? [] : [...actuales];
+  let agregadas = 0;
+  let fusionadas = 0;
+  let omitidas = 0;
+
+  for (const linea of lineas) {
+    if (!isValidCartQuantity(linea.item, linea.cantidad)) {
+      omitidas += 1;
+      continue;
+    }
+
+    const index = items.findIndex((item) => sameItem(item, linea.item.productoId, linea.item.presentacionId));
+    if (index === -1) {
+      items.push({ ...linea.item, cantidad: linea.cantidad });
+      agregadas += 1;
+      continue;
+    }
+
+    const cantidadFusionada = items[index].cantidad + linea.cantidad;
+    if (!isValidCartQuantity(linea.item, cantidadFusionada)) {
+      omitidas += 1;
+      continue;
+    }
+
+    items[index] = { ...linea.item, cantidad: cantidadFusionada };
+    fusionadas += 1;
+  }
+
+  return { items, resultado: { agregadas, fusionadas, omitidas } satisfies ResultadoCargaCarrito };
+}
+
 function cartReducer(state: CartState, action: CartAction): CartState {
   if (action.type === "hydrate") return { items: action.items };
   if (action.type === "clear") return initialState;
+  if (action.type === "load-lines") return { items: action.items };
   if (action.type === "add") {
     const existing = state.items.find((item) => sameItem(item, action.item.productoId, action.item.presentacionId));
     return existing
@@ -85,6 +126,7 @@ type CartContextValue = {
   setQuantity: (productoId: string, presentacionId: string, cantidad: number) => void;
   eliminar: (productoId: string, presentacionId: string) => void;
   vaciar: () => void;
+  cargarLineas: (lineas: readonly LineaCargaCarrito[], modo: ModoCargaCarrito) => ResultadoCargaCarrito;
   obtenerCantidad: (productoId: string, presentacionId: string) => number;
 };
 
@@ -124,6 +166,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setQuantity: (productoId, presentacionId, cantidad) => dispatch({ type: "set-quantity", productoId, presentacionId, cantidad }),
     eliminar: (productoId, presentacionId) => dispatch({ type: "remove", productoId, presentacionId }),
     vaciar: () => dispatch({ type: "clear" }),
+    cargarLineas: (lineas, modo) => {
+      const { items, resultado } = cargarLineasEnEstado(state.items, lineas, modo);
+      dispatch({ type: "load-lines", items });
+      return resultado;
+    },
     obtenerCantidad: (productoId, presentacionId) => state.items.find((item) => sameItem(item, productoId, presentacionId))?.cantidad ?? 0,
   }), [isHydrated, state.items]);
 

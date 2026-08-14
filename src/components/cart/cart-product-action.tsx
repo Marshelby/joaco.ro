@@ -5,6 +5,7 @@ import { Check, Minus, Pencil, Plus, ShoppingCart } from "lucide-react";
 
 import { useCart } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
+import { crearCartProductInput } from "@/lib/cart-product-input";
 import {
   formatCartQuantity,
   getCartQuantityMinimum,
@@ -14,34 +15,16 @@ import {
   isValidCartQuantity,
 } from "@/lib/cart-quantity";
 import { formatCLP } from "@/lib/formatters";
-import type { CartProductInput } from "@/types/cart";
 import type { MockProduct } from "@/types/product";
 
 type EditingMode = "new" | "existing" | null;
-
-function toCartProductInput(product: MockProduct): CartProductInput | null {
-  if (!product.presentationId || !product.presentationName || product.presentationQuantity === undefined || !product.presentationUnit) return null;
-  return {
-    productoId: product.id,
-    slug: product.slug,
-    presentacionId: product.presentationId,
-    nombre: product.name,
-    rutaImagen: product.image?.src,
-    altImagen: product.image?.alt,
-    imageFallback: product.imageFallback,
-    cantidadPresentacion: product.presentationQuantity,
-    unidad: product.presentationUnit,
-    presentacionNombre: product.presentationName,
-    precioFinalReferencia: product.unitPrice,
-  };
-}
 
 export function CartProductAction({ product, className }: { product: MockProduct; className?: string }) {
   const { agregarItem, obtenerCantidad, setQuantity, isHydrated } = useCart();
   const [editingMode, setEditingMode] = useState<EditingMode>(null);
   const [draftQuantity, setDraftQuantity] = useState<number | null>(null);
   const [confirmationMessage, setConfirmationMessage] = useState("");
-  const item = toCartProductInput(product);
+  const item = crearCartProductInput(product);
   const confirmedQuantity = item ? obtenerCantidad(item.productoId, item.presentacionId) : 0;
   const unavailable = product.availability === "out_of_stock" || !item;
 

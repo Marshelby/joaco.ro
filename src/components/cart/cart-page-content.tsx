@@ -26,8 +26,8 @@ export function CartPageContent() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
-      <section>
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
+      <section className="min-w-0">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tu pedido</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">Revisa los productos antes de continuar.</p>
 

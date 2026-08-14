@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import { OrderHistoryCard } from "@/components/account/order-history-card";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ROUTES } from "@/config/routes";
-import { sortCustomerOrdersNewestFirst } from "@/lib/orders";
-import { CUSTOMER_ORDERS_MOCK } from "@/mocks/orders";
+import { obtenerPedidosCuenta } from "@/lib/account/pedidos";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 
 export const metadata: Metadata = { title: "Mis pedidos" };
 
-export default function CustomerOrdersPage() {
-  const orders = sortCustomerOrdersNewestFirst(CUSTOMER_ORDERS_MOCK);
+export default async function CustomerOrdersPage() {
+  const orders = await obtenerPedidosCuenta();
 
   return (
     <div className="space-y-8">
@@ -23,7 +22,7 @@ export default function CustomerOrdersPage() {
         <EmptyState
           title="Aún no tienes pedidos"
           description="Cuando realices una compra, podrás revisar su estado desde aquí."
-          action={<ActionLink href={ROUTES.home}>Explorar productos</ActionLink>}
+          action={<ActionLink href={ROUTES.catalog}>Ver catálogo</ActionLink>}
         />
       )}
     </div>

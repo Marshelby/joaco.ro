@@ -57,9 +57,9 @@ export function ProductRail({ id, eyebrow, title, description, icon, products, a
   };
 
   return (
-    <section aria-labelledby={id} className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
-        <div id={id} className="min-w-0">
+    <section aria-labelledby={id} className="min-w-0 max-w-full space-y-5">
+      <div className="flex min-w-0 max-w-full items-end justify-between gap-4">
+        <div id={id} className="min-w-0 max-w-full">
           {eyebrow ? <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent">{eyebrow}</p> : null}
           <div className="flex items-center gap-2">
             <Icon className="size-4 shrink-0 text-accent" aria-hidden="true" />
@@ -90,7 +90,7 @@ export function ProductRail({ id, eyebrow, title, description, icon, products, a
           </button>
         </div>
       </div>
-      <div className="-mx-4 max-w-[calc(100%+2rem)] overflow-hidden sm:-mx-6 sm:max-w-[calc(100%+3rem)] lg:-mx-8 lg:max-w-[calc(100%+4rem)]">
+      <div className="w-full min-w-0 max-w-full overflow-hidden">
         <div
           id={`${id}-rail`}
           ref={railRef}
@@ -108,13 +108,15 @@ export function ProductRail({ id, eyebrow, title, description, icon, products, a
               scroll("forward");
             }
           }}
-          className="flex w-full min-w-0 snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-6 lg:px-8"
+          className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
-          {products.map((product) => (
-            <div key={product.id} className="w-[78%] shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[23.5%]">
-              <ProductCard product={product} variant="rail" />
-            </div>
-          ))}
+          <div className="flex w-full min-w-full snap-x snap-mandatory gap-5 px-4 pb-2 sm:px-6 lg:px-8">
+            {products.map((product) => (
+              <div key={product.id} className="w-[78%] min-w-0 max-w-full shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[23.5%]">
+                <ProductCard product={product} variant="rail" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

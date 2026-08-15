@@ -14,8 +14,8 @@ export function PublicHeader({ identidad }: { identidad: IdentidadCuenta | null 
 
   return (
     <header className="max-w-full overflow-x-clip border-b border-border bg-background">
-      <Container className="flex min-h-[4.5rem] min-w-0 max-w-full items-center gap-2">
-        <Logo wordmark="HIDROPONÍA" className="min-w-0 shrink-0 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" />
+      <Container className="flex min-h-[4.5rem] w-full min-w-0 max-w-full items-center gap-2 overflow-hidden md:overflow-visible">
+        <Logo wordmark="HIDROPONÍA" className="min-w-0 flex-1 truncate rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:flex-none" />
         <MainNavigation />
         <div className="ml-auto flex min-w-0 max-w-full shrink-0 flex-nowrap items-center gap-1">
           <AccountTrigger identidad={identidad} />

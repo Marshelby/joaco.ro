@@ -129,7 +129,9 @@
   }
   html,
   body {
-    overflow-x: clip;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   @media (prefers-reduced-motion: reduce) {

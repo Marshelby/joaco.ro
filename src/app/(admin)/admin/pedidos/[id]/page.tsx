@@ -11,6 +11,8 @@ import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatearCantidadPedido, obtenerPedidoAdmin } from "@/lib/admin/pedidos";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
+import { getGoogleMapsLocationUrl } from "@/lib/maps";
+import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = { title: "Detalle de pedido" };
 
@@ -20,6 +22,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!pedido) notFound();
 
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
+  const mapsUrl = getGoogleMapsLocationUrl(pedido.latitudEntrega, pedido.longitudEntrega);
 
   return (
     <div className="space-y-8">
@@ -32,7 +35,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           {pedido.observacionGeneral ? <section className="rounded-xl border border-border bg-card p-4 sm:p-5"><h2 className="text-lg font-semibold tracking-tight text-foreground">Observación</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{pedido.observacionGeneral}</p></section> : null}
         </div>
         <aside className="space-y-5"><section className="rounded-xl border border-border bg-card p-4 sm:p-5"><h2 className="text-lg font-semibold tracking-tight text-foreground">Cliente</h2><dl className="mt-4 space-y-3 text-sm"><div><dt className="text-muted-foreground">Nombre</dt><dd className="mt-1 font-medium text-foreground">{pedido.nombreClienteSnapshot}</dd></div>{pedido.telefonoClienteSnapshot ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1 text-foreground">{pedido.telefonoClienteSnapshot}</dd></div> : null}{pedido.emailClienteSnapshot ? <div><dt className="text-muted-foreground">Email</dt><dd className="mt-1 break-words text-foreground">{pedido.emailClienteSnapshot}</dd></div> : null}</dl></section>
-          {direccion ? <section className="rounded-xl border border-border bg-card p-4 sm:p-5"><h2 className="text-lg font-semibold tracking-tight text-foreground">Entrega</h2><p className="mt-4 text-sm leading-6 text-foreground">{direccion}</p>{pedido.referenciaDireccionSnapshot ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{pedido.referenciaDireccionSnapshot}</p> : null}</section> : null}
+          {direccion || pedido.destinatarioEntrega ? <section className="rounded-xl border border-border bg-card p-4 sm:p-5"><h2 className="text-lg font-semibold tracking-tight text-foreground">Entrega</h2><dl className="mt-4 space-y-3 text-sm">{pedido.destinatarioEntrega ? <div><dt className="text-muted-foreground">Destinatario</dt><dd className="mt-1 font-medium text-foreground">{pedido.destinatarioEntrega}</dd></div> : null}{pedido.telefonoContactoEntrega ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1"><a href={`tel:${pedido.telefonoContactoEntrega}`} className="text-primary underline underline-offset-4">{pedido.telefonoContactoEntrega}</a></dd></div> : null}{direccion ? <div><dt className="text-muted-foreground">Dirección</dt><dd className="mt-1 leading-6 text-foreground">{direccion}</dd></div> : null}{pedido.zonaEntrega ? <div><dt className="text-muted-foreground">Zona</dt><dd className="mt-1 text-foreground">{pedido.zonaEntrega}</dd></div> : null}{pedido.referenciaDireccionSnapshot ? <div><dt className="text-muted-foreground">Referencia</dt><dd className="mt-1 leading-6 text-muted-foreground">{pedido.referenciaDireccionSnapshot}</dd></div> : null}</dl>{mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary underline underline-offset-4"><ExternalLink className="size-4" aria-hidden="true" />Ver ubicación</a> : null}</section> : null}
           <section className="rounded-xl border border-border bg-card p-4 sm:p-5"><h2 className="text-lg font-semibold tracking-tight text-foreground">Resumen</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subtotal</dt><dd>{formatCLP(pedido.subtotal)}</dd></div><div className="flex justify-between gap-3"><dt className="text-muted-foreground">Costo entrega</dt><dd>{formatCLP(pedido.costoEntrega)}</dd></div><div className="flex justify-between gap-3"><dt className="text-muted-foreground">Descuento</dt><dd>{formatCLP(pedido.descuento)}</dd></div><div className="flex justify-between gap-3 border-t border-border pt-3 text-base font-semibold text-foreground"><dt>Total</dt><dd>{formatCLP(pedido.total)}</dd></div></dl></section></aside>
       </div>
     </div>

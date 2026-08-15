@@ -1,16 +1,18 @@
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, ExternalLink, MapPin } from "lucide-react";
 import Link from "next/link";
 
 import { CustomerOrderStatusBadge, getEtiquetaEstadoPedidoCuenta } from "@/components/account/customer-order-status-badge";
 import { ROUTES } from "@/config/routes";
 import type { PedidoCuentaDetalle } from "@/lib/account/pedidos";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
+import { getGoogleMapsLocationUrl } from "@/lib/maps";
 
 import { OrderItemRow } from "./order-item-row";
 import { OrderTrackingTimeline } from "./order-tracking-timeline";
 
 export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
   const direccion = [order.direccionSnapshot, order.comunaSnapshot, order.regionSnapshot].filter(Boolean).join(", ");
+  const mapsUrl = getGoogleMapsLocationUrl(order.latitudEntrega, order.longitudEntrega);
 
   return (
     <div className="space-y-8">
@@ -62,7 +64,7 @@ export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
 
           <section aria-labelledby="order-state-title" className="rounded-xl border border-border bg-card p-5"><h2 id="order-state-title" className="text-sm font-medium text-muted-foreground">Estado</h2><p className="mt-2 text-base font-semibold text-foreground">{getEtiquetaEstadoPedidoCuenta(order.estado)}</p></section>
 
-          {direccion || order.referenciaDireccionSnapshot ? <section aria-labelledby="delivery-title" className="rounded-xl border border-border bg-card p-5"><div className="flex items-center gap-2 text-muted-foreground"><MapPin className="size-4" aria-hidden="true" /><p className="text-sm font-medium">Entrega</p></div>{direccion ? <p id="delivery-title" className="mt-3 leading-6 text-foreground">{direccion}</p> : null}{order.referenciaDireccionSnapshot ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{order.referenciaDireccionSnapshot}</p> : null}</section> : null}
+          {direccion || order.referenciaDireccionSnapshot || order.destinatarioEntrega ? <section aria-labelledby="delivery-title" className="rounded-xl border border-border bg-card p-5"><div className="flex items-center gap-2 text-muted-foreground"><MapPin className="size-4" aria-hidden="true" /><p className="text-sm font-medium">Entrega</p></div>{order.destinatarioEntrega ? <p id="delivery-title" className="mt-3 font-medium text-foreground">{order.destinatarioEntrega}</p> : null}{order.telefonoContactoEntrega ? <a href={`tel:${order.telefonoContactoEntrega}`} className="mt-2 inline-flex text-sm text-primary underline underline-offset-4">{order.telefonoContactoEntrega}</a> : null}{direccion ? <p className="mt-2 leading-6 text-foreground">{direccion}</p> : null}{order.zonaEntrega ? <p className="mt-1 text-sm text-muted-foreground">{order.zonaEntrega}</p> : null}{order.referenciaDireccionSnapshot ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{order.referenciaDireccionSnapshot}</p> : null}{mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary underline underline-offset-4"><ExternalLink className="size-4" aria-hidden="true" />Ver ubicación</a> : null}</section> : null}
 
           {order.observacionGeneral ? <section aria-labelledby="observation-title" className="rounded-xl border border-border bg-card p-5"><h2 id="observation-title" className="text-sm font-medium text-muted-foreground">Observación</h2><p className="mt-2 text-sm leading-6 text-foreground">{order.observacionGeneral}</p></section> : null}
         </aside>

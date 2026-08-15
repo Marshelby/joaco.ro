@@ -29,6 +29,11 @@ export type PedidoAdminDetalle = PedidoAdminListado & {
   comunaSnapshot: string | null;
   regionSnapshot: string | null;
   referenciaDireccionSnapshot: string | null;
+  destinatarioEntrega: string | null;
+  telefonoContactoEntrega: string | null;
+  zonaEntrega: string | null;
+  latitudEntrega: number | null;
+  longitudEntrega: number | null;
   subtotal: number;
   costoEntrega: number;
   descuento: number;
@@ -63,6 +68,11 @@ type PedidoDetalleFila = PedidoListadoFila & {
   comuna_snapshot: string | null;
   region_snapshot: string | null;
   referencia_direccion_snapshot: string | null;
+  destinatario_entrega_snapshot: string | null;
+  telefono_contacto_entrega_snapshot: string | null;
+  zona_entrega_snapshot: string | null;
+  latitud_entrega_snapshot: number | string | null;
+  longitud_entrega_snapshot: number | string | null;
   subtotal: number | string;
   costo_entrega: number | string;
   descuento: number | string;
@@ -106,7 +116,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea)")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea)")
     .eq("id", id)
     .maybeSingle();
 
@@ -123,6 +133,11 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
     comunaSnapshot: fila.comuna_snapshot,
     regionSnapshot: fila.region_snapshot,
     referenciaDireccionSnapshot: fila.referencia_direccion_snapshot,
+    destinatarioEntrega: fila.destinatario_entrega_snapshot,
+    telefonoContactoEntrega: fila.telefono_contacto_entrega_snapshot,
+    zonaEntrega: fila.zona_entrega_snapshot,
+    latitudEntrega: fila.latitud_entrega_snapshot === null ? null : Number(fila.latitud_entrega_snapshot),
+    longitudEntrega: fila.longitud_entrega_snapshot === null ? null : Number(fila.longitud_entrega_snapshot),
     subtotal: Number(fila.subtotal),
     costoEntrega: Number(fila.costo_entrega),
     descuento: Number(fila.descuento),

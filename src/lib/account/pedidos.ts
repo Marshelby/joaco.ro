@@ -54,6 +54,11 @@ export type PedidoCuentaDetalle = PedidoCuentaListado & {
   comunaSnapshot: string | null;
   regionSnapshot: string | null;
   referenciaDireccionSnapshot: string | null;
+  destinatarioEntrega: string | null;
+  telefonoContactoEntrega: string | null;
+  zonaEntrega: string | null;
+  latitudEntrega: number | null;
+  longitudEntrega: number | null;
   observacionGeneral: string | null;
   items: readonly ItemPedidoCuenta[];
   historial: readonly HistorialEstadoPedidoCuenta[];
@@ -95,6 +100,11 @@ type PedidoDetalleFila = Omit<PedidoListadoFila, "items_pedido"> & {
   comuna_snapshot: string | null;
   region_snapshot: string | null;
   referencia_direccion_snapshot: string | null;
+  destinatario_entrega_snapshot: string | null;
+  telefono_contacto_entrega_snapshot: string | null;
+  zona_entrega_snapshot: string | null;
+  latitud_entrega_snapshot: number | string | null;
+  longitud_entrega_snapshot: number | string | null;
   observacion_general: string | null;
   items_pedido: Array<{
     id: string;
@@ -155,7 +165,7 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,estado,fecha_creacion,total,subtotal,costo_entrega,descuento,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
+    .select("id,numero_pedido,estado,fecha_creacion,total,subtotal,costo_entrega,descuento,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
     .eq("id", id)
     .eq("cliente_id", cliente.id)
     .maybeSingle();
@@ -173,6 +183,11 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
     comunaSnapshot: fila.comuna_snapshot,
     regionSnapshot: fila.region_snapshot,
     referenciaDireccionSnapshot: fila.referencia_direccion_snapshot,
+    destinatarioEntrega: fila.destinatario_entrega_snapshot,
+    telefonoContactoEntrega: fila.telefono_contacto_entrega_snapshot,
+    zonaEntrega: fila.zona_entrega_snapshot,
+    latitudEntrega: fila.latitud_entrega_snapshot === null ? null : Number(fila.latitud_entrega_snapshot),
+    longitudEntrega: fila.longitud_entrega_snapshot === null ? null : Number(fila.longitud_entrega_snapshot),
     observacionGeneral: fila.observacion_general,
     items: (fila.items_pedido ?? []).map((item) => ({
       id: item.id,

@@ -14,6 +14,9 @@ const mensajesRpc: Record<string, string> = {
   NO_AUTORIZADO: "No tienes permisos para confirmar este pedido.",
   CLIENTE_INVALIDO: "Tu cuenta de cliente no está habilitada para realizar pedidos.",
   DIRECCION_INVALIDA: "La dirección seleccionada ya no está disponible. Revisa tu pedido.",
+  DIRECCION_REQUERIDA: "Selecciona una dirección de entrega para confirmar el pedido.",
+  DIRECCION_SIN_UBICACION: "Completa la ubicación de esta dirección antes de confirmar el pedido.",
+  DIRECCION_SIN_ZONA_VALIDA: "Selecciona una zona de entrega disponible antes de confirmar el pedido.",
   ITEMS_REQUERIDOS: "Tu carrito no contiene productos válidos para confirmar.",
   ITEM_INVALIDO: "Uno de los productos del carrito no es válido. Revisa tu pedido.",
   PRESENTACION_INVALIDA: "Uno de los productos del carrito ya no es válido. Revisa tu pedido.",
@@ -42,6 +45,7 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
   const observacion = String(datos.get("observacion") ?? "").trim() || null;
 
   if (!items || !claveIdempotencia) return { error: "No fue posible preparar el pedido. Revisa el carrito e inténtalo nuevamente." };
+  if (!direccionClienteId) return { error: "Selecciona una dirección con ubicación marcada para confirmar el pedido." };
 
   const supabase = await crearClienteSupabaseServidor();
   const { data: sesion } = await supabase.auth.getUser();
@@ -55,6 +59,18 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
     .maybeSingle();
 
   if (errorCliente || !cliente) return { error: "No tienes una cuenta de cliente habilitada para realizar pedidos." };
+
+  const { data: direccion, error: errorDireccion } = await supabase
+    .from("direcciones_cliente")
+    .select("id,latitud,longitud")
+    .eq("id", direccionClienteId)
+    .eq("cliente_id", cliente.id)
+    .eq("activa", true)
+    .maybeSingle();
+
+  if (errorDireccion || !direccion || direccion.latitud === null || direccion.longitud === null) {
+    return { error: "Completa la ubicación de esta dirección antes de confirmar el pedido." };
+  }
 
   const { data, error } = await supabase.rpc("crear_pedido_desde_carrito", {
     p_cliente_id: cliente.id,

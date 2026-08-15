@@ -15,6 +15,8 @@ const mensajesRpc: Record<string, string> = {
   TELEFONO_INVALIDO: "Ingresa un teléfono chileno válido de 8 dígitos.",
   DIRECCION_REQUERIDA: "Ingresa la dirección de entrega.",
   ZONA_ENTREGA_INVALIDA: "Selecciona una zona de entrega disponible.",
+  UBICACION_REQUERIDA: "Marca la ubicación exacta en el mapa antes de guardar.",
+  UBICACION_INVALIDA: "La ubicación marcada no es válida. Inténtalo nuevamente.",
 };
 
 const texto = (datos: FormData, campo: string) => String(datos.get(campo) ?? "").trim();
@@ -22,6 +24,13 @@ const texto = (datos: FormData, campo: string) => String(datos.get(campo) ?? "")
 function normalizarTelefonoContacto(valor: string) {
   const digitos = valor.replace(/\D/g, "").slice(0, 8);
   return digitos.length === 8 ? `+569${digitos}` : valor;
+}
+
+function obtenerCoordenada(datos: FormData, campo: string) {
+  const valor = texto(datos, campo);
+  if (!valor) return null;
+  const coordenada = Number(valor);
+  return Number.isFinite(coordenada) ? coordenada : null;
 }
 
 function revalidarCuenta() {
@@ -56,6 +65,8 @@ export async function guardarDireccionCliente(_: EstadoCuenta, datos: FormData):
     p_telefono_contacto: normalizarTelefonoContacto(texto(datos, "telefonoContacto")),
     p_direccion: texto(datos, "direccion"),
     p_zona_entrega_id: texto(datos, "zonaEntregaId") || null,
+    p_latitud: obtenerCoordenada(datos, "latitud"),
+    p_longitud: obtenerCoordenada(datos, "longitud"),
     p_referencia: texto(datos, "referencia") || null,
     p_es_principal: datos.get("esPrincipal") === "on",
   });

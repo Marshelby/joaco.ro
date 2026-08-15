@@ -90,30 +90,32 @@ export function ProductRail({ id, eyebrow, title, description, icon, products, a
           </button>
         </div>
       </div>
-      <div
-        id={`${id}-rail`}
-        ref={railRef}
-        role="region"
-        aria-label={ariaLabel}
-        tabIndex={0}
-        onScroll={updateControls}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            scroll("backward");
-          }
-          if (event.key === "ArrowRight") {
-            event.preventDefault();
-            scroll("forward");
-          }
-        }}
-        className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-      >
-        {products.map((product) => (
-          <div key={product.id} className="w-[78%] shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[23.5%]">
-            <ProductCard product={product} variant="rail" />
-          </div>
-        ))}
+      <div className="-mx-4 max-w-[calc(100%+2rem)] overflow-hidden sm:-mx-6 sm:max-w-[calc(100%+3rem)] lg:-mx-8 lg:max-w-[calc(100%+4rem)]">
+        <div
+          id={`${id}-rail`}
+          ref={railRef}
+          role="region"
+          aria-label={ariaLabel}
+          tabIndex={0}
+          onScroll={updateControls}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              scroll("backward");
+            }
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              scroll("forward");
+            }
+          }}
+          className="flex w-full min-w-0 snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-6 lg:px-8"
+        >
+          {products.map((product) => (
+            <div key={product.id} className="w-[78%] shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[23.5%]">
+              <ProductCard product={product} variant="rail" />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

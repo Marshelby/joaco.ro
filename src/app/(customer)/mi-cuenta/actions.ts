@@ -11,10 +11,18 @@ const mensajesRpc: Record<string, string> = {
   CLIENTE_NO_ENCONTRADO: "No tienes una cuenta de cliente activa.",
   NOMBRE_REQUERIDO: "El nombre es obligatorio.",
   DIRECCION_NO_ENCONTRADA: "La dirección ya no está disponible.",
-  DIRECCION_INVALIDA: "Completa dirección, comuna y región.",
+  DESTINATARIO_REQUERIDO: "Ingresa el nombre de quien recibirá el pedido.",
+  TELEFONO_INVALIDO: "Ingresa un teléfono chileno válido de 8 dígitos.",
+  DIRECCION_REQUERIDA: "Ingresa la dirección de entrega.",
+  ZONA_ENTREGA_INVALIDA: "Selecciona una zona de entrega disponible.",
 };
 
 const texto = (datos: FormData, campo: string) => String(datos.get(campo) ?? "").trim();
+
+function normalizarTelefonoContacto(valor: string) {
+  const digitos = valor.replace(/\D/g, "").slice(0, 8);
+  return digitos.length === 8 ? `+569${digitos}` : valor;
+}
 
 function revalidarCuenta() {
   revalidatePath("/");
@@ -44,12 +52,10 @@ export async function guardarDireccionCliente(_: EstadoCuenta, datos: FormData):
 
   const { error } = await supabase.rpc("guardar_direccion_cliente", {
     p_direccion_id: texto(datos, "direccionId") || null,
-    p_nombre: texto(datos, "nombre") || null,
-    p_destinatario: texto(datos, "destinatario") || null,
-    p_telefono_contacto: texto(datos, "telefonoContacto") || null,
+    p_destinatario: texto(datos, "destinatario"),
+    p_telefono_contacto: normalizarTelefonoContacto(texto(datos, "telefonoContacto")),
     p_direccion: texto(datos, "direccion"),
-    p_comuna: texto(datos, "comuna"),
-    p_region: texto(datos, "region"),
+    p_zona_entrega_id: texto(datos, "zonaEntregaId") || null,
     p_referencia: texto(datos, "referencia") || null,
     p_es_principal: datos.get("esPrincipal") === "on",
   });

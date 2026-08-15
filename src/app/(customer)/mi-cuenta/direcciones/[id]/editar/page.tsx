@@ -14,13 +14,18 @@ export default async function EditCustomerAddressPage({ params }: { params: Prom
   const cliente = await obtenerClienteActual();
   if (!cliente) notFound();
   const supabase = await crearClienteSupabaseServidor();
-  const { data } = await supabase.from("direcciones_cliente").select("id,nombre,destinatario,telefono_contacto,direccion,comuna,region,referencia,es_principal").eq("id", id).eq("cliente_id", cliente.id).eq("activa", true).maybeSingle();
+  const [{ data }, { data: zonas }] = await Promise.all([
+    supabase.from("direcciones_cliente").select("id,nombre,destinatario,telefono_contacto,direccion,comuna,referencia,es_principal,zona_entrega_id").eq("id", id).eq("cliente_id", cliente.id).eq("activa", true).maybeSingle(),
+    supabase.from("zonas_entrega").select("id,nombre,comuna_base").eq("activa", true).order("orden").order("nombre"),
+  ]);
   if (!data) notFound();
-  const direccion: DireccionClienteFormulario = { id: data.id, nombre: data.nombre, destinatario: data.destinatario, telefonoContacto: data.telefono_contacto, direccion: data.direccion, comuna: data.comuna, region: data.region, referencia: data.referencia, esPrincipal: data.es_principal };
+  const coincidenciasLegacy = (zonas ?? []).filter((zona) => zona.nombre === data.comuna || zona.comuna_base === data.comuna);
+  const zonaEntregaId = data.zona_entrega_id ?? (coincidenciasLegacy.length === 1 ? coincidenciasLegacy[0].id : null);
+  const direccion: DireccionClienteFormulario = { id: data.id, destinatario: data.destinatario ?? data.nombre, telefonoContacto: data.telefono_contacto, direccion: data.direccion, zonaEntregaId, referencia: data.referencia, esPrincipal: data.es_principal };
   return (
     <div className="space-y-8">
       <PageHeader title="Editar dirección" description="Actualiza los datos de entrega que utilizas." actions={<ActionLink href={ROUTES.accountAddresses} variant="secondary">Volver a Mis direcciones</ActionLink>} />
-      <CustomerAddressForm direccion={direccion} />
+      <CustomerAddressForm direccion={direccion} zonas={zonas ?? []} />
     </div>
   );
 }

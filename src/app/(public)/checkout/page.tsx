@@ -7,7 +7,7 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Checkout" };
 
-type DireccionFila = { id: string; nombre: string | null; direccion: string; comuna: string; region: string; referencia: string | null };
+type DireccionFila = { id: string; nombre: string | null; destinatario: string | null; direccion: string; comuna: string; region: string; referencia: string | null; zonas_entrega: { nombre: string }[] };
 
 export default async function CheckoutPage() {
   const claveIdempotencia = randomUUID();
@@ -26,7 +26,7 @@ export default async function CheckoutPage() {
 
   const { data: direcciones, error: errorDirecciones } = await supabase
     .from("direcciones_cliente")
-    .select("id,nombre,direccion,comuna,region,referencia")
+    .select("id,nombre,destinatario,direccion,comuna,region,referencia,zonas_entrega(nombre)")
     .eq("cliente_id", cliente.id)
     .eq("activa", true)
     .order("es_principal", { ascending: false })

@@ -23,8 +23,8 @@ export function MobileNavigation({ items, label, title, className }: MobileNavig
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[1px] transition-opacity duration-150 motion-reduce:transition-none data-[ending-style]:opacity-0" />
-        <Dialog.Viewport className="fixed inset-0 z-50 flex justify-end p-2 sm:p-4">
-          <Dialog.Popup className="flex h-full w-full max-w-sm flex-col rounded-xl border border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none transition-transform duration-150 motion-reduce:transition-none data-[ending-style]:translate-x-full">
+        <Dialog.Viewport className="fixed inset-0 z-50 flex justify-end">
+          <Dialog.Popup className="flex h-dvh w-[86vw] max-w-[360px] shrink-0 flex-col overflow-x-hidden border border-border bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] shadow-xl outline-none transition-transform duration-150 motion-reduce:transition-none data-[ending-style]:translate-x-full">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <Dialog.Title className="text-sm font-semibold text-foreground">{title}</Dialog.Title>
               <Dialog.Close className="inline-flex size-11 items-center justify-center rounded-lg text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Cerrar menú">

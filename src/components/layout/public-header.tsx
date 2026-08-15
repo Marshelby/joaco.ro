@@ -20,7 +20,7 @@ export function PublicHeader({ identidad }: { identidad: IdentidadCuenta | null 
         <div className="ml-auto flex items-center gap-1">
           <AccountTrigger identidad={identidad} />
           <CartTrigger />
-          <MobileNavigation items={mobileItems} label="Navegación principal" title="Navegación" className="md:hidden" />
+          <MobileNavigation items={mobileItems} label="Navegación principal" title="Navegación" authenticated={Boolean(identidad)} className="md:hidden" />
         </div>
       </Container>
     </header>

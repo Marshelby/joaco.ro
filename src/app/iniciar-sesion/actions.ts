@@ -13,5 +13,5 @@ export async function iniciarSesion(datos: FormData) {
 export async function cerrarSesion() {
   const supabase = await crearClienteSupabaseServidor();
   await supabase.auth.signOut();
-  redirect("/iniciar-sesion");
+  redirect("/");
 }

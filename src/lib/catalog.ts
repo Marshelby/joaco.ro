@@ -15,6 +15,11 @@ export type CatalogFilters = {
   sort: CatalogSort;
 };
 
+export type CatalogCategory = {
+  slug: string;
+  name: string;
+};
+
 export type CatalogSearchParams = Record<string, string | string[] | undefined>;
 
 const defaultSort: CatalogSort = "recommended";
@@ -31,19 +36,13 @@ export function normalizeCatalogText(value: string) {
     .trim();
 }
 
-export function getCatalogCategoryParam(category: string) {
-  return normalizeCatalogText(category).replace(/\s+/g, "-");
-}
-
 export function parseCatalogFilters(
   searchParams: CatalogSearchParams,
-  categories: readonly string[],
+  categories: readonly CatalogCategory[],
 ): CatalogFilters {
   const query = getSearchParamValue(searchParams.q)?.trim() ?? "";
   const categoryParam = getSearchParamValue(searchParams.categoria);
-  const category = categories.find(
-    (item) => getCatalogCategoryParam(item) === categoryParam,
-  );
+  const category = categories.find((item) => item.slug === categoryParam)?.slug;
   const sortParam = getSearchParamValue(searchParams.orden);
   const sort = CATALOG_SORT_OPTIONS.some((option) => option.value === sortParam)
     ? (sortParam as CatalogSort)
@@ -57,7 +56,7 @@ export function getCatalogHref(filters: Partial<CatalogFilters>) {
   const query = filters.query?.trim();
 
   if (query) params.set("q", query);
-  if (filters.category) params.set("categoria", getCatalogCategoryParam(filters.category));
+  if (filters.category) params.set("categoria", filters.category);
   if (filters.sort && filters.sort !== defaultSort) params.set("orden", filters.sort);
 
   const search = params.toString();
@@ -71,7 +70,7 @@ export function filterCatalogProducts(
   const normalizedQuery = normalizeCatalogText(filters.query);
 
   return products.filter((product) => {
-    const matchesCategory = !filters.category || product.category === filters.category;
+    const matchesCategory = !filters.category || product.categorySlug === filters.category;
     const searchableText = normalizeCatalogText(
       [product.name, product.category, product.subcategory, product.badge]
         .filter(Boolean)

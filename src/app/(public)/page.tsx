@@ -32,7 +32,7 @@ export default async function HomePage() {
       <ProductRail id="best-sellers-title" eyebrow="Nuestra especialidad" title="Hidropónicos" description="Frescos, seleccionados y preparados para abastecer tu negocio." icon="best-sellers" products={bestSellers} ariaLabel="Productos hidropónicos destacados" />
       <ProductRail id="opportunities-title" title="Más productos frescos" description="Encuentra productos para complementar tu pedido." icon="opportunities" products={featured} ariaLabel="Más productos frescos" />
       <ProductRail id="new-arrivals-title" title="Recién seleccionados" description="Nuevos productos que se suman a nuestra selección." icon="new-arrivals" products={newArrivals} ariaLabel="Productos recién seleccionados" />
-      <section aria-labelledby="categories-title" className="space-y-8"><div id="categories-title"><SectionTitle eyebrow="Explora por categoría" title="Encuentra productos para cada ocasión" description="Revisa las categorías disponibles y descubre nuevos productos." /></div><CategorySelector categories={categories} /></section>
+      <section aria-labelledby="categories-title" className="space-y-8"><div id="categories-title"><SectionTitle eyebrow="Explora por categoría" title="Encuentra productos para cada ocasión" description="Revisa las categorías disponibles y descubre nuevos productos." /></div><CategorySelector categories={categories} products={products} /></section>
       <ProductSection id="all-products-title" title="Catálogo completo" description="Explora la selección disponible de Hidro Leufú." products={products} countLabel={`${products.length} productos`} />
     </Container>
   );

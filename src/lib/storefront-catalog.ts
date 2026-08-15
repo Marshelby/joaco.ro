@@ -76,6 +76,7 @@ export function mapStorefrontProduct(row: CatalogRow): MockProduct | null {
     image: row.ruta_imagen ? { src: row.ruta_imagen, alt: getImageAlt(row.nombre), fit: "contain" } : undefined,
     imageFallback: imageFallbackByCategory[category.slug] ?? "fresh-produce",
     category: category.nombre,
+    categorySlug: category.slug,
     netPrice: Number(presentation.precio_neto),
     unitPrice: Number(presentation.precio_final),
     saleUnit: getSaleUnit(presentation),
@@ -146,6 +147,7 @@ export async function getStorefrontCategories(): Promise<HomeCategory[]> {
     .order("orden");
   if (error) throw new Error("No fue posible cargar las categorías.");
   return (data ?? []).map((category) => ({
+    slug: category.slug,
     name: category.nombre,
     description: category.descripcion ?? "Productos frescos seleccionados.",
     imageFallback: imageFallbackByCategory[category.slug] ?? "fresh-produce",
@@ -154,5 +156,18 @@ export async function getStorefrontCategories(): Promise<HomeCategory[]> {
 }
 
 export function getStorefrontRelatedProducts(products: readonly MockProduct[], product: MockProduct, limit = 4) {
-  return products.filter((item) => item.id !== product.id && item.category === product.category).slice(0, limit);
+  const rankByStorefrontPriority = (items: readonly MockProduct[]) => [...items].sort((left, right) => {
+    const leftPriority = Number(left.featured || left.bestSeller);
+    const rightPriority = Number(right.featured || right.bestSeller);
+    return rightPriority - leftPriority;
+  });
+  const candidates = products.filter((item) => item.id !== product.id);
+  const sameCategory = product.categorySlug
+    ? candidates.filter((item) => item.categorySlug === product.categorySlug)
+    : [];
+  const selected = rankByStorefrontPriority(sameCategory).slice(0, limit);
+  const selectedIds = new Set(selected.map((item) => item.id));
+  const fallback = rankByStorefrontPriority(candidates).filter((item) => !selectedIds.has(item.id));
+
+  return [...selected, ...fallback].slice(0, limit);
 }

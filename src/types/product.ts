@@ -23,6 +23,7 @@ export type MockProduct = {
   images?: readonly ImageAsset[];
   imageFallback: ImageFallbackKind;
   category: string;
+  categorySlug?: string;
   subcategory?: string;
   description: string;
   netPrice: number;

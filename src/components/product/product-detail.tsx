@@ -19,7 +19,7 @@ type ProductDetailProps = {
 
 export function ProductDetail({ product, relatedProducts }: ProductDetailProps) {
   const availability = getProductAvailabilityContent(product.availability);
-  const categoryHref = getCatalogHref({ category: product.category });
+  const categoryHref = getCatalogHref({ category: product.categorySlug });
 
   return (
     <Container className="py-8 sm:py-12 lg:py-16">
@@ -97,13 +97,16 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
 
         {relatedProducts.length > 0 ? (
           <section className="mt-14 border-t border-border pt-10 sm:mt-16 sm:pt-12" aria-labelledby="related-products-title">
-            <div className="max-w-2xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+              <div className="max-w-2xl">
               <h2 id="related-products-title" className="text-2xl font-semibold tracking-tight text-foreground">
-                También puede interesarte
+                Otros productos
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Más productos para seguir explorando la selección de Hidro Leufú.
+                Descubre más opciones de esta categoría.
               </p>
+              </div>
+              <ActionLink href={categoryHref} variant="quiet" className="self-start">Ver todos en {product.category}</ActionLink>
             </div>
             <div className="mt-6">
               <ProductGrid products={relatedProducts} variant="catalog" />

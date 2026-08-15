@@ -2,6 +2,7 @@ import type { ImageAsset, ImageFallbackKind } from "@/types/media";
 import { CATEGORY_CATALOG_MOCK } from "@/mocks/categories";
 
 export type HomeCategory = {
+  slug: string;
   name: string;
   description: string;
   image?: ImageAsset;
@@ -10,6 +11,7 @@ export type HomeCategory = {
 };
 
 export const HOME_CATEGORIES = CATEGORY_CATALOG_MOCK.map((category) => ({
+  slug: category.id,
   name: category.name,
   description: category.description,
   image: category.image,

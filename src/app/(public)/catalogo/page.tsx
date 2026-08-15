@@ -5,7 +5,7 @@ import { ProductGrid } from "@/components/home/product-grid";
 import { Container } from "@/components/layout/container";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
-import { filterCatalogProducts, parseCatalogFilters, sortCatalogProducts, type CatalogSearchParams } from "@/lib/catalog";
+import { filterCatalogProducts, parseCatalogFilters, sortCatalogProducts, type CatalogCategory, type CatalogSearchParams } from "@/lib/catalog";
 import { getStorefrontCategories, getStorefrontProducts } from "@/lib/storefront-catalog";
 
 export const metadata: Metadata = { title: "Catálogo" };
@@ -15,10 +15,10 @@ type CatalogPageProps = {
 };
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  let catalog: { categories: string[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> } | null = null;
+  let catalog: { categories: CatalogCategory[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> } | null = null;
   try {
     const [storefrontProducts, storefrontCategories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
-    const categories = storefrontCategories.map((category) => category.name);
+    const categories = storefrontCategories.map(({ name, slug }) => ({ name, slug }));
     const filters = parseCatalogFilters(await searchParams, categories);
     catalog = { categories, filters, products: sortCatalogProducts(filterCatalogProducts(storefrontProducts, filters), filters.sort) };
   } catch {}
@@ -27,9 +27,10 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   return <CatalogContent {...catalog} />;
 }
 
-function CatalogContent({ categories, filters, products }: { categories: string[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> }) {
+function CatalogContent({ categories, filters, products }: { categories: CatalogCategory[]; filters: ReturnType<typeof parseCatalogFilters>; products: ReturnType<typeof sortCatalogProducts> }) {
   const hasActiveFilters = Boolean(filters.query || filters.category || filters.sort !== "recommended");
-  const resultsLabel = `${products.length} ${products.length === 1 ? "producto" : "productos"}${filters.query ? ` para “${filters.query}”` : ""}${filters.category ? `${filters.query ? " en" : " en"} ${filters.category}` : ""}`;
+  const activeCategory = categories.find((category) => category.slug === filters.category);
+  const resultsLabel = `${products.length} ${products.length === 1 ? "producto" : "productos"}${filters.query ? ` para “${filters.query}”` : ""}${activeCategory ? `${filters.query ? " en" : " en"} ${activeCategory.name}` : ""}`;
 
   return (
     <Container className="space-y-8 py-8 sm:space-y-10 sm:py-12 lg:py-14">

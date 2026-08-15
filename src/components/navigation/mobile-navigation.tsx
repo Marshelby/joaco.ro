@@ -25,7 +25,7 @@ export function MobileNavigation({ items, label, title, authenticated = false, c
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[1px] transition-opacity duration-150 motion-reduce:transition-none data-[ending-style]:opacity-0" />
-        <Dialog.Viewport className="fixed inset-0 z-50 flex w-screen max-w-screen justify-end overflow-x-hidden">
+        <Dialog.Viewport className="fixed inset-0 z-50 flex max-w-full justify-end overflow-x-hidden">
           <Dialog.Popup className="box-border flex h-dvh w-[min(86vw,360px)] max-w-full min-w-0 shrink-0 flex-col overflow-x-hidden border border-border bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] shadow-xl outline-none transition-transform duration-150 motion-reduce:transition-none data-[ending-style]:translate-x-full">
             <div className="flex min-w-0 items-center justify-between border-b border-border px-4 py-3">
               <Dialog.Title className="min-w-0 truncate text-sm font-semibold text-foreground">{title}</Dialog.Title>

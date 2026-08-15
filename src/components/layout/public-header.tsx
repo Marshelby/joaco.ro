@@ -13,11 +13,11 @@ export function PublicHeader({ identidad }: { identidad: IdentidadCuenta | null 
     : [...PUBLIC_NAVIGATION, ...PUBLIC_ACCOUNT_NAVIGATION];
 
   return (
-    <header className="border-b border-border bg-background">
-      <Container className="flex min-h-[4.5rem] items-center gap-2">
-        <Logo wordmark="HIDROPONÍA" className="shrink-0 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" />
+    <header className="max-w-full overflow-x-clip border-b border-border bg-background">
+      <Container className="flex min-h-[4.5rem] min-w-0 max-w-full items-center gap-2">
+        <Logo wordmark="HIDROPONÍA" className="min-w-0 shrink-0 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" />
         <MainNavigation />
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex min-w-0 max-w-full shrink-0 flex-nowrap items-center gap-1">
           <AccountTrigger identidad={identidad} />
           <CartTrigger />
           <MobileNavigation items={mobileItems} label="Navegación principal" title="Navegación" authenticated={Boolean(identidad)} className="md:hidden" />

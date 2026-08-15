@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { CartProvider } from "@/components/cart/cart-provider";
 import { BRAND } from "@/config/brand";
 import "./globals.css";
 
@@ -32,7 +33,7 @@ export default function RootLayout({
         <a href="#main-content" className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus:not-sr-only focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
           Ir al contenido principal
         </a>
-        {children}
+        <CartProvider>{children}</CartProvider>
       </body>
     </html>
   );

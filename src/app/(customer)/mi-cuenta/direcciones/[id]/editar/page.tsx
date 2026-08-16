@@ -6,11 +6,14 @@ import { notFound } from "next/navigation";
 import { CustomerAddressForm, type DireccionClienteFormulario } from "@/components/account/customer-address-form";
 import { obtenerClienteActual } from "@/lib/account/identity";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
+import { hrefConReturnTo, obtenerReturnToSeguro } from "@/lib/account/return-to";
 
 export const metadata: Metadata = { title: "Direcciones" };
 
-export default async function EditCustomerAddressPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditCustomerAddressPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ returnTo?: string }> }) {
   const { id } = await params;
+  const { returnTo: returnToParametro } = await searchParams;
+  const returnTo = obtenerReturnToSeguro(returnToParametro);
   const cliente = await obtenerClienteActual();
   if (!cliente) notFound();
   const supabase = await crearClienteSupabaseServidor();
@@ -24,8 +27,8 @@ export default async function EditCustomerAddressPage({ params }: { params: Prom
   const direccion: DireccionClienteFormulario = { id: data.id, destinatario: data.destinatario ?? data.nombre, telefonoContacto: data.telefono_contacto, direccion: data.direccion, zonaEntregaId, referencia: data.referencia, esPrincipal: data.es_principal, latitud: data.latitud === null ? null : Number(data.latitud), longitud: data.longitud === null ? null : Number(data.longitud) };
   return (
     <div className="space-y-8">
-      <PageHeader title="Editar dirección" description="Actualiza los datos de entrega que utilizas." actions={<ActionLink href={ROUTES.accountAddresses} variant="secondary">Volver a Mis direcciones</ActionLink>} />
-      <CustomerAddressForm direccion={direccion} zonas={zonas ?? []} />
+      <PageHeader title="Editar dirección" description="Actualiza los datos de entrega que utilizas." actions={<ActionLink href={hrefConReturnTo(ROUTES.accountAddresses, returnTo)} variant="secondary">Volver a Mis direcciones</ActionLink>} />
+      <CustomerAddressForm direccion={direccion} zonas={zonas ?? []} returnTo={returnTo} />
     </div>
   );
 }

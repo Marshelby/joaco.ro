@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 
 import { guardarDireccionCliente } from "@/app/(customer)/mi-cuenta/actions";
 import { CustomerAddressMap, type AddressCoordinates } from "@/components/account/customer-address-map";
 import { Button } from "@/components/ui/button";
+import { etiquetaReturnTo, type ReturnToCompra } from "@/lib/account/return-to";
 
 export type DireccionClienteFormulario = {
   id?: string;
@@ -26,7 +28,7 @@ function obtenerDigitosTelefono(telefono: string | null | undefined) {
   return (telefono ?? "").replace(/\D/g, "").replace(/^569/, "").slice(0, 8);
 }
 
-export function CustomerAddressForm({ direccion, zonas }: { direccion?: DireccionClienteFormulario; zonas: readonly ZonaEntregaFormulario[] }) {
+export function CustomerAddressForm({ direccion, zonas, returnTo }: { direccion?: DireccionClienteFormulario; zonas: readonly ZonaEntregaFormulario[]; returnTo?: ReturnToCompra | null }) {
   const [estado, accion, pendiente] = useActionState(guardarDireccionCliente, {});
   const [telefono, setTelefono] = useState(() => obtenerDigitosTelefono(direccion?.telefonoContacto));
   const [coordinates, setCoordinates] = useState<AddressCoordinates>(() => ({ latitude: direccion?.latitud ?? null, longitude: direccion?.longitud ?? null }));
@@ -47,7 +49,7 @@ export function CustomerAddressForm({ direccion, zonas }: { direccion?: Direccio
       </div>
       <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-foreground"><input name="esPrincipal" type="checkbox" defaultChecked={direccion?.esPrincipal ?? false} /> Usar como dirección principal</label>
       {!locationIsValid ? <p role="alert" className="text-sm text-destructive">Marca la ubicación exacta en el mapa antes de guardar.</p> : null}
-      <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={pendiente || !locationIsValid}>{pendiente ? "Guardando…" : "Guardar dirección"}</Button>{estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}{estado.error ? <p role="alert" className="text-sm text-destructive">{estado.error}</p> : null}</div>
+      <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={pendiente || !locationIsValid}>{pendiente ? "Guardando…" : "Guardar dirección"}</Button>{estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}{estado.error ? <p role="alert" className="text-sm text-destructive">{estado.error}</p> : null}{estado.exito && returnTo ? <Button render={<Link href={returnTo} />} variant="secondary">{etiquetaReturnTo(returnTo)}</Button> : null}</div>
     </form>
   );
 }

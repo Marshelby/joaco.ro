@@ -46,11 +46,11 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
 
           <section className="rounded-xl border border-border bg-card p-4 sm:p-5" aria-labelledby="productos-necesarios-title">
             <div><h2 id="productos-necesarios-title" className="text-lg font-semibold tracking-tight text-foreground">Productos necesarios</h2><p className="mt-1 text-sm text-muted-foreground">Consolidado de las presentaciones solicitadas para preparar esta jornada.</p></div>
-            <ul className="mt-4 divide-y divide-border">
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {entrega.resumenProductos.map((item) => (
-                <li key={item.clave} className="flex items-center justify-between gap-4 py-3">
-                  <div className="min-w-0"><h3 className="font-medium text-foreground">{item.producto}</h3><p className="mt-1 text-sm text-muted-foreground">{item.presentacion ?? item.unidad}</p></div>
-                  <p className="shrink-0 font-semibold text-foreground">{formatearCantidadConUnidadEntrega(item.cantidadTotal, item.unidad)}</p>
+                <li key={item.clave} className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+                  <div className="min-w-0"><h3 className="truncate text-sm font-medium text-foreground">{item.producto}</h3><p className="mt-0.5 truncate text-xs text-muted-foreground">{item.presentacion ?? item.unidad}</p></div>
+                  <p className="shrink-0 text-sm font-semibold text-foreground">{formatearCantidadConUnidadEntrega(item.cantidadTotal, item.unidad)}</p>
                 </li>
               ))}
             </ul>

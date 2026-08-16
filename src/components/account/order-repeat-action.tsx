@@ -2,14 +2,16 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { MoreHorizontal, Repeat2 } from "lucide-react";
+import { MoreHorizontal, Repeat2, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useState } from "react";
 
-import { prepararRepeticionPedido, type ResultadoPrepararRepeticion } from "@/app/(customer)/mi-cuenta/pedidos/actions";
+import { cancelarPedidoCliente, prepararRepeticionPedido, type ResultadoPrepararRepeticion } from "@/app/(customer)/mi-cuenta/pedidos/actions";
 import { useCart, type ModoCargaCarrito, type ResultadoCargaCarrito } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/config/routes";
+import type { EstadoPedidoCuenta } from "@/lib/account/pedidos";
 
 type RepeticionPendiente = Extract<ResultadoPrepararRepeticion, { estado: "ok" }>;
 
@@ -31,12 +33,25 @@ function construirFeedback(resultado: ResultadoCargaCarrito, repeticion: Repetic
   };
 }
 
-export function OrderRepeatAction({ pedidoId, numeroPedido }: { pedidoId: string; numeroPedido: string }) {
+export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId: string; numeroPedido: string; estado: EstadoPedidoCuenta }) {
+  const router = useRouter();
   const { numeroItems, cargarLineas, isHydrated } = useCart();
   const [resolviendo, setResolviendo] = useState(false);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
+  const [dialogoCancelacionAbierto, setDialogoCancelacionAbierto] = useState(false);
   const [pendiente, setPendiente] = useState<RepeticionPendiente | null>(null);
   const [feedback, setFeedback] = useState<{ mensaje: string; detalle: string | null } | null>(null);
+  const [resultadoCancelacion, cancelar, cancelando] = useActionState(cancelarPedidoCliente, {});
+
+  useEffect(() => {
+    if (resultadoCancelacion.refrescar) {
+      router.refresh();
+      return;
+    }
+    if (!resultadoCancelacion.cancelado) return;
+    setDialogoCancelacionAbierto(false);
+    router.refresh();
+  }, [resultadoCancelacion.cancelado, resultadoCancelacion.refrescar, router]);
 
   const aplicarRepeticion = (repeticion: RepeticionPendiente, modo: ModoCargaCarrito) => {
     const resultado = cargarLineas(repeticion.lineasValidas, modo);
@@ -89,6 +104,13 @@ export function OrderRepeatAction({ pedidoId, numeroPedido }: { pedidoId: string
                 <Repeat2 className="size-4" aria-hidden="true" />
                 {resolviendo ? "Preparando…" : isHydrated ? "Repetir pedido" : "Cargando carrito…"}
               </Menu.Item>
+              {estado === "recibido" ? <>
+                <div className="my-1 border-t border-border" />
+                <Menu.Item onClick={() => { setFeedback(null); setDialogoCancelacionAbierto(true); }} className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium text-destructive outline-none data-[highlighted]:bg-destructive/10">
+                  <XCircle className="size-4" aria-hidden="true" />
+                  Cancelar pedido
+                </Menu.Item>
+              </> : null}
             </Menu.Popup>
           </Menu.Positioner>
         </Menu.Portal>
@@ -106,6 +128,31 @@ export function OrderRepeatAction({ pedidoId, numeroPedido }: { pedidoId: string
                 <Button type="button" className="w-full" onClick={() => pendiente && aplicarRepeticion(pendiente, "reemplazar")}>Empezar carrito nuevo</Button>
               </div>
               <Dialog.Close className="mt-3 min-h-11 w-full rounded-lg text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">Cancelar</Dialog.Close>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={dialogoCancelacionAbierto} onOpenChange={setDialogoCancelacionAbierto}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+            <Dialog.Popup className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl outline-none sm:p-6">
+              <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground">¿Cancelar este pedido?</Dialog.Title>
+              <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">Puedes cancelar el pedido {numeroPedido} mientras Hidro Leufú aún no lo haya confirmado.</Dialog.Description>
+              <p className="mt-2 text-sm text-muted-foreground">Una vez confirmado por nuestro equipo, ya no podrás cancelarlo desde tu cuenta.</p>
+              <form action={cancelar} className="mt-5 space-y-4">
+                <input type="hidden" name="pedidoId" value={pedidoId} />
+                <label className="block text-sm font-medium text-foreground" htmlFor={`motivo-cancelacion-${pedidoId}`}>
+                  Motivo <span className="font-normal text-muted-foreground">(opcional)</span>
+                </label>
+                <textarea id={`motivo-cancelacion-${pedidoId}`} name="motivo" maxLength={400} placeholder="Ej. Me equivoqué en las cantidades" className="mt-2 min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" disabled={cancelando} />
+                {resultadoCancelacion.error ? <p aria-live="polite" className="text-sm text-destructive">{resultadoCancelacion.error}</p> : null}
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDialogoCancelacionAbierto(false)} disabled={cancelando}>Volver</Button>
+                  <Button type="submit" variant="destructive" className="w-full sm:w-auto" disabled={cancelando}>{cancelando ? "Cancelando…" : "Cancelar pedido"}</Button>
+                </div>
+              </form>
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

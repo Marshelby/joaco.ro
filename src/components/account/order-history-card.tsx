@@ -23,7 +23,7 @@ export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
         </div>
         <div className="flex items-start gap-1">
           <CustomerOrderStatusBadge estado={order.estado} />
-          <OrderRepeatAction pedidoId={order.id} numeroPedido={order.numeroPedido} />
+          <OrderRepeatAction pedidoId={order.id} numeroPedido={order.numeroPedido} estado={order.estado} />
         </div>
       </div>
 

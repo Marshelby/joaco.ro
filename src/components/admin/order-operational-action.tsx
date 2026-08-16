@@ -15,22 +15,38 @@ import type { EstadoPedidoAdmin } from "@/lib/admin/pedidos";
 
 type EstadoOperativo = Extract<EstadoPedidoAdmin, "confirmado" | "preparando" | "listo_despacho" | "en_reparto">;
 
-const acciones: Record<EstadoOperativo, { accion: (estado: EstadoTransicionPedido, datos: FormData) => Promise<EstadoTransicionPedido>; etiqueta: string; pendiente: string; exito: string }> = {
+type AccionOperativa = (
+  estado: EstadoTransicionPedido,
+  datos: FormData,
+) => Promise<EstadoTransicionPedido>;
+
+const acciones: Record<EstadoOperativo, { accion: AccionOperativa; etiqueta: string; pendiente: string; exito: string }> = {
   confirmado: { accion: marcarPedidoPreparando, etiqueta: "Comenzar preparación", pendiente: "Preparando…", exito: "Pedido en preparación." },
   preparando: { accion: marcarPedidoListoDespacho, etiqueta: "Marcar listo para despacho", pendiente: "Actualizando…", exito: "Pedido listo para despacho." },
   listo_despacho: { accion: marcarPedidoEnReparto, etiqueta: "Marcar en reparto", pendiente: "Actualizando…", exito: "Pedido en reparto." },
   en_reparto: { accion: marcarPedidoEntregado, etiqueta: "Marcar entregado", pendiente: "Marcando…", exito: "Pedido entregado." },
 };
 
+const accionInactiva: AccionOperativa = async (estado, datos) => {
+  void estado;
+  void datos;
+  return {};
+};
+
 export function OrderOperationalAction({ pedidoId, estado }: { pedidoId: string; estado: EstadoPedidoAdmin }) {
   const router = useRouter();
   const configuracion = estado in acciones ? acciones[estado as EstadoOperativo] : null;
-  if (!configuracion) return null;
-  const [resultado, accion, pendiente] = useActionState(configuracion.accion, {});
+  const [resultado, accion, pendiente] = useActionState(
+    configuracion?.accion ?? accionInactiva,
+    {},
+  );
 
   useEffect(() => {
-    if (resultado.actualizado) router.refresh();
-  }, [resultado.actualizado, router]);
+    if (!configuracion || !resultado.actualizado) return;
+    router.refresh();
+  }, [configuracion, resultado.actualizado, router]);
+
+  if (!configuracion) return null;
 
   return (
     <form action={accion} className="space-y-2">

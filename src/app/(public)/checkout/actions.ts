@@ -17,6 +17,9 @@ const mensajesRpc: Record<string, string> = {
   DIRECCION_REQUERIDA: "Selecciona una dirección de entrega para confirmar el pedido.",
   DIRECCION_SIN_UBICACION: "Completa la ubicación de esta dirección antes de confirmar el pedido.",
   DIRECCION_SIN_ZONA_VALIDA: "Selecciona una zona de entrega disponible antes de confirmar el pedido.",
+  FECHA_ENTREGA_REQUERIDA: "Selecciona una fecha de entrega para confirmar el pedido.",
+  FECHA_ENTREGA_INVALIDA: "La fecha de entrega seleccionada no es válida.",
+  FECHA_ENTREGA_NO_DISPONIBLE: "La fecha seleccionada ya no está disponible. Elige otra fecha de entrega.",
   ITEMS_REQUERIDOS: "Tu carrito no contiene productos válidos para confirmar.",
   ITEM_INVALIDO: "Uno de los productos del carrito no es válido. Revisa tu pedido.",
   PRESENTACION_INVALIDA: "Uno de los productos del carrito ya no es válido. Revisa tu pedido.",
@@ -38,14 +41,22 @@ function obtenerItems(datos: FormData) {
   }
 }
 
+function fechaEntregaValida(valor: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+  const fecha = new Date(`${valor}T12:00:00.000Z`);
+  return !Number.isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
+}
+
 export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData): Promise<EstadoCrearPedido> {
   const items = obtenerItems(datos);
   const claveIdempotencia = String(datos.get("claveIdempotencia") ?? "").trim();
   const direccionClienteId = String(datos.get("direccionClienteId") ?? "").trim() || null;
+  const fechaEntrega = String(datos.get("fechaEntrega") ?? "").trim();
   const observacion = String(datos.get("observacion") ?? "").trim() || null;
 
   if (!items || !claveIdempotencia) return { error: "No fue posible preparar el pedido. Revisa el carrito e inténtalo nuevamente." };
   if (!direccionClienteId) return { error: "Selecciona una dirección con ubicación marcada para confirmar el pedido." };
+  if (!fechaEntregaValida(fechaEntrega)) return { error: "Selecciona una fecha de entrega para confirmar el pedido." };
 
   const supabase = await crearClienteSupabaseServidor();
   const { data: sesion } = await supabase.auth.getUser();
@@ -78,6 +89,7 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
     p_items: items,
     p_observacion: observacion,
     p_clave_idempotencia: claveIdempotencia,
+    p_fecha_entrega: fechaEntrega,
   });
 
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible confirmar el pedido. Conservamos tu carrito para que puedas intentarlo nuevamente." };

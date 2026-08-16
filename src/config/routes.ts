@@ -25,6 +25,7 @@ export const ROUTES = {
   newCustomerAddress: "/mi-cuenta/direcciones/nueva",
   editCustomerAddress: (id: string) => `/mi-cuenta/direcciones/${id}/editar`,
   adminOrder: (id: string) => `/admin/pedidos/${id}`,
+  adminDeliveryDay: (fecha: string) => `/admin/pedidos/entregas/${fecha}`,
   adminCustomer: (id: string) => `/admin/clientes/${id}`,
   adminProduct: (id: string) => `/admin/productos/${id}`,
   adminCategory: (id: string) => `/admin/categorias/${id}`,

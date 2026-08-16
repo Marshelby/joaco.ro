@@ -5,6 +5,7 @@ import { CustomerOrderStatusBadge, getEtiquetaEstadoPedidoCuenta } from "@/compo
 import { ROUTES } from "@/config/routes";
 import type { PedidoCuentaDetalle } from "@/lib/account/pedidos";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
+import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
 
 import { OrderItemRow } from "./order-item-row";
@@ -49,6 +50,7 @@ export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
           <section aria-label="Resumen del pedido" className="rounded-xl border border-border bg-card p-5">
             <dl className="grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-1">
               <div><dt className="text-muted-foreground">Total</dt><dd className="mt-1 text-lg font-semibold text-foreground">{formatCLP(order.total)}</dd></div>
+              {order.fechaEntrega ? <div><dt className="text-muted-foreground">Entrega programada</dt><dd className="mt-1 font-medium text-foreground">{formatFechaEntregaLarga(order.fechaEntrega)}</dd></div> : null}
             </dl>
           </section>
 

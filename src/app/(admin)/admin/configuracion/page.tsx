@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
-import { Settings } from "lucide-react";
 
-import { AdminModuleIntro } from "@/components/admin/admin-module-intro";
+import { DeliveryDaysSettings } from "@/components/admin/delivery-days-settings";
+import { PageHeader } from "@/components/shared/page-header";
+import { obtenerDiasEntregaAdministrativos } from "@/lib/admin/dias-entrega";
 
 export const metadata: Metadata = { title: "Configuración" };
 
-export default function AdminSettingsPage() {
-  return <AdminModuleIntro title="Configuración" description="Centraliza las definiciones que acompañan la operación de la tienda." surfaceTitle="Preferencias de la tienda" surfaceDescription="Este espacio reunirá los ajustes que se definan para la experiencia y la operación." icon={Settings} />;
+export default async function AdminSettingsPage() {
+  const diasEntrega = await obtenerDiasEntregaAdministrativos();
+
+  return (
+    <div className="space-y-8">
+      <PageHeader title="Configuración" description="Centraliza las definiciones que acompañan la operación de la tienda." />
+      <DeliveryDaysSettings dias={diasEntrega} />
+    </div>
+  );
 }

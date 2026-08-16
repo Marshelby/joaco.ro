@@ -5,6 +5,7 @@ import { CustomerOrderStatusBadge } from "@/components/account/customer-order-st
 import { OrderRepeatAction } from "@/components/account/order-repeat-action";
 import { ROUTES } from "@/config/routes";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
+import { formatFechaEntregaCorta } from "@/lib/delivery-date";
 import type { PedidoCuentaListado } from "@/lib/account/pedidos";
 
 type OrderHistoryCardProps = { order: PedidoCuentaListado };
@@ -18,6 +19,7 @@ export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
         <div className="min-w-0">
           <h2 className="text-base font-semibold tracking-tight text-foreground">{order.numeroPedido}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{formatDateCL(order.fechaCreacion)}</p>
+          {order.fechaEntrega ? <p className="mt-1 text-sm text-muted-foreground">Entrega: {formatFechaEntregaCorta(order.fechaEntrega)}</p> : null}
         </div>
         <div className="flex items-start gap-1">
           <CustomerOrderStatusBadge estado={order.estado} />

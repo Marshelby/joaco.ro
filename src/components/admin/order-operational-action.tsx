@@ -20,6 +20,8 @@ type AccionOperativa = (
   datos: FormData,
 ) => Promise<EstadoTransicionPedido>;
 
+type ContextoAccionOperativa = "general" | "preparacion";
+
 const acciones: Record<EstadoOperativo, { accion: AccionOperativa; etiqueta: string; pendiente: string; exito: string }> = {
   confirmado: { accion: marcarPedidoPreparando, etiqueta: "Comenzar preparación", pendiente: "Preparando…", exito: "Pedido en preparación." },
   preparando: { accion: marcarPedidoListoDespacho, etiqueta: "Marcar listo para despacho", pendiente: "Actualizando…", exito: "Pedido listo para despacho." },
@@ -33,25 +35,36 @@ const accionInactiva: AccionOperativa = async (estado, datos) => {
   return {};
 };
 
-export function OrderOperationalAction({ pedidoId, estado }: { pedidoId: string; estado: EstadoPedidoAdmin }) {
+export function OrderOperationalAction({
+  pedidoId,
+  estado,
+  contexto = "general",
+}: {
+  pedidoId: string;
+  estado: EstadoPedidoAdmin;
+  contexto?: ContextoAccionOperativa;
+}) {
   const router = useRouter();
-  const configuracion = estado in acciones ? acciones[estado as EstadoOperativo] : null;
+  const esAccionDePreparacion = estado === "confirmado" || estado === "preparando";
+  const configuracion = estado in acciones && (contexto === "general" || esAccionDePreparacion)
+    ? acciones[estado as EstadoOperativo]
+    : null;
   const [resultado, accion, pendiente] = useActionState(
     configuracion?.accion ?? accionInactiva,
     {},
   );
 
   useEffect(() => {
-    if (!configuracion || !resultado.actualizado) return;
+    if (!configuracion || (!resultado.actualizado && !resultado.error)) return;
     router.refresh();
-  }, [configuracion, resultado.actualizado, router]);
+  }, [configuracion, resultado.actualizado, resultado.error, router]);
 
   if (!configuracion) return null;
 
   return (
     <form action={accion} className="space-y-2">
       <input type="hidden" name="pedidoId" value={pedidoId} />
-      <Button type="submit" className="w-full sm:w-auto" disabled={pendiente}>{pendiente ? configuracion.pendiente : configuracion.etiqueta}</Button>
+      <Button type="submit" className="w-full sm:w-auto" disabled={pendiente}>{pendiente ? configuracion.pendiente : contexto === "preparacion" && estado === "preparando" ? "Marcar listo" : configuracion.etiqueta}</Button>
       <p aria-live="polite" className={resultado.error ? "text-sm text-destructive" : "text-sm text-primary"}>{resultado.error ?? (resultado.actualizado ? configuracion.exito : "")}</p>
     </form>
   );

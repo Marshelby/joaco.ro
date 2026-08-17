@@ -42,14 +42,10 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
   const [pendiente, setPendiente] = useState<RepeticionPendiente | null>(null);
   const [feedback, setFeedback] = useState<{ mensaje: string; detalle: string | null } | null>(null);
   const [resultadoCancelacion, cancelar, cancelando] = useActionState(cancelarPedidoCliente, {});
+  const dialogoCancelacionVisible = dialogoCancelacionAbierto && !resultadoCancelacion.cancelado && !resultadoCancelacion.refrescar;
 
   useEffect(() => {
-    if (resultadoCancelacion.refrescar) {
-      router.refresh();
-      return;
-    }
-    if (!resultadoCancelacion.cancelado) return;
-    setDialogoCancelacionAbierto(false);
+    if (!resultadoCancelacion.refrescar && !resultadoCancelacion.cancelado) return;
     router.refresh();
   }, [resultadoCancelacion.cancelado, resultadoCancelacion.refrescar, router]);
 
@@ -133,7 +129,7 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
         </Dialog.Portal>
       </Dialog.Root>
 
-      <Dialog.Root open={dialogoCancelacionAbierto} onOpenChange={setDialogoCancelacionAbierto}>
+      <Dialog.Root open={dialogoCancelacionVisible} onOpenChange={setDialogoCancelacionAbierto}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">

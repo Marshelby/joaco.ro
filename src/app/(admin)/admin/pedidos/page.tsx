@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { ChevronDown } from "lucide-react";
 
+import { DeliveryProductsSummary } from "@/components/admin/delivery-products-summary";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { PageHeader } from "@/components/shared/page-header";
@@ -17,7 +19,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   const soloRecibidos = vista === "recibidos";
   const [pedidos, cantidadRecibidos, entregas] = await Promise.all([
     vista === "entregas" ? Promise.resolve([]) : obtenerPedidosAdmin(soloRecibidos),
-    obtenerCantidadPedidosRecibidos(),
+    soloRecibidos ? obtenerCantidadPedidosRecibidos() : Promise.resolve(0),
     vista === "entregas" ? obtenerEntregasProximasAdmin() : Promise.resolve([]),
   ]);
 
@@ -46,7 +48,22 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                   <div><dt className="text-muted-foreground">Total estimado</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(entrega.total)}</dd></div>
                   {entrega.cantidadClientes > 0 ? <div><dt className="text-muted-foreground">Clientes</dt><dd className="mt-1 font-medium text-foreground">{entrega.cantidadClientes}</dd></div> : null}
                 </dl>
-                <ActionLink href={ROUTES.adminDeliveryDay(entrega.fecha)} variant="quiet" className="mt-4 -ml-3">Ver jornada</ActionLink>
+                <details className="group mt-4 border-t border-border pt-3">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                    <span className="group-open:hidden">Ver productos necesarios</span>
+                    <span className="hidden group-open:inline">Ocultar productos necesarios</span>
+                    <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                  </summary>
+                  <div className="mt-2 min-w-0">
+                    <p className="text-xs text-muted-foreground">
+                      {entrega.resumenProductos.length} {entrega.resumenProductos.length === 1 ? "línea de preparación" : "líneas de preparación"}
+                    </p>
+                    <div className="mt-1">
+                      <DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" />
+                    </div>
+                  </div>
+                </details>
+                <ActionLink href={ROUTES.adminDeliveryDay(entrega.fecha)} variant="quiet" className="mt-2 -ml-3">Ver jornada</ActionLink>
               </li>
             ))}
           </ul>

@@ -14,10 +14,15 @@ function normalizePresentationName(value: string) {
     .toLocaleLowerCase("es-CL");
 }
 
+export function getClosedPresentationKind(presentationName: string) {
+  const normalizedName = normalizePresentationName(presentationName);
+  return normalizedName.match(CLOSED_FORMAT_PATTERN)?.[1] ?? null;
+}
+
 export function isFractionalKgItem(item: CartQuantityItem) {
   return item.unidad.toUpperCase() === "KG"
     && item.cantidadPresentacion === 1
-    && !CLOSED_FORMAT_PATTERN.test(normalizePresentationName(item.presentacionNombre));
+    && !getClosedPresentationKind(item.presentacionNombre);
 }
 
 export function isValidCartQuantity(item: CartQuantityItem, cantidad: number) {

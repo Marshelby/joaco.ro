@@ -27,13 +27,14 @@ async function actualizarEstadoPedido(
   const { data: sesion } = await supabase.auth.getUser();
   if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
 
-  const { data: pedido } = await supabase.from("pedidos").select("cliente_id").eq("id", pedidoId).maybeSingle();
+  const { data: pedido } = await supabase.from("pedidos").select("cliente_id,fecha_entrega").eq("id", pedidoId).maybeSingle();
   const { error } = await supabase.rpc(rpc, { p_pedido_id: pedidoId });
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible actualizar el estado del pedido." };
 
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
   revalidatePath(`/admin/pedidos/${pedidoId}`);
+  if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
   revalidatePath("/admin/clientes");
   if (pedido?.cliente_id) revalidatePath(`/admin/clientes/${pedido.cliente_id}`);
   revalidatePath("/mi-cuenta/pedidos");

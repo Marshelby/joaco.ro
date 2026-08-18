@@ -38,7 +38,7 @@ export function ProductCard({ product, variant = "grid" }: ProductCardProps) {
           <p className="mt-3 text-xs leading-5 text-muted-foreground">{getProductAvailabilityContent(product.availability).label}</p>
         </div>
         </Link>
-        <div className="min-w-0 max-w-full px-4 pb-4 sm:px-5 sm:pb-5"><CartProductAction product={product} className="w-full" /></div>
+        <div className="min-w-0 max-w-full px-4 pb-4 sm:px-5 sm:pb-5"><CartProductAction product={product} compact className="w-full" /></div>
       </div>
     </article>
   );

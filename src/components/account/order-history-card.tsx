@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { CustomerOrderStatusBadge } from "@/components/account/customer-order-status-badge";
+import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { OrderRepeatAction } from "@/components/account/order-repeat-action";
 import { ROUTES } from "@/config/routes";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
@@ -22,7 +23,7 @@ export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
           {order.fechaEntrega ? <p className="mt-1 text-sm text-muted-foreground">Entrega: {formatFechaEntregaCorta(order.fechaEntrega)}</p> : null}
         </div>
         <div className="flex items-start gap-1">
-          <CustomerOrderStatusBadge estado={order.estado} />
+          <div className="flex flex-wrap justify-end gap-1"><CustomerOrderStatusBadge estado={order.estado} />{order.preparacionEstado === "incompleta" ? <PreparationStatusBadge estado={order.preparacionEstado} /> : null}</div>
           <OrderRepeatAction pedidoId={order.id} numeroPedido={order.numeroPedido} estado={order.estado} />
         </div>
       </div>
@@ -34,7 +35,7 @@ export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
         </div>
         <div className="text-right">
           <dt className="text-muted-foreground">Total</dt>
-          <dd className="mt-1 text-base font-semibold text-foreground">{formatCLP(order.total)}</dd>
+          <dd className="mt-1 text-base font-semibold text-foreground">{formatCLP(order.totalFinal ?? order.total)}</dd>
         </div>
       </dl>
 

@@ -1,6 +1,9 @@
 import { CheckCircle2, ChevronDown } from "lucide-react";
 
 import { OrderOperationalAction } from "@/components/admin/order-operational-action";
+import { PreparationItemControl } from "@/components/admin/preparation-item-control";
+import { FinalizePreparationAction } from "@/components/admin/finalize-preparation-action";
+import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
@@ -29,13 +32,14 @@ export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
           <div><dt className="text-muted-foreground">Creado</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div>
           <div className="sm:mt-2"><dt className="text-muted-foreground">Total</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div>
         </dl>
-        <OrderStatusBadge estado={pedido.estado} />
+        <div className="flex flex-wrap gap-2"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></div>
         <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink>
       </div>
 
       {requierePreparacion || pendienteDeConfirmacion || listoParaDespacho ? (
         <div className="mt-4 border-t border-border pt-3">
-          {requierePreparacion ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" /> : null}
+          {pedido.estado === "confirmado" ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} /> : null}
+          {pedido.estado === "preparando" ? <FinalizePreparationAction pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} lineasConFaltantes={pedido.items.filter((item) => item.tieneFaltante).length} /> : null}
           {pendienteDeConfirmacion ? <p className="text-sm text-muted-foreground">Pendiente de confirmación</p> : null}
           {listoParaDespacho ? (
             <p className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary/10 px-3 text-sm font-semibold text-primary">
@@ -56,7 +60,11 @@ export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
           <h4 className="text-sm font-semibold text-foreground">Productos</h4>
           {pedido.items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : (
             <ul className="mt-2 divide-y divide-border">
-              {pedido.items.map((item) => (
+              {pedido.items.map((item) => pedido.estado === "preparando" ? (
+                <PreparationItemControl key={`${item.id}-${item.cantidadPreparada ?? "completo"}-${item.motivoFaltante ?? ""}`} item={item} />
+              ) : item.tieneFaltante && pedido.preparacionEstado === "incompleta" ? (
+                <li key={item.id} className="min-w-0 py-3 text-sm"><p className="font-medium text-foreground">{item.nombreProducto}</p><div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-3"><p>Solicitado: {formatearCantidadPreparacion(item)}</p><p>Preparado: {formatearCantidadPreparacion({ ...item, cantidad: item.cantidadPreparada ?? item.cantidad })}</p><p>Faltan: {formatearCantidadPreparacion({ ...item, cantidad: item.cantidadFaltante })}</p></div>{item.motivoFaltante ? <p className="mt-1 text-muted-foreground">Motivo: {item.motivoFaltante}</p> : null}</li>
+              ) : (
                 <li key={item.id} className="flex min-w-0 items-start justify-between gap-4 py-3">
                   <div className="min-w-0">
                     <p className="break-words text-sm font-medium text-foreground">{item.nombreProducto}</p>

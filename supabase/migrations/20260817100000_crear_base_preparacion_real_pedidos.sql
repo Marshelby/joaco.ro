@@ -1,0 +1,280 @@
+-- P1: solicitud histórica y preparación real son dimensiones separadas.
+-- No se recalculan montos ni se modifican vistas financieras en esta migración.
+
+alter table public.items_pedido
+  add column modo_cantidad_snapshot text,
+  add constraint items_pedido_modo_cantidad_snapshot_valido check (
+    modo_cantidad_snapshot is null
+    or modo_cantidad_snapshot in ('kg_fraccionable', 'presentacion_cerrada', 'unidad')
+  );
+
+alter table public.pedidos
+  add column preparacion_estado text,
+  add column subtotal_final bigint,
+  add column total_final bigint,
+  add column preparacion_finalizada_en timestamptz,
+  add column preparacion_finalizada_por uuid references auth.users(id) on delete set null,
+  add constraint pedidos_preparacion_estado_valido check (
+    preparacion_estado is null
+    or preparacion_estado in ('pendiente', 'completa', 'incompleta')
+  ),
+  add constraint pedidos_subtotal_final_no_negativo check (
+    subtotal_final is null or subtotal_final >= 0
+  ),
+  add constraint pedidos_total_final_no_negativo check (
+    total_final is null or total_final >= 0
+  ),
+  add constraint pedidos_totales_finales_coherentes check (
+    (subtotal_final is null and total_final is null)
+    or (
+      subtotal_final is not null
+      and total_final is not null
+      and total_final = subtotal_final + costo_entrega - descuento
+    )
+  );
+
+create table public.preparacion_items_pedido (
+  id uuid primary key default gen_random_uuid(),
+  pedido_id uuid not null references public.pedidos(id) on delete cascade,
+  item_pedido_id uuid not null unique references public.items_pedido(id) on delete cascade,
+  cantidad_preparada numeric(12,3) not null check (cantidad_preparada >= 0),
+  motivo_faltante text,
+  registrado_por uuid references auth.users(id) on delete set null,
+  fecha_creacion timestamptz not null default now(),
+  fecha_actualizacion timestamptz not null default now()
+);
+
+create index preparacion_items_pedido_pedido_id_idx
+  on public.preparacion_items_pedido (pedido_id);
+
+create function public.validar_coherencia_preparacion_item_pedido()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido_id uuid;
+begin
+  select i.pedido_id
+  into v_pedido_id
+  from public.items_pedido i
+  where i.id = new.item_pedido_id;
+
+  if not found then
+    raise exception 'ITEM_PEDIDO_NO_ENCONTRADO';
+  end if;
+
+  if v_pedido_id is distinct from new.pedido_id then
+    raise exception 'ITEM_PEDIDO_NO_CORRESPONDE_AL_PEDIDO';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger validar_coherencia_preparacion_item_pedido_antes_de_guardar
+before insert or update of pedido_id, item_pedido_id
+on public.preparacion_items_pedido
+for each row execute function public.validar_coherencia_preparacion_item_pedido();
+
+create trigger actualizar_preparacion_items_pedido_fecha_actualizacion
+before update on public.preparacion_items_pedido
+for each row execute function public.actualizar_fecha_actualizacion();
+
+alter table public.preparacion_items_pedido enable row level security;
+
+revoke all on table public.preparacion_items_pedido from public, anon;
+grant select on table public.preparacion_items_pedido to authenticated;
+
+create policy preparacion_items_pedido_lectura_autorizada
+  on public.preparacion_items_pedido
+  for select
+  to authenticated
+  using (
+    public.es_admin()
+    or exists (
+      select 1
+      from public.pedidos p
+      join public.clientes c on c.id = p.cliente_id
+      where p.id = preparacion_items_pedido.pedido_id
+        and c.usuario_id = auth.uid()
+    )
+  );
+
+alter function public.validar_coherencia_preparacion_item_pedido() owner to postgres;
+revoke all on function public.validar_coherencia_preparacion_item_pedido() from public, anon, authenticated;
+
+create or replace function public.crear_pedido_desde_carrito(
+  p_cliente_id uuid,
+  p_direccion_cliente_id uuid,
+  p_items jsonb,
+  p_observacion text,
+  p_clave_idempotencia uuid,
+  p_fecha_entrega date
+)
+returns table (
+  pedido_id uuid,
+  numero_pedido text,
+  estado public.estado_pedido,
+  subtotal bigint,
+  costo_entrega bigint,
+  descuento bigint,
+  total bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_es_admin boolean;
+  v_cliente public.clientes%rowtype;
+  v_direccion public.direcciones_cliente%rowtype;
+  v_pedido public.pedidos%rowtype;
+  v_pedido_existente public.pedidos%rowtype;
+  v_presentacion record;
+  v_item jsonb;
+  v_presentacion_id uuid;
+  v_cantidad numeric;
+  v_texto_presentacion_id text;
+  v_presentaciones uuid[] := array[]::uuid[];
+  v_subtotal bigint;
+  v_observacion_normalizada text;
+  v_zona_entrega_snapshot text;
+  v_hoy_local date;
+  v_modo_cantidad_snapshot text;
+begin
+  if auth.uid() is null then raise exception 'NO_AUTORIZADO'; end if;
+  if p_clave_idempotencia is null then raise exception 'CLAVE_IDEMPOTENCIA_REQUERIDA'; end if;
+
+  v_es_admin := public.es_admin();
+  select * into v_cliente from public.clientes c where c.id = p_cliente_id and c.activo = true;
+  if not found then raise exception 'CLIENTE_INVALIDO'; end if;
+  if not v_es_admin and v_cliente.usuario_id is distinct from auth.uid() then raise exception 'NO_AUTORIZADO'; end if;
+
+  select * into v_pedido_existente from public.pedidos p where p.clave_idempotencia = p_clave_idempotencia for update;
+  if found then
+    if v_pedido_existente.cliente_id is distinct from p_cliente_id then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;
+    return query select v_pedido_existente.id, v_pedido_existente.numero_pedido, v_pedido_existente.estado, v_pedido_existente.subtotal, v_pedido_existente.costo_entrega, v_pedido_existente.descuento, v_pedido_existente.total;
+    return;
+  end if;
+
+  if p_fecha_entrega is null then raise exception 'FECHA_ENTREGA_REQUERIDA'; end if;
+  v_hoy_local := (now() at time zone 'America/Santiago')::date;
+  if p_fecha_entrega < v_hoy_local or p_fecha_entrega > v_hoy_local + 14 then raise exception 'FECHA_ENTREGA_INVALIDA'; end if;
+  if not public.fecha_entrega_disponible(p_fecha_entrega) then raise exception 'FECHA_ENTREGA_NO_DISPONIBLE'; end if;
+
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then raise exception 'ITEMS_REQUERIDOS'; end if;
+  if p_direccion_cliente_id is null then raise exception 'DIRECCION_REQUERIDA'; end if;
+
+  select * into v_direccion from public.direcciones_cliente d
+  where d.id = p_direccion_cliente_id and d.cliente_id = p_cliente_id and d.activa = true;
+  if not found then raise exception 'DIRECCION_INVALIDA'; end if;
+  if v_direccion.latitud is null or v_direccion.longitud is null then raise exception 'DIRECCION_SIN_UBICACION'; end if;
+
+  select z.nombre into v_zona_entrega_snapshot from public.zonas_entrega z
+  where z.id = v_direccion.zona_entrega_id and z.activa = true;
+  if v_zona_entrega_snapshot is null then raise exception 'DIRECCION_SIN_ZONA_VALIDA'; end if;
+
+  v_observacion_normalizada := nullif(btrim(coalesce(p_observacion, '')), '');
+  insert into public.pedidos (
+    cliente_id, canal_origen, estado, nombre_cliente_snapshot, telefono_cliente_snapshot, email_cliente_snapshot,
+    direccion_cliente_id, direccion_snapshot, comuna_snapshot, region_snapshot, referencia_direccion_snapshot,
+    destinatario_entrega_snapshot, telefono_contacto_entrega_snapshot, zona_entrega_snapshot, latitud_entrega_snapshot, longitud_entrega_snapshot,
+    subtotal, costo_entrega, descuento, total, observacion_general, fecha_entrega, clave_idempotencia
+  ) values (
+    p_cliente_id, 'web', 'recibido', v_cliente.nombre, v_cliente.telefono, v_cliente.email,
+    p_direccion_cliente_id, v_direccion.direccion, v_direccion.comuna, v_direccion.region, v_direccion.referencia,
+    coalesce(v_direccion.destinatario, v_direccion.nombre), v_direccion.telefono_contacto, v_zona_entrega_snapshot, v_direccion.latitud, v_direccion.longitud,
+    0, 0, 0, 0, v_observacion_normalizada, p_fecha_entrega, p_clave_idempotencia
+  ) on conflict (clave_idempotencia) where clave_idempotencia is not null do nothing returning * into v_pedido;
+
+  if v_pedido.id is null then
+    select * into v_pedido_existente from public.pedidos p where p.clave_idempotencia = p_clave_idempotencia for update;
+    if not found or v_pedido_existente.cliente_id is distinct from p_cliente_id then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;
+    return query select v_pedido_existente.id, v_pedido_existente.numero_pedido, v_pedido_existente.estado, v_pedido_existente.subtotal, v_pedido_existente.costo_entrega, v_pedido_existente.descuento, v_pedido_existente.total;
+    return;
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    if jsonb_typeof(v_item) <> 'object' then raise exception 'ITEM_INVALIDO'; end if;
+    v_texto_presentacion_id := nullif(btrim(v_item ->> 'presentacion_id'), '');
+    if v_texto_presentacion_id is null or v_texto_presentacion_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'PRESENTACION_INVALIDA'; end if;
+    if v_item -> 'cantidad' is null or jsonb_typeof(v_item -> 'cantidad') <> 'number' then raise exception 'CANTIDAD_INVALIDA'; end if;
+    v_presentacion_id := v_texto_presentacion_id::uuid;
+    v_cantidad := (v_item ->> 'cantidad')::numeric;
+    if v_presentacion_id = any(v_presentaciones) then raise exception 'PRESENTACION_DUPLICADA'; end if;
+    v_presentaciones := array_append(v_presentaciones, v_presentacion_id);
+
+    select pp.id, pp.producto_id, pp.nombre as nombre_presentacion, pp.cantidad as cantidad_presentacion, pp.unidad, pp.precio_neto, pp.precio_final, pr.nombre as nombre_producto
+    into v_presentacion from public.presentaciones_producto pp join public.productos pr on pr.id = pp.producto_id
+    where pp.id = v_presentacion_id and pp.activa = true and pp.es_principal = true and pr.activo = true and pr.disponible = true
+    for share of pp, pr;
+    if not found then raise exception 'PRESENTACION_NO_DISPONIBLE'; end if;
+    if not public.es_cantidad_pedido_valida(v_presentacion.unidad, v_presentacion.cantidad_presentacion, v_presentacion.nombre_presentacion, v_cantidad) then raise exception 'CANTIDAD_INVALIDA'; end if;
+
+    v_modo_cantidad_snapshot := case
+      when public.es_presentacion_kg_fraccionable(v_presentacion.unidad, v_presentacion.cantidad_presentacion, v_presentacion.nombre_presentacion)
+        then 'kg_fraccionable'
+      when lower(coalesce(v_presentacion.nombre_presentacion, '')) ~ '(saco|malla|caja|paquete|docena)'
+        then 'presentacion_cerrada'
+      else 'unidad'
+    end;
+
+    insert into public.items_pedido (
+      pedido_id,
+      producto_id,
+      presentacion_producto_id,
+      nombre_producto_snapshot,
+      nombre_presentacion_snapshot,
+      unidad_snapshot,
+      cantidad,
+      precio_neto_unitario_snapshot,
+      precio_final_unitario_snapshot,
+      total_linea,
+      observacion_cliente,
+      modo_cantidad_snapshot
+    ) values (
+      v_pedido.id,
+      v_presentacion.producto_id,
+      v_presentacion.id,
+      v_presentacion.nombre_producto,
+      v_presentacion.nombre_presentacion,
+      v_presentacion.unidad,
+      v_cantidad,
+      v_presentacion.precio_neto,
+      v_presentacion.precio_final,
+      round(v_cantidad * v_presentacion.precio_final)::bigint,
+      null,
+      v_modo_cantidad_snapshot
+    );
+  end loop;
+
+  select coalesce(sum(i.total_linea), 0)::bigint
+  into v_subtotal
+  from public.items_pedido i
+  where i.pedido_id = v_pedido.id;
+
+  update public.pedidos
+  set subtotal = v_subtotal,
+      costo_entrega = 0,
+      descuento = 0,
+      total = v_subtotal
+  where id = v_pedido.id
+  returning * into v_pedido;
+
+  return query
+  select
+    v_pedido.id,
+    v_pedido.numero_pedido,
+    v_pedido.estado,
+    v_pedido.subtotal,
+    v_pedido.costo_entrega,
+    v_pedido.descuento,
+    v_pedido.total;
+end;
+$$;
+
+alter function public.crear_pedido_desde_carrito(uuid, uuid, jsonb, text, uuid, date) owner to postgres;
+revoke all on function public.crear_pedido_desde_carrito(uuid, uuid, jsonb, text, uuid, date) from public, anon, authenticated;
+grant execute on function public.crear_pedido_desde_carrito(uuid, uuid, jsonb, text, uuid, date) to authenticated;

@@ -12,6 +12,7 @@ import {
 } from "@/app/(admin)/admin/pedidos/actions";
 import { Button } from "@/components/ui/button";
 import type { EstadoPedidoAdmin } from "@/lib/admin/pedidos";
+import type { PreparacionEstado } from "@/lib/order-preparation";
 
 type EstadoOperativo = Extract<EstadoPedidoAdmin, "confirmado" | "preparando" | "listo_despacho" | "en_reparto">;
 
@@ -39,13 +40,15 @@ export function OrderOperationalAction({
   pedidoId,
   estado,
   contexto = "general",
+  preparacionEstado = null,
 }: {
   pedidoId: string;
   estado: EstadoPedidoAdmin;
   contexto?: ContextoAccionOperativa;
+  preparacionEstado?: PreparacionEstado | null;
 }) {
   const router = useRouter();
-  const esAccionDePreparacion = estado === "confirmado" || estado === "preparando";
+  const esAccionDePreparacion = estado === "confirmado" || (estado === "preparando" && contexto !== "preparacion" && preparacionEstado !== "pendiente");
   const configuracion = estado in acciones && (contexto === "general" || esAccionDePreparacion)
     ? acciones[estado as EstadoOperativo]
     : null;

@@ -1,6 +1,7 @@
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
-import { getClosedPresentationKind } from "@/lib/cart-quantity";
+import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
+import type { ModoCantidadSnapshot, PreparacionEstado } from "@/lib/order-preparation";
 
 export type EstadoPedidoAdmin = "recibido" | "en_revision" | "confirmado" | "programado" | "preparando" | "listo_despacho" | "en_reparto" | "entregado" | "entrega_fallida" | "cancelado";
 
@@ -12,6 +13,9 @@ export type PedidoAdminListado = {
   total: number;
   fechaCreacion: string;
   fechaEntrega: string | null;
+  preparacionEstado: PreparacionEstado | null;
+  subtotalFinal: number | null;
+  totalFinal: number | null;
 };
 
 export type ItemPedidoAdmin = {
@@ -30,6 +34,7 @@ export type EntregaAgrupadaAdmin = {
   total: number;
   cantidadClientes: number;
   resumenProductos: readonly ResumenProductoEntrega[];
+  cantidadPedidosIncompletos: number;
 };
 
 export type ItemPreparacionPedidoAdmin = {
@@ -39,6 +44,11 @@ export type ItemPreparacionPedidoAdmin = {
   nombrePresentacion: string | null;
   unidad: string;
   cantidad: number;
+  modoCantidadSnapshot: ModoCantidadSnapshot | null;
+  cantidadPreparada: number | null;
+  cantidadFaltante: number;
+  motivoFaltante: string | null;
+  tieneFaltante: boolean;
 };
 
 export type PedidoEntregaAdmin = PedidoAdminListado & {
@@ -61,6 +71,7 @@ export type DetalleEntregaAdmin = {
   resumenProductos: readonly ResumenProductoEntrega[];
   total: number;
   cantidadClientes: number;
+  resumenFaltantes: readonly ItemPreparacionPedidoAdmin[];
 };
 
 export type PedidoAdminDetalle = PedidoAdminListado & {
@@ -91,6 +102,9 @@ type PedidoListadoFila = {
   total: number | string;
   fecha_creacion: string;
   fecha_entrega: string | null;
+  preparacion_estado: PreparacionEstado | null;
+  subtotal_final: number | string | null;
+  total_final: number | string | null;
 };
 
 type ItemPedidoFila = {
@@ -118,6 +132,13 @@ type ItemPedidoEntregaFila = {
   nombre_presentacion_snapshot: string | null;
   unidad_snapshot: string;
   cantidad: number | string;
+  modo_cantidad_snapshot: ModoCantidadSnapshot | null;
+};
+
+type PreparacionItemFila = {
+  item_pedido_id: string;
+  cantidad_preparada: number | string;
+  motivo_faltante: string | null;
 };
 
 export type ItemParaConsolidarEntrega = Pick<
@@ -154,6 +175,9 @@ function mapPedidoListado(fila: PedidoListadoFila): PedidoAdminListado {
     total: Number(fila.total),
     fechaCreacion: fila.fecha_creacion,
     fechaEntrega: fila.fecha_entrega,
+    preparacionEstado: fila.preparacion_estado,
+    subtotalFinal: fila.subtotal_final === null ? null : Number(fila.subtotal_final),
+    totalFinal: fila.total_final === null ? null : Number(fila.total_final),
   };
 }
 
@@ -199,7 +223,7 @@ export async function obtenerPedidosAdmin(soloRecibidos: boolean) {
   const supabase = await crearClienteSupabaseServidor();
   let consulta = supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
     .order("fecha_creacion", { ascending: false });
 
   if (soloRecibidos) consulta = consulta.eq("estado", "recibido");
@@ -220,7 +244,7 @@ export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdm
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,fecha_entrega,total,cliente_id,estado")
+    .select("id,fecha_entrega,total,total_final,preparacion_estado,cliente_id,estado")
     .not("fecha_entrega", "is", null)
     .gte("fecha_entrega", obtenerFechaLocalActual())
     .neq("estado", "cancelado")
@@ -228,7 +252,7 @@ export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdm
 
   if (error) throw error;
 
-  const pedidos = (data ?? []) as Array<{ id: string; fecha_entrega: string; total: number | string; cliente_id: string | null; estado: EstadoPedidoAdmin }>;
+  const pedidos = (data ?? []) as Array<{ id: string; fecha_entrega: string; total: number | string; total_final: number | string | null; preparacion_estado: PreparacionEstado | null; cliente_id: string | null; estado: EstadoPedidoAdmin }>;
   const entregas = new Map<string, EntregaAgrupadaAdmin>();
   const fechaPorPedido = new Map<string, string>();
   for (const pedido of pedidos) {
@@ -239,9 +263,11 @@ export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdm
       total: 0,
       cantidadClientes: 0,
       resumenProductos: [],
+      cantidadPedidosIncompletos: 0,
     };
     existente.cantidadPedidos += 1;
-    existente.total += Number(pedido.total);
+    existente.total += Number(pedido.total_final ?? pedido.total);
+    if (pedido.preparacion_estado === "incompleta") existente.cantidadPedidosIncompletos += 1;
     entregas.set(pedido.fecha_entrega, existente);
     fechaPorPedido.set(pedido.id, pedido.fecha_entrega);
   }
@@ -284,7 +310,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,cliente_id,destinatario_entrega_snapshot,zona_entrega_snapshot")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,zona_entrega_snapshot")
     .eq("fecha_entrega", fecha)
     .neq("estado", "cancelado")
     .order("fecha_creacion", { ascending: true });
@@ -304,14 +330,29 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   if (idsPedidos.length > 0) {
     const { data: items, error: errorItems } = await supabase
       .from("items_pedido")
-      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad")
+      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot")
       .in("pedido_id", idsPedidos)
       .order("fecha_creacion", { ascending: true })
       .order("id", { ascending: true });
     if (errorItems) throw errorItems;
 
+    const filasItems = (items ?? []) as ItemPedidoEntregaFila[];
+    const preparacionPorItem = new Map<string, PreparacionItemFila>();
+    if (filasItems.length > 0) {
+      const { data: preparaciones, error: errorPreparaciones } = await supabase
+        .from("preparacion_items_pedido")
+        .select("item_pedido_id,cantidad_preparada,motivo_faltante")
+        .in("item_pedido_id", filasItems.map((item) => item.id));
+      if (errorPreparaciones) throw errorPreparaciones;
+      for (const preparacion of (preparaciones ?? []) as PreparacionItemFila[]) {
+        preparacionPorItem.set(preparacion.item_pedido_id, preparacion);
+      }
+    }
+
     const itemsPorPedido = new Map<string, ItemPreparacionPedidoAdmin[]>();
-    for (const item of (items ?? []) as ItemPedidoEntregaFila[]) {
+    for (const item of filasItems) {
+      const preparacion = preparacionPorItem.get(item.id);
+      const cantidadPreparada = preparacion ? Number(preparacion.cantidad_preparada) : null;
       const itemPreparacion: ItemPreparacionPedidoAdmin = {
         id: item.id,
         pedidoId: item.pedido_id,
@@ -319,6 +360,11 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
         nombrePresentacion: item.nombre_presentacion_snapshot,
         unidad: item.unidad_snapshot,
         cantidad: Number(item.cantidad),
+        modoCantidadSnapshot: item.modo_cantidad_snapshot,
+        cantidadPreparada,
+        cantidadFaltante: Number(item.cantidad) - (cantidadPreparada ?? Number(item.cantidad)),
+        motivoFaltante: preparacion?.motivo_faltante ?? null,
+        tieneFaltante: cantidadPreparada !== null && cantidadPreparada < Number(item.cantidad),
       };
       const itemsPedido = itemsPorPedido.get(item.pedido_id) ?? [];
       itemsPedido.push(itemPreparacion);
@@ -326,7 +372,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
 
     }
 
-    resumenProductos = consolidarItemsEntrega((items ?? []) as ItemPedidoEntregaFila[]);
+    resumenProductos = consolidarItemsEntrega(filasItems);
 
     for (const pedido of pedidos) {
       pedido.items = itemsPorPedido.get(pedido.id) ?? [];
@@ -337,8 +383,9 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     fecha,
     pedidos,
     resumenProductos,
-    total: pedidos.reduce((acumulado, pedido) => acumulado + pedido.total, 0),
+    total: pedidos.reduce((acumulado, pedido) => acumulado + (pedido.totalFinal ?? pedido.total), 0),
     cantidadClientes: new Set(filas.flatMap((pedido) => pedido.cliente_id ? [pedido.cliente_id] : [])).size,
+    resumenFaltantes: pedidos.flatMap((pedido) => pedido.preparacionEstado === "incompleta" ? pedido.items.filter((item) => item.tieneFaltante) : []),
   };
 }
 
@@ -346,7 +393,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea)")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea)")
     .eq("id", id)
     .maybeSingle();
 
@@ -411,20 +458,6 @@ export function formatearCantidadConUnidadEntrega(cantidad: number, unidad: stri
   return unidad === "KG" ? `${texto} kg` : `${texto} unidades`;
 }
 
-export function formatearCantidadPreparacionEntrega(
-  cantidad: number,
-  presentacion: string | null,
-  unidad: string,
-) {
-  const texto = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 }).format(cantidad);
-  const formatoCerrado = presentacion ? getClosedPresentationKind(presentacion) : null;
-  if (formatoCerrado) {
-    const etiqueta = cantidad === 1 ? formatoCerrado : `${formatoCerrado}s`;
-    return `${texto} ${etiqueta}`;
-  }
-  return unidad.toUpperCase() === "KG" ? `${texto} kg` : `${texto} unidades`;
-}
-
-export function formatearCantidadPreparacion(item: Pick<ItemPreparacionPedidoAdmin, "cantidad" | "nombrePresentacion" | "unidad">) {
-  return formatearCantidadPreparacionEntrega(item.cantidad, item.nombrePresentacion, item.unidad);
+export function formatearCantidadPreparacion(item: Pick<ItemPreparacionPedidoAdmin, "cantidad" | "nombrePresentacion" | "unidad" | "modoCantidadSnapshot">) {
+  return formatearCantidadPreparacionEntrega(item.cantidad, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
 }

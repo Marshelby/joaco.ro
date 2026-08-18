@@ -1,5 +1,6 @@
 import { getClosedPresentationKind } from "@/lib/cart-quantity";
-import { formatearCantidadPreparacionEntrega, type ResumenProductoEntrega } from "@/lib/admin/pedidos";
+import type { ResumenProductoEntrega } from "@/lib/admin/pedidos";
+import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 
 type DeliveryProductsSummaryProps = {
   productos: readonly ResumenProductoEntrega[];

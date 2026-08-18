@@ -2,6 +2,7 @@ import { ArrowLeft, ExternalLink, MapPin } from "lucide-react";
 import Link from "next/link";
 
 import { CustomerOrderStatusBadge, getEtiquetaEstadoPedidoCuenta } from "@/components/account/customer-order-status-badge";
+import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { ROUTES } from "@/config/routes";
 import type { PedidoCuentaDetalle } from "@/lib/account/pedidos";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
@@ -54,13 +55,15 @@ export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
             </dl>
           </section>
 
+          {order.preparacionEstado === "completa" || order.preparacionEstado === "incompleta" ? <section className="rounded-xl border border-border bg-card p-5"><h2 className="text-base font-semibold text-foreground">Preparación del pedido</h2><div className="mt-3"><PreparationStatusBadge estado={order.preparacionEstado} /></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{order.preparacionEstado === "incompleta" ? "Tu pedido fue preparado con algunos faltantes." : "Tu pedido fue preparado completamente."}</p></section> : null}
+
           <section aria-labelledby="costs-title" className="rounded-xl border border-border bg-card p-5">
             <h2 id="costs-title" className="text-base font-semibold text-foreground">Resumen de costos</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Subtotal</dt><dd className="font-medium text-foreground">{formatCLP(order.subtotal)}</dd></div>
               <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Entrega</dt><dd className="font-medium text-foreground">{order.costoEntrega > 0 ? formatCLP(order.costoEntrega) : "Sin costo"}</dd></div>
               <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-foreground">{order.descuento > 0 ? `-${formatCLP(order.descuento)}` : "Sin descuento"}</dd></div>
-              <div className="flex items-center justify-between gap-4 border-t border-border pt-3"><dt className="font-semibold text-foreground">Total</dt><dd className="text-base font-semibold text-foreground">{formatCLP(order.total)}</dd></div>
+              <div className="flex items-center justify-between gap-4 border-t border-border pt-3"><dt className="font-semibold text-foreground">{order.totalFinal !== null ? "Total original" : "Total"}</dt><dd className="text-base font-semibold text-foreground">{formatCLP(order.total)}</dd></div>{order.totalFinal !== null ? <div className="flex items-center justify-between gap-4"><dt className="font-semibold text-foreground">Total final</dt><dd className="text-base font-semibold text-foreground">{formatCLP(order.totalFinal)}</dd></div> : null}
             </dl>
           </section>
 

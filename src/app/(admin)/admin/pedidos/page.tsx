@@ -47,6 +47,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                   <div><dt className="text-muted-foreground">Pedidos</dt><dd className="mt-1 font-semibold text-foreground">{entrega.cantidadPedidos}</dd></div>
                   <div><dt className="text-muted-foreground">Total estimado</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(entrega.total)}</dd></div>
                   {entrega.cantidadClientes > 0 ? <div><dt className="text-muted-foreground">Clientes</dt><dd className="mt-1 font-medium text-foreground">{entrega.cantidadClientes}</dd></div> : null}
+                  {entrega.cantidadPedidosIncompletos > 0 ? <div><dt className="text-muted-foreground">Preparación</dt><dd className="mt-1 font-medium text-destructive">{entrega.cantidadPedidosIncompletos} {entrega.cantidadPedidosIncompletos === 1 ? "pedido incompleto" : "pedidos incompletos"}</dd></div> : null}
                 </dl>
                 <details className="group mt-4 border-t border-border pt-3">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">

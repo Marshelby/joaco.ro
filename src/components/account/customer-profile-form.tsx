@@ -9,7 +9,7 @@ export function CustomerProfileForm({ nombre, telefono, email }: { nombre: strin
   const [estado, accion, pendiente] = useActionState(actualizarPerfilCliente, {});
 
   return (
-    <form action={accion} className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
+    <form id="datos-de-contacto" action={accion} className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
       <div><h2 className="text-lg font-semibold tracking-tight text-foreground">Datos de contacto</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Mantén actualizados los datos para coordinar tus pedidos.</p></div>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="sm:col-span-2 text-sm font-medium text-foreground">Nombre<input required name="nombre" defaultValue={nombre} className="mt-2 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></label>

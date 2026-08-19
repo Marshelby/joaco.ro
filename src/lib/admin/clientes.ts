@@ -46,6 +46,8 @@ export type PagoClienteAdmin = {
 };
 
 export type ClienteAdminDetalle = ClienteAdminListado & {
+  usuarioId: string | null;
+  invitacionAcceso: InvitacionAccesoClienteAdmin | null;
   totalPedidos: number;
   totalPagosConfirmados: number;
   totalAjustesCargo: number;
@@ -55,7 +57,17 @@ export type ClienteAdminDetalle = ClienteAdminListado & {
   pagos: readonly PagoClienteAdmin[];
 };
 
-type ClienteFila = Pick<ClienteAdminListado, "id" | "nombre" | "telefono" | "email" | "activo">;
+export type InvitacionAccesoClienteAdmin = {
+  id: string;
+  correoDestino: string;
+  estado: "pendiente" | "aceptada" | "revocada" | "expirada";
+  fechaCreacion: string;
+  fechaExpiracion: string;
+  fechaAceptacion: string | null;
+};
+
+type ClienteFila = Pick<ClienteAdminListado, "id" | "nombre" | "telefono" | "email" | "activo"> & { usuario_id?: string | null };
+type InvitacionAccesoFila = { invitacion_id: string; correo_destino: string; estado: InvitacionAccesoClienteAdmin["estado"]; fecha_creacion: string; fecha_expiracion: string; fecha_aceptacion: string | null };
 type SaldoFila = {
   cliente_id: string;
   total_pedidos: number | string;
@@ -113,14 +125,15 @@ export async function obtenerClientesAdmin(): Promise<ClienteAdminListado[]> {
 
 export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetalle | null> {
   const supabase = await crearClienteSupabaseServidor();
-  const [clienteResultado, saldoResultado, movimientosResultado, pedidosResultado, saldosPedidosResultado, pagosResultado, saldosPagosResultado] = await Promise.all([
-    supabase.from("clientes").select("id,nombre,telefono,email,activo").eq("id", id).maybeSingle(),
+  const [clienteResultado, saldoResultado, movimientosResultado, pedidosResultado, saldosPedidosResultado, pagosResultado, saldosPagosResultado, invitacionResultado] = await Promise.all([
+    supabase.from("clientes").select("id,nombre,telefono,email,activo,usuario_id").eq("id", id).maybeSingle(),
     supabase.from("v_saldos_cuenta_clientes").select("cliente_id,total_pedidos,total_pagos_confirmados,total_ajustes_cargo,total_ajustes_abono,saldo_actual,cantidad_pedidos,fecha_ultimo_movimiento").eq("cliente_id", id).maybeSingle(),
     supabase.from("v_movimientos_cuenta_cliente").select("referencia_id,fecha,tipo_movimiento,referencia,concepto,cargo,abono,saldo_acumulado").eq("cliente_id", id).order("fecha", { ascending: false }),
     supabase.from("pedidos").select("id,numero_pedido,fecha_creacion,estado,total").eq("cliente_id", id).order("fecha_creacion", { ascending: false }),
     supabase.from("v_saldos_pedidos").select("pedido_id,saldo_pendiente").eq("cliente_id", id),
     supabase.from("pagos").select("id,monto,metodo_pago,referencia,fecha_pago,estado").eq("cliente_id", id).order("fecha_pago", { ascending: false }),
     supabase.from("v_saldos_pagos").select("pago_id,monto_aplicado,monto_disponible").eq("cliente_id", id),
+    supabase.rpc("obtener_invitacion_acceso_cliente_administrativa", { p_cliente_id: id }),
   ]);
   if (clienteResultado.error) throw clienteResultado.error;
   if (saldoResultado.error) throw saldoResultado.error;
@@ -129,12 +142,25 @@ export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetal
   if (saldosPedidosResultado.error) throw saldosPedidosResultado.error;
   if (pagosResultado.error) throw pagosResultado.error;
   if (saldosPagosResultado.error) throw saldosPagosResultado.error;
+  if (invitacionResultado.error) throw invitacionResultado.error;
   if (!clienteResultado.data) return null;
 
   const resumen = mapSaldo(clienteResultado.data as ClienteFila, (saldoResultado.data as SaldoFila | null) ?? undefined);
   const saldo = saldoResultado.data as SaldoFila | null;
   return {
     ...resumen,
+    usuarioId: (clienteResultado.data as ClienteFila).usuario_id ?? null,
+    invitacionAcceso: (() => {
+      const invitacion = (Array.isArray(invitacionResultado.data) ? invitacionResultado.data[0] : invitacionResultado.data) as InvitacionAccesoFila | null;
+      return invitacion ? {
+        id: invitacion.invitacion_id,
+        correoDestino: invitacion.correo_destino,
+        estado: invitacion.estado,
+        fechaCreacion: invitacion.fecha_creacion,
+        fechaExpiracion: invitacion.fecha_expiracion,
+        fechaAceptacion: invitacion.fecha_aceptacion,
+      } : null;
+    })(),
     totalPedidos: Number(saldo?.total_pedidos ?? 0),
     totalPagosConfirmados: Number(saldo?.total_pagos_confirmados ?? 0),
     totalAjustesCargo: Number(saldo?.total_ajustes_cargo ?? 0),

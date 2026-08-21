@@ -10,6 +10,11 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 type ModoAcceso = "iniciar" | "crear";
 
+export type EstadoInicioSesion = {
+  error?: "credenciales" | "demasiados_intentos" | "verificacion" | "tecnico";
+  email?: string;
+};
+
 function hrefAcceso({ modo, error, mensaje, returnTo }: { modo: ModoAcceso; error?: string; mensaje?: string; returnTo: string | undefined }) {
   const parametros = new URLSearchParams({ modo });
   const destino = obtenerReturnToAutenticacionSeguro(returnTo);
@@ -27,7 +32,7 @@ async function resolverRedireccionPostAuth(
   supabase: Awaited<ReturnType<typeof crearClienteSupabaseServidor>>,
   returnTo: string | undefined,
   modo: ModoAcceso,
-) {
+): Promise<never> {
   let resultado: Awaited<ReturnType<typeof resolverDestinoPostAuth>>;
   try {
     resultado = await resolverDestinoPostAuth(
@@ -55,15 +60,30 @@ async function obtenerOrigenAplicacion() {
   return `${protocol}://${host}`;
 }
 
-export async function iniciarSesion(datos: FormData) {
+function estadoErrorInicioSesion(error: { code?: string; status?: number }, email: string): EstadoInicioSesion {
+  if (error.status === 429 || error.code === "over_request_rate_limit") {
+    return { error: "demasiados_intentos", email };
+  }
+  if (error.code === "captcha_failed") return { error: "verificacion", email };
+  if (error.code === "invalid_credentials") return { error: "credenciales", email };
+  return { error: "tecnico", email };
+}
+
+export async function iniciarSesion(_estadoAnterior: EstadoInicioSesion, datos: FormData): Promise<EstadoInicioSesion> {
   const email = obtenerTexto(datos, "email").toLowerCase();
   const password = String(datos.get("password") ?? "");
+  const captchaToken = String(datos.get("captchaToken") ?? "");
   const returnTo = String(datos.get("returnTo") ?? "");
   const supabase = await crearClienteSupabaseServidor();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  let error: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["error"];
+  try {
+    ({ error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captchaToken || undefined } }));
+  } catch {
+    return { error: "tecnico", email };
+  }
 
-  if (error) redirect(hrefAcceso({ modo: "iniciar", error: "credenciales", returnTo }));
-  await resolverRedireccionPostAuth(supabase, returnTo, "iniciar");
+  if (error) return estadoErrorInicioSesion(error, email);
+  return await resolverRedireccionPostAuth(supabase, returnTo, "iniciar");
 }
 
 export async function crearCuenta(datos: FormData) {
@@ -71,6 +91,7 @@ export async function crearCuenta(datos: FormData) {
   const email = obtenerTexto(datos, "email").toLowerCase();
   const password = String(datos.get("password") ?? "");
   const confirmarPassword = String(datos.get("confirmarPassword") ?? "");
+  const captchaToken = String(datos.get("captchaToken") ?? "");
   const returnTo = String(datos.get("returnTo") ?? "");
 
   if (!nombre || !email || password.length < 8 || password !== confirmarPassword) {
@@ -92,10 +113,10 @@ export async function crearCuenta(datos: FormData) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: nombre }, emailRedirectTo },
+    options: { data: { full_name: nombre }, emailRedirectTo, captchaToken: captchaToken || undefined },
   });
 
-  if (error) redirect(hrefAcceso({ modo: "crear", error: "registro", returnTo }));
+  if (error) redirect(hrefAcceso({ modo: "crear", error: error.code === "captcha_failed" ? "verificacion" : "registro", returnTo }));
   if (!data.session) redirect(hrefConfirmarCorreo(email, returnTo));
   await resolverRedireccionPostAuth(supabase, returnTo, "crear");
 }

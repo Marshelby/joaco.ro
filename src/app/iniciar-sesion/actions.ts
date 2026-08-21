@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { resolverDestinoPostAuth } from "@/lib/account/post-auth";
+import { hrefConfirmarCorreo } from "@/lib/auth/email-confirmation";
 import { obtenerReturnToAutenticacionSeguro } from "@/lib/account/return-to";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -95,7 +96,7 @@ export async function crearCuenta(datos: FormData) {
   });
 
   if (error) redirect(hrefAcceso({ modo: "crear", error: "registro", returnTo }));
-  if (!data.session) redirect(hrefAcceso({ modo: "crear", mensaje: "confirmar", returnTo }));
+  if (!data.session) redirect(hrefConfirmarCorreo(email, returnTo));
   await resolverRedireccionPostAuth(supabase, returnTo, "crear");
 }
 

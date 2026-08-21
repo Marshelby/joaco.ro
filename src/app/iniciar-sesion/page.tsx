@@ -5,7 +5,7 @@ import { EmailLoginForm } from "@/components/auth/email-login-form";
 import { GoogleLoginButton } from "@/components/auth/google-login-button";
 import { hrefConReturnTo, obtenerReturnToAutenticacionSeguro } from "@/lib/account/return-to";
 
-type ParametrosInicioSesion = { error?: string; mensaje?: string; modo?: string; returnTo?: string };
+type ParametrosInicioSesion = { error?: string; modo?: string; returnTo?: string };
 
 export default function IniciarSesionPage({ searchParams }: { searchParams: Promise<ParametrosInicioSesion> }) {
   return <Login searchParams={searchParams} />;
@@ -28,8 +28,7 @@ async function Login({ searchParams }: { searchParams: Promise<ParametrosInicioS
         : params.error === "registro"
           ? "No fue posible crear la cuenta. Revisa tus datos e inténtalo nuevamente."
           : null;
-  const mensaje = params.mensaje === "confirmar" ? "Revisa tu correo para confirmar tu cuenta." : null;
   const creando = modo === "crear";
 
-  return <main className="mx-auto flex min-h-screen max-w-md items-center p-6"><div className="w-full space-y-5 rounded-xl border border-border bg-card p-6 sm:p-7"><div><p className="text-sm text-muted-foreground">Hidro Leufú</p><h1 className="mt-1 text-2xl font-semibold">Bienvenido a Hidro Leufú</h1><p className="mt-2 text-sm text-muted-foreground">{creando ? "Crea tu cuenta para comprar de forma más simple." : "Ingresa para revisar y realizar tus pedidos."}</p></div><div className="grid grid-cols-2 rounded-lg bg-muted p-1 text-sm font-medium"><Link href={hrefModo("iniciar", returnTo)} className={`rounded-md px-3 py-2 text-center ${!creando ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>Iniciar sesión</Link><Link href={hrefModo("crear", returnTo)} className={`rounded-md px-3 py-2 text-center ${creando ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>Crear cuenta</Link></div>{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}{mensaje ? <p role="status" className="text-sm text-primary">{mensaje}</p> : null}<GoogleLoginButton returnTo={returnTo} /><div className="border-t pt-5"><p className="mb-3 text-sm text-muted-foreground">O continúa con correo</p><EmailLoginForm action={creando ? crearCuenta : iniciarSesion} modo={modo} returnTo={returnTo} /></div></div></main>;
+  return <main className="mx-auto flex min-h-screen max-w-md items-center p-6"><div className="w-full space-y-5 rounded-xl border border-border bg-card p-6 sm:p-7"><div><p className="text-sm text-muted-foreground">Hidro Leufú</p><h1 className="mt-1 text-2xl font-semibold">Bienvenido a Hidro Leufú</h1><p className="mt-2 text-sm text-muted-foreground">{creando ? "Crea tu cuenta para comprar de forma más simple." : "Ingresa para revisar y realizar tus pedidos."}</p></div><div className="grid grid-cols-2 rounded-lg bg-muted p-1 text-sm font-medium"><Link href={hrefModo("iniciar", returnTo)} className={`rounded-md px-3 py-2 text-center ${!creando ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>Iniciar sesión</Link><Link href={hrefModo("crear", returnTo)} className={`rounded-md px-3 py-2 text-center ${creando ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>Crear cuenta</Link></div>{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}<GoogleLoginButton returnTo={returnTo} /><div className="border-t pt-5"><p className="mb-3 text-sm text-muted-foreground">O continúa con correo</p><EmailLoginForm action={creando ? crearCuenta : iniciarSesion} modo={modo} returnTo={returnTo} /></div></div></main>;
 }

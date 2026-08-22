@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { crearPedidoCheckout } from "@/app/(public)/checkout/actions";
 import { useCart } from "@/components/cart/cart-provider";
+import { GoogleLoginButton } from "@/components/auth/google-login-button";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/config/routes";
 import { hrefConReturnTo } from "@/lib/account/return-to";
@@ -41,14 +42,15 @@ export function CheckoutContent({ claveIdempotencia, cliente, direcciones, fecha
   }
 
   if (estadoCuenta !== "active_customer" || !cliente) {
-    const mensaje = estadoCuenta === "guest"
-      ? "Para continuar con tu pedido, inicia sesión o crea una cuenta."
-      : estadoCuenta === "admin"
-        ? "Las cuentas administrativas no están habilitadas para realizar pedidos."
-        : estadoCuenta === "inactive_customer"
-          ? "Tu cuenta no está habilitada para realizar pedidos. Contacta a Hidro Leufú."
-          : "No pudimos preparar tu cuenta para continuar. Intenta nuevamente.";
-    return <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center sm:p-12"><h1 className="text-2xl font-semibold tracking-tight text-foreground">No podemos confirmar tu pedido</h1><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{mensaje}</p>{estadoCuenta === "guest" ? <Button render={<Link href={hrefConReturnTo("/iniciar-sesion", ROUTES.checkout)} />} className="mt-6">Iniciar sesión o crear cuenta</Button> : null}</section>;
+    if (estadoCuenta === "guest") {
+      return <section className="rounded-2xl border border-border bg-card p-8 text-center sm:p-12"><h1 className="text-2xl font-semibold tracking-tight text-foreground">Estás a un paso de completar tu pedido</h1><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Inicia sesión o crea tu cuenta para continuar. Con Google puedes hacerlo en segundos.</p><div className="mx-auto mt-6 max-w-sm space-y-3"><GoogleLoginButton returnTo={ROUTES.checkout} /><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Button render={<Link href={hrefConReturnTo("/iniciar-sesion?modo=iniciar", ROUTES.checkout)} />} variant="outline">Iniciar sesión</Button><Button render={<Link href={hrefConReturnTo("/iniciar-sesion?modo=crear", ROUTES.checkout)} />}>Crear cuenta</Button></div></div></section>;
+    }
+    const mensaje = estadoCuenta === "admin"
+      ? "Las cuentas administrativas no están habilitadas para realizar pedidos."
+      : estadoCuenta === "inactive_customer"
+        ? "Tu cuenta no está habilitada para realizar pedidos. Contacta a Hidro Leufú."
+        : "No pudimos preparar tu cuenta para continuar. Intenta nuevamente.";
+    return <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center sm:p-12"><h1 className="text-2xl font-semibold tracking-tight text-foreground">No podemos confirmar tu pedido</h1><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{mensaje}</p></section>;
   }
 
   return (

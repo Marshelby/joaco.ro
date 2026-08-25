@@ -20,7 +20,9 @@ export function TurnstileCaptcha({ onTokenChange, resetSignal = 0 }: { onTokenCh
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (window.turnstile) setScriptReady(true);
+    if (!window.turnstile) return;
+    const temporizador = window.setTimeout(() => setScriptReady(true), 0);
+    return () => window.clearTimeout(temporizador);
   }, []);
 
   useEffect(() => {

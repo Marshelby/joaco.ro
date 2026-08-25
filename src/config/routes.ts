@@ -4,6 +4,8 @@ export const ROUTES = {
   cart: "/carrito",
   checkout: "/checkout",
   confirmEmail: "/confirmar-correo",
+  recoverPassword: "/recuperar-contrasena",
+  updatePassword: "/actualizar-contrasena",
   orderConfirmation: (id: string) => `/pedido/confirmacion/${id}`,
   account: "/mi-cuenta",
   accountOrders: "/mi-cuenta/pedidos",

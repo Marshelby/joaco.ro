@@ -1,10 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { resolverDestinoPostAuth } from "@/lib/account/post-auth";
 import { hrefConfirmarCorreo } from "@/lib/auth/email-confirmation";
+import { obtenerOrigenAplicacion } from "@/lib/auth/app-origin";
 import { obtenerReturnToAutenticacionSeguro } from "@/lib/account/return-to";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -44,20 +44,6 @@ async function resolverRedireccionPostAuth(
   }
   if (resultado.estado === "cliente_inactivo") redirect(hrefAcceso({ modo, error: "cuenta", returnTo }));
   redirect(resultado.destino);
-}
-
-async function obtenerOrigenAplicacion() {
-  const encabezados = await headers();
-  const origin = encabezados.get("origin");
-  if (origin) {
-    const url = new URL(origin);
-    if (url.protocol === "https:" || url.protocol === "http:") return url.origin;
-  }
-
-  const host = encabezados.get("x-forwarded-host") ?? encabezados.get("host");
-  if (!host || host.includes("/")) throw new Error("No fue posible determinar el origen de la aplicación.");
-  const protocol = encabezados.get("x-forwarded-proto") === "https" ? "https" : "http";
-  return `${protocol}://${host}`;
 }
 
 function estadoErrorInicioSesion(error: { code?: string; status?: number }, email: string): EstadoInicioSesion {

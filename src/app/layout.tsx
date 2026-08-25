@@ -15,11 +15,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.hidroleufu.cl"),
   title: {
-    default: BRAND.name,
+    default: "Hidro Leufú | Productos frescos con delivery",
     template: `%s | ${BRAND.name}`,
   },
-  description: BRAND.description,
+  description: "Compra verduras, frutas, productos hidropónicos y hierbas frescas con delivery. La feria disponible 24/7.",
+  applicationName: BRAND.name,
+  creator: BRAND.name,
+  publisher: BRAND.name,
+  keywords: ["Hidro Leufú", "verduras", "frutas", "hidropónicos", "productos frescos", "delivery", "compra online", "Quilpué", "Valparaíso"],
+  openGraph: {
+    type: "website",
+    locale: "es_CL",
+    siteName: BRAND.name,
+    url: "/",
+    title: "Hidro Leufú | La feria disponible 24/7",
+    description: "Productos frescos, hidropónicos, frutas y verduras para comprar online con delivery.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hidro Leufú | La feria disponible 24/7",
+    description: "Productos frescos, hidropónicos, frutas y verduras para comprar online con delivery.",
+  },
 };
 
 export default function RootLayout({

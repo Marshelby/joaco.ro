@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Container } from "@/components/layout/container";
 import { CategorySelector } from "@/components/home/category-selector";
 import { ProductSection } from "@/components/home/product-section";
@@ -8,9 +7,7 @@ import { B2bBanner } from "@/components/home/b2b-banner";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { getStorefrontCategories, getStorefrontProducts } from "@/lib/storefront-catalog";
 
-export const metadata: Metadata = {
-  title: "Inicio",
-};
+export const metadata = { alternates: { canonical: "/" } };
 
 export default async function HomePage() {
   let products;

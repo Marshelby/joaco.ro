@@ -8,7 +8,7 @@ import { ActionLink } from "@/components/ui/action-link";
 import { filterCatalogProducts, parseCatalogFilters, sortCatalogProducts, type CatalogCategory, type CatalogSearchParams } from "@/lib/catalog";
 import { getStorefrontCategories, getStorefrontProducts } from "@/lib/storefront-catalog";
 
-export const metadata: Metadata = { title: "Catálogo" };
+export const metadata: Metadata = { title: "Catálogo", alternates: { canonical: "/catalogo" } };
 
 type CatalogPageProps = {
   searchParams: Promise<CatalogSearchParams>;

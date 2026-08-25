@@ -1,15 +1,16 @@
-import Link from "next/link";
-
 import { ProductGrid } from "@/components/home/product-grid";
 import { CartProductAction } from "@/components/cart/cart-product-action";
 import { Container } from "@/components/layout/container";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
+import { PublicLink } from "@/components/navigation/public-navigation-feedback";
 import { ProductMedia } from "@/components/product/product-media";
-import { ActionLink } from "@/components/ui/action-link";
+import { actionLinkVariants } from "@/components/ui/action-link";
+import { FadeIn } from "@/components/ui/fade-in";
 import { ROUTES } from "@/config/routes";
 import { getCatalogHref } from "@/lib/catalog";
 import { formatCLP } from "@/lib/formatters";
 import { getProductAvailabilityContent, getProductSaleUnitLabel } from "@/lib/products";
+import { cn } from "@/lib/utils";
 import type { MockProduct } from "@/types/product";
 
 type ProductDetailProps = {
@@ -36,14 +37,14 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:items-start lg:gap-12">
           <ProductMedia product={product} />
 
-          <div className="min-w-0 lg:pt-2">
+          <FadeIn className="min-w-0 lg:pt-2">
             <p className="text-sm font-medium text-muted-foreground">
-              <Link
+              <PublicLink
                 href={categoryHref}
                 className="rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {product.category}
-              </Link>
+              </PublicLink>
               {product.subcategory ? ` · ${product.subcategory}` : null}
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -91,8 +92,8 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
               </p>
             </section>
 
-            <ActionLink href={ROUTES.catalog} variant="secondary" className="mt-7">Volver al catálogo</ActionLink>
-          </div>
+            <PublicLink href={ROUTES.catalog} className={cn(actionLinkVariants({ variant: "secondary" }), "mt-7")}>Volver al catálogo</PublicLink>
+          </FadeIn>
         </div>
 
         {relatedProducts.length > 0 ? (
@@ -106,7 +107,7 @@ export function ProductDetail({ product, relatedProducts }: ProductDetailProps) 
                 Descubre más opciones de esta categoría.
               </p>
               </div>
-              <ActionLink href={categoryHref} variant="quiet" className="self-start">Ver todos en {product.category}</ActionLink>
+              <PublicLink href={categoryHref} className={cn(actionLinkVariants({ variant: "quiet" }), "self-start")}>Ver todos en {product.category}</PublicLink>
             </div>
             <div className="mt-6">
               <ProductGrid products={relatedProducts} variant="catalog" />

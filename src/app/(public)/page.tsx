@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { Container } from "@/components/layout/container";
 import { CategorySelector } from "@/components/home/category-selector";
 import { ProductSection } from "@/components/home/product-section";
@@ -5,11 +7,17 @@ import { SectionTitle } from "@/components/home/section-title";
 import { B2bIntro } from "@/components/home/b2b-intro";
 import { B2bBanner } from "@/components/home/b2b-banner";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { FadeIn } from "@/components/ui/fade-in";
+import { HomeLoadingSkeleton } from "@/components/feedback/home-loading-skeleton";
 import { getStorefrontCategories, getStorefrontProducts } from "@/lib/storefront-catalog";
 
 export const metadata = { alternates: { canonical: "/" } };
 
-export default async function HomePage() {
+export default function HomePage() {
+  return <Suspense fallback={<HomeLoadingSkeleton />}><HomeContent /></Suspense>;
+}
+
+async function HomeContent() {
   let products;
   let categories;
   try {
@@ -23,8 +31,8 @@ export default async function HomePage() {
 
   return (
     <Container className="space-y-12 py-4 sm:space-y-16 sm:py-8 lg:py-10">
-      <B2bBanner />
-      <B2bIntro />
+      <FadeIn><B2bBanner /></FadeIn>
+      <FadeIn><B2bIntro /></FadeIn>
       <ProductSection id="best-sellers-title" eyebrow="Nuestra especialidad" title="Hidropónicos" description="Frescos, seleccionados y preparados para abastecer tu negocio." products={bestSellers} gridVariant="catalog" />
       <ProductSection id="opportunities-title" title="Más productos frescos" description="Encuentra productos para complementar tu pedido." products={featured} gridVariant="catalog" />
       <ProductSection id="new-arrivals-title" title="Recién seleccionados" description="Nuevos productos que se suman a nuestra selección." products={newArrivals} gridVariant="catalog" />

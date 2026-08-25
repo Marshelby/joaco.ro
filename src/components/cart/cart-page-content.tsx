@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 
 import { CartLineItem } from "@/components/cart/cart-line-item";
 import { useCart } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
+import { PublicLink } from "@/components/navigation/public-navigation-feedback";
 import { ROUTES } from "@/config/routes";
 import { formatCLP } from "@/lib/formatters";
 
@@ -20,7 +20,7 @@ export function CartPageContent() {
         <ShoppingCart className="mx-auto size-7 text-muted-foreground" aria-hidden="true" />
         <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Tu carrito está vacío</h1>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Agrega productos del catálogo para comenzar.</p>
-        <Button render={<Link href={ROUTES.catalog} />} className="mt-6">Ver catálogo</Button>
+        <Button render={<PublicLink href={ROUTES.catalog} />} className="mt-6">Ver catálogo</Button>
       </section>
     );
   }
@@ -36,7 +36,7 @@ export function CartPageContent() {
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-          <Button render={<Link href={ROUTES.catalog} />} variant="outline">Seguir viendo productos</Button>
+          <Button render={<PublicLink href={ROUTES.catalog} />} variant="outline">Seguir viendo productos</Button>
           <Button type="button" variant="ghost" onClick={vaciar}>Vaciar pedido</Button>
         </div>
       </section>
@@ -48,7 +48,7 @@ export function CartPageContent() {
           <strong className="text-2xl tracking-tight text-foreground">{formatCLP(totalEstimado)}</strong>
         </div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">El total es referencial. Precio y disponibilidad se validarán antes de crear un pedido.</p>
-        <Button render={<Link href={ROUTES.checkout} />} className="mt-5 w-full">Continuar pedido</Button>
+        <Button render={<PublicLink href={ROUTES.checkout} />} className="mt-5 w-full">Continuar pedido</Button>
         <p className="mt-2 text-center text-xs text-muted-foreground">Revisa tus datos antes de confirmar.</p>
       </aside>
     </div>

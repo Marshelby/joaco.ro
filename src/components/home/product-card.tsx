@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { CatalogImage } from "@/components/media/catalog-image";
 import { CartProductAction } from "@/components/cart/cart-product-action";
+import { PublicLink } from "@/components/navigation/public-navigation-feedback";
 import { ROUTES } from "@/config/routes";
 import { formatCLP } from "@/lib/formatters";
 import { getProductAvailabilityContent, getProductSaleUnitLabel } from "@/lib/products";
@@ -15,14 +14,14 @@ type ProductCardProps = {
 export function ProductCard({ product, variant = "grid" }: ProductCardProps) {
   return (
     <article className="h-full min-w-0 max-w-full">
-      <div className="group flex h-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card transition duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
-        <Link href={ROUTES.product(product.slug)} aria-label={`Ver ${product.name}`} className="flex min-w-0 max-w-full flex-1 flex-col rounded-t-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+      <div className="group motion-interactive-card flex h-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card hover:border-primary/35 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
+        <PublicLink href={ROUTES.product(product.slug)} aria-label={`Ver ${product.name}`} className="flex min-w-0 max-w-full flex-1 flex-col rounded-t-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <div className={variant === "rail" ? "relative aspect-[4/3] min-h-[190px] overflow-hidden bg-white p-1.5" : "relative aspect-[4/3] overflow-hidden bg-white p-1.5"}>
           <CatalogImage
             image={product.image}
             fallback={product.imageFallback}
             sizes="(min-width: 1280px) 18rem, (min-width: 1024px) 22vw, (min-width: 640px) 33vw, 50vw"
-            className="transition duration-300 group-hover:scale-[1.025] motion-reduce:transition-none"
+            className="transition-transform duration-[var(--motion-normal)] ease-[var(--motion-ease-standard)] group-hover:scale-[1.02] motion-reduce:transition-none"
           />
           {product.badge ? (
             <span className="absolute left-2.5 top-2.5 rounded-full bg-background/95 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
@@ -37,7 +36,7 @@ export function ProductCard({ product, variant = "grid" }: ProductCardProps) {
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{getProductSaleUnitLabel(product.saleUnit)}</p>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">{getProductAvailabilityContent(product.availability).label}</p>
         </div>
-        </Link>
+        </PublicLink>
         <div className="min-w-0 max-w-full px-4 pb-4 sm:px-5 sm:pb-5"><CartProductAction product={product} compact className="w-full" /></div>
       </div>
     </article>

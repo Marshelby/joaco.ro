@@ -49,6 +49,11 @@
 }
 
 :root {
+  --motion-instant: 80ms;
+  --motion-fast: 150ms;
+  --motion-normal: 220ms;
+  --motion-slow: 300ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
   --background: oklch(0.985 0.008 83);
   --foreground: oklch(0.255 0.02 238);
   --card: oklch(1 0 0);
@@ -81,6 +86,81 @@
   --sidebar-accent-foreground: oklch(0.34 0.07 150);
   --sidebar-border: oklch(0.87 0.018 83);
   --sidebar-ring: oklch(0.47 0.08 150);
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer components {
+  .motion-fade-in {
+    animation: motion-fade-in var(--motion-normal) var(--motion-ease-standard) both;
+  }
+
+  .motion-skeleton {
+    background-color: color-mix(in oklch, var(--muted) 82%, var(--background));
+    animation: motion-skeleton-pulse var(--motion-slow) ease-in-out infinite alternate;
+  }
+
+  .motion-navigation-feedback {
+    transform: scaleX(0);
+    transform-origin: left;
+    opacity: 0;
+    transition: transform var(--motion-normal) var(--motion-ease-standard), opacity var(--motion-fast) ease-out;
+  }
+
+  .motion-navigation-feedback[data-active="true"] {
+    transform: scaleX(0.72);
+    opacity: 1;
+  }
+
+  .motion-dialog-backdrop {
+    opacity: 1;
+    transition: opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .motion-dialog-backdrop[data-starting-style],
+  .motion-dialog-backdrop[data-ending-style] {
+    opacity: 0;
+  }
+
+  .motion-dialog-content {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition: opacity var(--motion-fast) var(--motion-ease-standard), transform var(--motion-normal) var(--motion-ease-standard);
+  }
+
+  .motion-dialog-content[data-starting-style],
+  .motion-dialog-content[data-ending-style] {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+
+  .motion-interactive-card {
+    transition: transform var(--motion-fast) var(--motion-ease-standard), box-shadow var(--motion-fast) var(--motion-ease-standard), border-color var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .motion-interactive-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes motion-skeleton-pulse {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .dark {
@@ -142,6 +222,25 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+    }
+
+    .motion-fade-in,
+    .motion-skeleton {
+      animation: none !important;
+    }
+
+    .motion-navigation-feedback,
+    .motion-dialog-backdrop,
+    .motion-dialog-content,
+    .motion-interactive-card {
+      transition: none !important;
+    }
+
+    .motion-dialog-content,
+    .motion-dialog-content[data-starting-style],
+    .motion-dialog-content[data-ending-style],
+    .motion-interactive-card:hover {
+      transform: none;
     }
   }
 }

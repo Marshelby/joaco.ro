@@ -24,3 +24,10 @@ export function hrefActualizarContrasena(returnTo: string | undefined, enlaceInv
   const query = parametros.toString();
   return query ? `/actualizar-contrasena?${query}` : "/actualizar-contrasena";
 }
+
+export function hrefConfirmarRecuperacion(tokenHash: string, returnTo: string | undefined) {
+  const parametros = new URLSearchParams({ token_hash: tokenHash });
+  const destino = obtenerReturnToAutenticacionSeguro(returnTo);
+  if (destino) parametros.set("returnTo", destino);
+  return `/confirmar-recuperacion?${parametros.toString()}`;
+}

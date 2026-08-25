@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 import { resolverDestinoPostAuth } from "@/lib/account/post-auth";
 import { obtenerReturnToAutenticacionSeguro } from "@/lib/account/return-to";
-import { hrefActualizarContrasena } from "@/lib/auth/password-recovery";
+import { hrefActualizarContrasena, hrefConfirmarRecuperacion } from "@/lib/auth/password-recovery";
 
 function hrefError(returnTo: string | undefined) {
   const parametros = new URLSearchParams({ error: "oauth" });
@@ -16,20 +16,27 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type");
   const returnTo = url.searchParams.get("returnTo") ?? undefined;
   const esRecuperacion = url.searchParams.get("flow") === "recovery";
   const response = NextResponse.redirect(new URL("/", url.origin));
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     cookies: { getAll: () => request.cookies.getAll(), setAll: (cookies) => cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options)) },
   });
-  if (!code && !(esRecuperacion && tokenHash)) {
+  if (esRecuperacion && tokenHash) {
+    const destino = type === "recovery"
+      ? hrefConfirmarRecuperacion(tokenHash, returnTo)
+      : hrefActualizarContrasena(returnTo, true);
+    response.headers.set("location", new URL(destino, url.origin).toString());
+    return response;
+  }
+
+  if (!code) {
     response.headers.set("location", new URL(esRecuperacion ? hrefActualizarContrasena(returnTo, true) : hrefError(returnTo), url.origin).toString());
     return response;
   }
 
-  const { error } = code
-    ? await supabase.auth.exchangeCodeForSession(code)
-    : await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: "recovery" });
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     response.headers.set("location", new URL(esRecuperacion ? hrefActualizarContrasena(returnTo, true) : hrefError(returnTo), url.origin).toString());
     return response;

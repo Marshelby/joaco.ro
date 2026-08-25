@@ -32,11 +32,20 @@ export const metadata: Metadata = {
     url: "/",
     title: "Hidro Leufú | La feria disponible 24/7",
     description: "Productos frescos, hidropónicos, frutas y verduras para comprar online con delivery.",
+    images: [
+      {
+        url: "/images/social/hidroleufu-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Hidro Leufú — La feria disponible 24/7",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Hidro Leufú | La feria disponible 24/7",
     description: "Productos frescos, hidropónicos, frutas y verduras para comprar online con delivery.",
+    images: ["/images/social/hidroleufu-og.png"],
   },
 };
 

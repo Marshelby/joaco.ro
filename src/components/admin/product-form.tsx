@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { guardarProductoAdmin, type EstadoGuardadoProducto } from "@/app/(admin)/admin/productos/actions";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/ui/pending-button";
 import { ROUTES } from "@/config/routes";
 import type { CategoriaAdmin, ProductoAdmin } from "@/lib/admin/catalogo";
 
@@ -110,7 +111,7 @@ export function ProductForm({ product, categorias }: { product?: ProductoAdmin; 
         </div>
       </section>
 
-      <footer className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end"><ActionLink href={ROUTES.adminProducts} variant="secondary">Cancelar</ActionLink><Button disabled={pendiente} type="submit">{pendiente ? "Guardando…" : "Guardar producto"}</Button></footer>
+      <footer className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end"><ActionLink href={ROUTES.adminProducts} variant="secondary">Cancelar</ActionLink><PendingButton type="submit" pending={pendiente} pendingLabel="Guardando…">Guardar producto</PendingButton></footer>
     </form>
   );
 }

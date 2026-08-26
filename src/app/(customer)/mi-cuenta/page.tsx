@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { CheckCircle2, MapPin, Package, Phone, ShoppingBasket, UserRound } from "lucide-react";
+import { Suspense } from "react";
 
 import { CustomerProfileForm } from "@/components/account/customer-profile-form";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AccountDashboardSkeleton } from "@/components/feedback/account-loading-skeletons";
 import { ActionLink } from "@/components/ui/action-link";
 import { PageHeader } from "@/components/shared/page-header";
 import { ROUTES } from "@/config/routes";
@@ -26,7 +28,11 @@ function tieneUbicacion(direccion: DireccionDashboard) {
   return Number.isFinite(direccion.latitud) && Number.isFinite(direccion.longitud);
 }
 
-export default async function AccountPage() {
+export default function AccountPage() {
+  return <Suspense fallback={<AccountDashboardSkeleton />}><AccountContent /></Suspense>;
+}
+
+async function AccountContent() {
   const cuenta = await obtenerCuentaDashboard();
 
   if (cuenta.estado === "admin") {

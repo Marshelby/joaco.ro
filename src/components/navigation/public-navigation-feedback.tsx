@@ -16,8 +16,8 @@ function PublicNavigationFeedbackProvider({ children }: { children: ReactNode })
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const currentHref = `${pathname}${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`;
-  const beginNavigation = useCallback((href: string) => setPendingHref(href), []);
+  const currentHref = normalizeNavigationHref(`${pathname}${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`);
+  const beginNavigation = useCallback((href: string) => setPendingHref(normalizeNavigationHref(href)), []);
   const active = pendingHref !== null && pendingHref !== currentHref;
 
   return <NavigationFeedbackContext.Provider value={{ beginNavigation }}><NavigationFeedback active={active} />{children}</NavigationFeedbackContext.Provider>;
@@ -37,6 +37,12 @@ function getNavigationTarget(href: PublicLinkProps["href"]) {
   if (typeof href === "string") return href;
   const query = href.query ? new URLSearchParams(Object.entries(href.query).flatMap(([key, value]) => Array.isArray(value) ? value.map((entry) => [key, entry]) : value === undefined ? [] : [[key, String(value)]])).toString() : "";
   return `${href.pathname ?? ""}${query ? `?${query}` : ""}${href.hash ?? ""}`;
+}
+
+function normalizeNavigationHref(href: string) {
+  const url = new URL(href, "https://hidroleufu.local");
+  url.searchParams.sort();
+  return `${url.pathname}${url.search}`;
 }
 
 const PublicLink = forwardRef<HTMLAnchorElement, PublicLinkProps>(function PublicLink({ onClick, ...props }, ref) {

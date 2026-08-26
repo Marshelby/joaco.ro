@@ -6,6 +6,7 @@ import Link from "next/link";
 import { guardarDireccionCliente } from "@/app/(customer)/mi-cuenta/actions";
 import { CustomerAddressMap, type AddressCoordinates } from "@/components/account/customer-address-map";
 import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/ui/pending-button";
 import { etiquetaReturnTo, type ReturnToCompra } from "@/lib/account/return-to";
 
 export type DireccionClienteFormulario = {
@@ -49,7 +50,7 @@ export function CustomerAddressForm({ direccion, zonas, returnTo }: { direccion?
       </div>
       <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-foreground"><input name="esPrincipal" type="checkbox" defaultChecked={direccion?.esPrincipal ?? false} /> Usar como dirección principal</label>
       {!locationIsValid ? <p role="alert" className="text-sm text-destructive">Marca la ubicación exacta en el mapa antes de guardar.</p> : null}
-      <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={pendiente || !locationIsValid}>{pendiente ? "Guardando…" : "Guardar dirección"}</Button>{estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}{estado.error ? <p role="alert" className="text-sm text-destructive">{estado.error}</p> : null}{estado.exito && returnTo ? <Button render={<Link href={returnTo} />} variant="secondary">{etiquetaReturnTo(returnTo)}</Button> : null}</div>
+      <div className="flex flex-wrap items-center gap-3"><PendingButton type="submit" pending={pendiente} pendingLabel="Guardando…" disabled={!locationIsValid}>Guardar dirección</PendingButton>{estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}{estado.error ? <p role="alert" className="text-sm text-destructive">{estado.error}</p> : null}{estado.exito && returnTo ? <Button render={<Link href={returnTo} />} variant="secondary">{etiquetaReturnTo(returnTo)}</Button> : null}</div>
     </form>
   );
 }

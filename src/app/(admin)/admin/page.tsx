@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AdminOverview } from "@/components/admin/admin-overview";
+import { AdminDashboardSkeleton } from "@/components/feedback/admin-loading-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { obtenerCategoriasAdmin, obtenerProductosAdmin } from "@/lib/admin/catalogo";
 
 export const metadata: Metadata = { title: "Administración" };
 
-export default async function AdminPage() {
+export default function AdminPage() {
+  return <Suspense fallback={<AdminDashboardSkeleton />}><AdminContent /></Suspense>;
+}
+
+async function AdminContent() {
   const [productos, categorias] = await Promise.all([obtenerProductosAdmin(), obtenerCategoriasAdmin()]);
   return (
     <div className="space-y-8">

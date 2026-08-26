@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { registrarPagoCliente } from "@/app/(admin)/admin/clientes/actions";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/ui/pending-button";
 import { describirSaldoCuenta } from "@/lib/account-balance";
 import { formatCLP } from "@/lib/formatters";
 
@@ -41,7 +41,7 @@ export function CustomerPaymentForm({ clienteId, saldoActual }: { clienteId: str
         <label className="sm:col-span-2 text-sm font-medium text-foreground">Observación <span className="font-normal text-muted-foreground">(opcional)</span><textarea name="observacion" rows={3} className="mt-2 w-full rounded-lg border border-input bg-background p-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></label>
       </div>
       <p className="rounded-lg bg-muted px-3 py-2 text-sm leading-6 text-foreground">{montoValido ? `Registrar pago recibido por ${formatCLP(montoNumero)} vía ${mediosPago.find((medio) => medio.value === metodo)?.label.toLowerCase()}. Después, el cliente quedará aproximadamente ${saldoDescripcion.texto === "Al día" ? "al día" : saldoDescripcion.texto === "Debe" ? `debiendo ${formatCLP(saldoDescripcion.monto)}` : `con ${formatCLP(saldoDescripcion.monto)} a favor`}.` : `Saldo actual: ${saldoActual === 0 ? "Al día" : saldoActual > 0 ? `Debe ${formatCLP(saldoActual)}` : `${formatCLP(Math.abs(saldoActual))} a favor`}.`}</p>
-      <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={pendiente}>{pendiente ? "Registrando…" : "Registrar pago"}</Button>{estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}{estado.error ? <p aria-live="polite" className="text-sm text-destructive">{estado.error}</p> : null}</div>
+      <div className="flex flex-wrap items-center gap-3"><PendingButton type="submit" pending={pendiente} pendingLabel="Registrando…">Registrar pago</PendingButton>{estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}{estado.error ? <p aria-live="polite" className="text-sm text-destructive">{estado.error}</p> : null}</div>
     </form>
   );
 }

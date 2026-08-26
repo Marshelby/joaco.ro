@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { guardarDiaEntregaAdministrativo, type EstadoDiaEntrega } from "@/app/(admin)/admin/configuracion/actions";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/ui/pending-button";
 import { diaAnterior, esDiaSemanaEntrega, formatearHoraCorte, nombreDiaSemana } from "@/config/delivery-schedule";
 import type { DiaEntregaAdministrativo } from "@/lib/admin/dias-entrega";
 
@@ -36,7 +36,7 @@ function DeliveryDayRow({ dia }: { dia: DiaEntregaAdministrativo }) {
       </label>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-        <Button type="submit" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button>
+        <PendingButton type="submit" pending={pendiente} pendingLabel="Guardando…">Guardar</PendingButton>
         {estado.exito ? <p aria-live="polite" className="text-sm text-primary">{estado.exito}</p> : null}
         {estado.error ? <p aria-live="polite" className="text-sm text-destructive">{estado.error}</p> : null}
       </div>

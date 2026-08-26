@@ -10,6 +10,7 @@ import { useActionState, useEffect, useState } from "react";
 import { cancelarPedidoCliente, prepararRepeticionPedido, type ResultadoPrepararRepeticion } from "@/app/(customer)/mi-cuenta/pedidos/actions";
 import { useCart, type ModoCargaCarrito, type ResultadoCargaCarrito } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/ui/pending-button";
 import { ROUTES } from "@/config/routes";
 import type { EstadoPedidoCuenta } from "@/lib/account/pedidos";
 
@@ -90,12 +91,12 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
   return (
     <div className="relative shrink-0">
       <Menu.Root modal={false}>
-        <Menu.Trigger className="inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50" aria-label={`Opciones del pedido ${numeroPedido}`}>
+        <Menu.Trigger className="inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground outline-none transition-[background-color,color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted hover:text-foreground active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50" aria-label={`Opciones del pedido ${numeroPedido}`}>
           <MoreHorizontal className="size-5" aria-hidden="true" />
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50">
-            <Menu.Popup className="min-w-48 rounded-lg border border-border bg-card p-1 shadow-lg outline-none">
+            <Menu.Popup className="motion-menu-content min-w-48 rounded-lg border border-border bg-card p-1 shadow-lg outline-none">
               <Menu.Item onClick={iniciarRepeticion} disabled={resolviendo || !isHydrated} className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium text-foreground outline-none data-[highlighted]:bg-muted data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50">
                 <Repeat2 className="size-4" aria-hidden="true" />
                 {resolviendo ? "Preparando…" : isHydrated ? "Repetir pedido" : "Cargando carrito…"}
@@ -114,9 +115,9 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
 
       <Dialog.Root open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25" />
+          <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/25" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-            <Dialog.Popup className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl outline-none sm:p-6">
+            <Dialog.Popup className="motion-dialog-content w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl outline-none sm:p-6">
               <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground">Ya tienes productos en tu carrito</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">¿Quieres sumar este pedido a tu carrito actual o empezar un carrito nuevo con este pedido?</Dialog.Description>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -131,9 +132,9 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
 
       <Dialog.Root open={dialogoCancelacionVisible} onOpenChange={setDialogoCancelacionAbierto}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25" />
+          <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/25" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-            <Dialog.Popup className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl outline-none sm:p-6">
+            <Dialog.Popup className="motion-dialog-content w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl outline-none sm:p-6">
               <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground">¿Cancelar este pedido?</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">Puedes cancelar el pedido {numeroPedido} mientras Hidro Leufú aún no lo haya confirmado.</Dialog.Description>
               <p className="mt-2 text-sm text-muted-foreground">Una vez confirmado por nuestro equipo, ya no podrás cancelarlo desde tu cuenta.</p>
@@ -143,10 +144,10 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
                   Motivo <span className="font-normal text-muted-foreground">(opcional)</span>
                 </label>
                 <textarea id={`motivo-cancelacion-${pedidoId}`} name="motivo" maxLength={400} placeholder="Ej. Me equivoqué en las cantidades" className="mt-2 min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" disabled={cancelando} />
-                {resultadoCancelacion.error ? <p aria-live="polite" className="text-sm text-destructive">{resultadoCancelacion.error}</p> : null}
+                {resultadoCancelacion.error ? <p aria-live="polite" className="motion-fade-in text-sm text-destructive">{resultadoCancelacion.error}</p> : null}
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDialogoCancelacionAbierto(false)} disabled={cancelando}>Volver</Button>
-                  <Button type="submit" variant="destructive" className="w-full sm:w-auto" disabled={cancelando}>{cancelando ? "Cancelando…" : "Cancelar pedido"}</Button>
+                  <PendingButton type="submit" variant="destructive" pending={cancelando} pendingLabel="Cancelando…" className="w-full sm:w-auto">Cancelar pedido</PendingButton>
                 </div>
               </form>
             </Dialog.Popup>
@@ -154,7 +155,7 @@ export function OrderRepeatAction({ pedidoId, numeroPedido, estado }: { pedidoId
         </Dialog.Portal>
       </Dialog.Root>
 
-      {feedback ? <div className="absolute right-0 top-full z-10 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg bg-muted px-3 py-2 text-sm shadow-md" aria-live="polite"><p className="font-medium text-foreground">{feedback.mensaje}</p>{feedback.detalle ? <p className="mt-1 leading-5 text-muted-foreground">{feedback.detalle}</p> : null}<Link href={ROUTES.cart} className="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-primary outline-none hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50">Ver carrito</Link></div> : null}
+      {feedback ? <div className="motion-fade-in absolute right-0 top-full z-10 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg bg-muted px-3 py-2 text-sm shadow-md" aria-live="polite"><p className="font-medium text-foreground">{feedback.mensaje}</p>{feedback.detalle ? <p className="mt-1 leading-5 text-muted-foreground">{feedback.detalle}</p> : null}<Link href={ROUTES.cart} className="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-primary outline-none hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50">Ver carrito</Link></div> : null}
     </div>
   );
 }

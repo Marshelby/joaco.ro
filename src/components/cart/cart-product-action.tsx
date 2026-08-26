@@ -112,7 +112,7 @@ export function CartProductAction({ product, className, compact = false }: CartP
         <Pencil data-icon="inline-end" className={cn(compact && "hidden md:block")} aria-hidden="true" />
         Editar
       </Button>
-      <span className="sr-only" aria-live="polite">{confirmationMessage}</span>
+      <span aria-live="polite" className="motion-fade-in block min-h-5 pt-1 text-xs font-medium text-primary">{confirmationMessage}</span>
     </div>
   );
 }

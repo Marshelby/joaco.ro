@@ -20,7 +20,7 @@ function AdminCustomerDetailSkeleton() {
 }
 
 function AdminOrderDetailSkeleton() {
-  return <AdminLoadingFrame label="Cargando pedido"><div aria-hidden="true" className="space-y-6"><PageHeaderSkeleton /><div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]"><div className="space-y-6"><PanelSkeleton lines={5} /><PanelSkeleton lines={4} /></div><aside className="space-y-5"><PanelSkeleton lines={4} /><PanelSkeleton lines={3} /></aside></div></div></AdminLoadingFrame>;
+  return <AdminLoadingFrame label="Cargando pedido"><div aria-hidden="true" className="space-y-6"><PageHeaderSkeleton /><div className="flex gap-3"><Skeleton className="h-11 w-32 rounded-lg" /><Skeleton className="h-11 w-36 rounded-lg" /></div><PanelSkeleton lines={1} /><PanelSkeleton lines={3} /><PanelSkeleton lines={5} /><PanelSkeleton lines={5} /><section className="space-y-4 rounded-xl border border-border bg-card p-5 sm:p-6"><Skeleton className="h-6 w-32" />{Array.from({ length: 4 }, (_, index) => <div key={index} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]"><div className="flex items-center gap-3"><Skeleton className="size-12 shrink-0 rounded-lg sm:size-14" /><Skeleton className="h-5 w-2/3" /></div><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-full" /></div>)}</section></div></AdminLoadingFrame>;
 }
 
 function AdminDeliveryDaySkeleton() {

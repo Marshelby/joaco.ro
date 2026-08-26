@@ -10,11 +10,6 @@ import { ROUTES } from "@/config/routes";
 import { formatearCantidadPreparacion, type PedidoEntregaAdmin } from "@/lib/admin/pedidos";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
-function mostrarPresentacion(pedido: PedidoEntregaAdmin["items"][number]) {
-  if (!pedido.nombrePresentacion) return false;
-  return pedido.nombrePresentacion.trim().toLocaleLowerCase("es-CL") !== pedido.nombreProducto.trim().toLocaleLowerCase("es-CL");
-}
-
 export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
@@ -68,7 +63,6 @@ export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
                 <li key={item.id} className="flex min-w-0 items-start justify-between gap-4 py-3">
                   <div className="min-w-0">
                     <p className="break-words text-sm font-medium text-foreground">{item.nombreProducto}</p>
-                    {mostrarPresentacion(item) ? <p className="mt-0.5 break-words text-xs text-muted-foreground">{item.nombrePresentacion}</p> : null}
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-foreground">{formatearCantidadPreparacion(item)}</p>
                 </li>

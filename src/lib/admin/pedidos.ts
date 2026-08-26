@@ -23,6 +23,7 @@ export type ItemPedidoAdmin = {
   nombreProductoSnapshot: string;
   nombrePresentacionSnapshot: string | null;
   unidadSnapshot: string;
+  rutaImagen: string | null;
   cantidad: number;
   precioFinalUnitarioSnapshot: number;
   totalLinea: number;
@@ -112,6 +113,7 @@ type ItemPedidoFila = {
   nombre_producto_snapshot: string;
   nombre_presentacion_snapshot: string | null;
   unidad_snapshot: string;
+  productos: { ruta_imagen: string | null } | null;
   cantidad: number | string;
   precio_final_unitario_snapshot: number | string;
   total_linea: number | string;
@@ -393,7 +395,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea)")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen))")
     .eq("id", id)
     .maybeSingle();
 
@@ -424,6 +426,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
       nombreProductoSnapshot: item.nombre_producto_snapshot,
       nombrePresentacionSnapshot: item.nombre_presentacion_snapshot,
       unidadSnapshot: item.unidad_snapshot,
+      rutaImagen: item.productos?.ruta_imagen ?? null,
       cantidad: Number(item.cantidad),
       precioFinalUnitarioSnapshot: Number(item.precio_final_unitario_snapshot),
       totalLinea: Number(item.total_linea),
@@ -455,7 +458,7 @@ export function formatearCantidadPedido(cantidad: number, unidad: string) {
 
 export function formatearCantidadConUnidadEntrega(cantidad: number, unidad: string) {
   const texto = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 }).format(cantidad);
-  return unidad === "KG" ? `${texto} kg` : `${texto} unidades`;
+  return unidad === "KG" ? `${texto} kg` : `${texto} ${cantidad === 1 ? "unidad" : "unidades"}`;
 }
 
 export function formatearCantidadPreparacion(item: Pick<ItemPreparacionPedidoAdmin, "cantidad" | "nombrePresentacion" | "unidad" | "modoCantidadSnapshot">) {

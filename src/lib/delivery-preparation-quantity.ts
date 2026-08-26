@@ -16,5 +16,5 @@ export function formatearCantidadPreparacionEntrega(
     return `${texto} ${etiqueta}`;
   }
   const esKgFraccionable = modoCantidadSnapshot === "kg_fraccionable" || (!modoCantidadSnapshot && unidad.toUpperCase() === "KG");
-  return esKgFraccionable ? `${texto} kg` : `${texto} unidades`;
+  return esKgFraccionable ? `${texto} kg` : `${texto} ${cantidad === 1 ? "unidad" : "unidades"}`;
 }

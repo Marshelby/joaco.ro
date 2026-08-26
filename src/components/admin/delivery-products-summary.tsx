@@ -1,4 +1,3 @@
-import { getClosedPresentationKind } from "@/lib/cart-quantity";
 import type { ResumenProductoEntrega } from "@/lib/admin/pedidos";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 
@@ -6,24 +5,6 @@ type DeliveryProductsSummaryProps = {
   productos: readonly ResumenProductoEntrega[];
   variant?: "full" | "compact";
 };
-
-function normalizarTexto(valor: string) {
-  return valor
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLocaleLowerCase("es-CL");
-}
-
-function mostrarPresentacion(item: ResumenProductoEntrega) {
-  if (!item.presentacion) return false;
-
-  const presentacion = normalizarTexto(item.presentacion);
-  if (presentacion === normalizarTexto(item.producto)) return false;
-  if (getClosedPresentationKind(item.presentacion)) return true;
-
-  return !["unidad", "unidades", "und", "kg", "kilogramo", "kilogramos"].includes(presentacion);
-}
 
 function ListaProductosNecesarios({ productos }: Pick<DeliveryProductsSummaryProps, "productos">) {
   if (productos.length === 0) {
@@ -36,7 +17,6 @@ function ListaProductosNecesarios({ productos }: Pick<DeliveryProductsSummaryPro
         <li key={item.clave} className="flex min-w-0 items-start justify-between gap-3 border-b border-border py-3">
           <div className="min-w-0">
             <h3 className="break-words text-sm font-medium text-foreground">{item.producto}</h3>
-            {mostrarPresentacion(item) ? <p className="mt-0.5 break-words text-xs text-muted-foreground">{item.presentacion}</p> : null}
           </div>
           <p className="shrink-0 text-sm font-semibold text-foreground">
             {formatearCantidadPreparacionEntrega(item.cantidadTotal, item.presentacion, item.unidad)}

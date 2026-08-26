@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { Container } from "@/components/layout/container";
 import { CategorySelector } from "@/components/home/category-selector";
+import { CatalogSearchForm } from "@/components/catalog/catalog-search-form";
 import { ProductSection } from "@/components/home/product-section";
 import { SectionTitle } from "@/components/home/section-title";
 import { B2bIntro } from "@/components/home/b2b-intro";
@@ -32,6 +33,7 @@ async function HomeContent() {
   return (
     <Container className="space-y-12 py-4 sm:space-y-16 sm:py-8 lg:py-10">
       <FadeIn><B2bBanner /></FadeIn>
+      <CatalogSearchForm mode="submit-only" variant="home" />
       <FadeIn><B2bIntro /></FadeIn>
       <ProductSection id="best-sellers-title" eyebrow="Nuestra especialidad" title="Hidropónicos" description="Frescos, seleccionados y preparados para abastecer tu negocio." products={bestSellers} gridVariant="catalog" />
       <ProductSection id="opportunities-title" title="Más productos frescos" description="Encuentra productos para complementar tu pedido." products={featured} gridVariant="catalog" />

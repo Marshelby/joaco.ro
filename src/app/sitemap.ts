@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const sitio = "https://www.hidroleufu.cl";
+const sitio = "https://hidroleufu.cl";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

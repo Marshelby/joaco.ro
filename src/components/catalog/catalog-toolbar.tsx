@@ -1,11 +1,11 @@
 "use client";
 
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
 import { CATALOG_SORT_OPTIONS, getCatalogHref, type CatalogCategory, type CatalogFilters, type CatalogSort } from "@/lib/catalog";
-import { Button } from "@/components/ui/button";
+import { CatalogSearchForm } from "@/components/catalog/catalog-search-form";
 import { PublicLink, usePublicNavigationFeedback } from "@/components/navigation/public-navigation-feedback";
 
 type CatalogToolbarProps = {
@@ -28,25 +28,10 @@ export function CatalogToolbar({ categories, filters }: CatalogToolbarProps) {
     iniciarOrdenamiento(() => router.push(href));
   }
 
-  function beginSearchNavigation(event: React.FormEvent<HTMLFormElement>) {
-    const formData = new FormData(event.currentTarget);
-    const query = String(formData.get("q") ?? "").trim();
-    feedback?.beginNavigation(getCatalogHref({ query, category: filters.category, sort: filters.sort }));
-  }
-
   return (
     <section className="space-y-5 rounded-xl border border-border bg-card p-4 sm:p-5" aria-label="Buscar y filtrar productos">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <form action="/catalogo" className="flex min-w-0 flex-1 gap-2" role="search" onSubmit={beginSearchNavigation}>
-          {filters.category ? <input type="hidden" name="categoria" value={filters.category} /> : null}
-          {filters.sort !== "recommended" ? <input type="hidden" name="orden" value={filters.sort} /> : null}
-          <label className="sr-only" htmlFor="catalog-search">Buscar productos</label>
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <input id="catalog-search" name="q" type="search" defaultValue={filters.query} placeholder="Buscar productos" className="h-11 w-full rounded-lg border border-input bg-background py-2 pl-10 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50" />
-          </div>
-          <Button type="submit">Buscar</Button>
-        </form>
+        <CatalogSearchForm mode="live" initialQuery={filters.query} category={filters.category} sort={filters.sort} variant="toolbar" placeholder="Buscar productos" />
         <label aria-busy={ordenando || undefined} className="flex min-h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground outline-none transition-[box-shadow,opacity] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] focus-within:ring-3 focus-within:ring-ring/50">
           <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
           <span className="sr-only">Ordenar productos</span>

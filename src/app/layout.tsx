@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.hidroleufu.cl"),
+  metadataBase: new URL("https://hidroleufu.cl"),
   title: {
     default: "Hidro Leufú | Productos frescos con delivery",
     template: `%s | ${BRAND.name}`,
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/images/social/hidroleufu-og.png",
-        width: 1200,
-        height: 1200,
+        width: 1254,
+        height: 1254,
         alt: "Hidro Leufú — La feria disponible 24/7",
       },
     ],

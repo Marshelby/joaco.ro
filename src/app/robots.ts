@@ -21,6 +21,6 @@ export default function robots(): MetadataRoute.Robots {
         "/auth/",
       ],
     },
-    sitemap: "https://www.hidroleufu.cl/sitemap.xml",
+    sitemap: "https://hidroleufu.cl/sitemap.xml",
   };
 }

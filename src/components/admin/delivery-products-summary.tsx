@@ -12,9 +12,9 @@ function ListaProductosNecesarios({ productos }: Pick<DeliveryProductsSummaryPro
   }
 
   return (
-    <ul className="grid gap-x-5 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid gap-x-5 sm:grid-cols-2 sm:gap-x-3 xl:grid-cols-3">
       {productos.map((item) => (
-        <li key={item.clave} className="flex min-w-0 items-start justify-between gap-3 border-b border-border py-3">
+        <li key={item.clave} className="flex min-w-0 items-start justify-between gap-3 border-b border-border py-3 sm:even:border-l sm:even:border-border/70 sm:even:pl-5 xl:[&:nth-child(3n+1)]:border-l-0 xl:[&:nth-child(3n+1)]:pl-0 xl:[&:nth-child(3n+2)]:border-l xl:[&:nth-child(3n+2)]:border-border/70 xl:[&:nth-child(3n+2)]:pl-5 xl:[&:nth-child(3n+3)]:border-l xl:[&:nth-child(3n+3)]:border-border/70 xl:[&:nth-child(3n+3)]:pl-5">
           <div className="min-w-0">
             <h3 className="break-words text-sm font-medium text-foreground">{item.producto}</h3>
           </div>

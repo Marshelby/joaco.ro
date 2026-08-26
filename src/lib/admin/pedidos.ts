@@ -53,6 +53,7 @@ export type ItemPreparacionPedidoAdmin = {
 };
 
 export type PedidoEntregaAdmin = PedidoAdminListado & {
+  clienteId: string | null;
   destinatarioEntrega: string | null;
   zonaEntrega: string | null;
   items: readonly ItemPreparacionPedidoAdmin[];
@@ -322,6 +323,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const filas = ((data ?? []) as PedidoEntregaFila[]).filter((pedido) => esEstadoIncluidoEnEntrega(pedido.estado));
   const pedidos: PedidoEntregaAdmin[] = filas.map((pedido) => ({
     ...mapPedidoListado(pedido),
+    clienteId: pedido.cliente_id,
     destinatarioEntrega: pedido.destinatario_entrega_snapshot,
     zonaEntrega: pedido.zona_entrega_snapshot,
     items: [],

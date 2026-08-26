@@ -4,11 +4,29 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
+import { obtenerClienteAdmin, type MovimientoCuentaCliente, type PedidoClienteAdmin } from "@/lib/admin/clientes";
 
 export type EstadoAjusteCuenta = { error?: string; exito?: string };
 export type EstadoPagoCliente = { error?: string; exito?: string };
 export type EstadoAnulacionPago = { error?: string; exito?: string };
 export type EstadoInvitacionAcceso = { error?: string; exito?: string; enlace?: string; fechaExpiracion?: string };
+export type VistaRapidaClienteAdmin = {
+  id: string;
+  nombre: string;
+  email: string | null;
+  telefono: string | null;
+  activo: boolean;
+  usuarioId: string | null;
+  saldoActual: number;
+  totalPedidos: number;
+  totalPagosConfirmados: number;
+  movimientos: readonly MovimientoCuentaCliente[];
+  pedidos: readonly PedidoClienteAdmin[];
+};
+export type ResultadoVistaRapidaClienteAdmin =
+  | { estado: "listo"; cliente: VistaRapidaClienteAdmin }
+  | { estado: "no_encontrado" }
+  | { estado: "error" };
 
 const mensajesRpc: Record<string, string> = {
   NO_AUTORIZADO: "No tienes permisos para registrar ajustes.",
@@ -49,6 +67,45 @@ function revalidarAccesoCliente(clienteId: string) {
   revalidatePath("/admin");
   revalidatePath("/admin/clientes");
   revalidatePath(`/admin/clientes/${clienteId}`);
+}
+
+export async function obtenerVistaRapidaClienteAdmin(clienteId: string): Promise<ResultadoVistaRapidaClienteAdmin> {
+  if (!clienteId) return { estado: "no_encontrado" };
+
+  try {
+    const supabase = await crearClienteSupabaseServidor();
+    const { data: sesion, error: errorSesion } = await supabase.auth.getUser();
+    if (errorSesion || !sesion.user) return { estado: "error" };
+
+    const { data: perfil, error: errorPerfil } = await supabase
+      .from("perfiles")
+      .select("rol")
+      .eq("usuario_id", sesion.user.id)
+      .maybeSingle();
+    if (errorPerfil || perfil?.rol !== "admin") return { estado: "error" };
+
+    const cliente = await obtenerClienteAdmin(clienteId);
+    if (!cliente) return { estado: "no_encontrado" };
+
+    return {
+      estado: "listo",
+      cliente: {
+        id: cliente.id,
+        nombre: cliente.nombre,
+        email: cliente.email,
+        telefono: cliente.telefono,
+        activo: cliente.activo,
+        usuarioId: cliente.usuarioId,
+        saldoActual: cliente.saldoActual,
+        totalPedidos: cliente.totalPedidos,
+        totalPagosConfirmados: cliente.totalPagosConfirmados,
+        movimientos: cliente.movimientos.slice(0, 3),
+        pedidos: cliente.pedidos.slice(0, 3),
+      },
+    };
+  } catch {
+    return { estado: "error" };
+  }
 }
 
 export async function crearInvitacionAccesoCliente(_: EstadoInvitacionAcceso, datos: FormData): Promise<EstadoInvitacionAcceso> {

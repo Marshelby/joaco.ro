@@ -5,6 +5,7 @@ import { PreparationItemControl } from "@/components/admin/preparation-item-cont
 import { FinalizePreparationAction } from "@/components/admin/finalize-preparation-action";
 import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
+import { CustomerQuickViewDialog } from "@/components/admin/customer-quick-view-dialog";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatearCantidadPreparacion, type PedidoEntregaAdmin } from "@/lib/admin/pedidos";
@@ -14,13 +15,14 @@ export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
   const listoParaDespacho = pedido.estado === "listo_despacho";
+  const nombreCliente = pedido.destinatarioEntrega ?? pedido.nombreClienteSnapshot;
 
   return (
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1.35fr)_minmax(8rem,0.8fr)_auto_auto] sm:items-center sm:gap-5">
         <div className="min-w-0">
           <h3 className="font-semibold tracking-tight text-foreground">{pedido.numeroPedido}</h3>
-          <p className="mt-1 truncate text-sm text-muted-foreground">{pedido.destinatarioEntrega ?? pedido.nombreClienteSnapshot}</p>
+          <div className="mt-1 truncate text-sm text-muted-foreground">{pedido.clienteId ? <CustomerQuickViewDialog clienteId={pedido.clienteId} nombre={nombreCliente} /> : nombreCliente}</div>
           {pedido.zonaEntrega ? <p className="mt-1 text-sm text-muted-foreground">{pedido.zonaEntrega}</p> : null}
         </div>
         <dl className="grid grid-cols-2 gap-3 text-sm sm:block">

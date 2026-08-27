@@ -7,10 +7,12 @@ import { useCart } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
 import { PublicLink } from "@/components/navigation/public-navigation-feedback";
 import { ROUTES } from "@/config/routes";
+import { cotizarDespacho } from "@/lib/delivery-pricing";
 import { formatCLP } from "@/lib/formatters";
 
 export function CartPageContent() {
   const { items, totalEstimado, isHydrated, vaciar } = useCart();
+  const cotizacion = cotizarDespacho(totalEstimado);
 
   if (!isHydrated) return <p className="text-sm text-muted-foreground">Cargando tu pedido…</p>;
 
@@ -43,10 +45,12 @@ export function CartPageContent() {
 
       <aside className="rounded-2xl border border-border bg-card p-5 sm:p-6 lg:sticky lg:top-6">
         <h2 className="text-lg font-semibold text-foreground">Resumen</h2>
-        <div className="mt-5 flex items-end justify-between gap-4 border-y border-border py-4">
-          <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
-          <strong className="text-2xl tracking-tight text-foreground">{formatCLP(totalEstimado)}</strong>
-        </div>
+        <dl className="mt-5 space-y-3 text-sm">
+          <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Subtotal</dt><dd className="font-medium text-foreground">{formatCLP(cotizacion.subtotal)}</dd></div>
+          <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Despacho</dt><dd className="font-medium text-foreground">{cotizacion.costoEntrega > 0 ? formatCLP(cotizacion.costoEntrega) : "Gratis"}</dd></div>
+          <div className="flex items-end justify-between gap-4 border-t border-border pt-4"><dt className="font-medium text-muted-foreground">Total estimado</dt><dd><strong className="text-2xl tracking-tight text-foreground">{formatCLP(cotizacion.totalEstimado)}</strong></dd></div>
+        </dl>
+        {!cotizacion.tieneDespachoGratis ? <p className="mt-4 rounded-lg bg-primary/10 px-3 py-2 text-sm leading-5 text-primary">Agrega {formatCLP(cotizacion.faltanteParaGratis)} más y obtén despacho gratis.</p> : null}
         <p className="mt-3 text-xs leading-5 text-muted-foreground">El total es referencial. Precio y disponibilidad se validarán antes de crear un pedido.</p>
         <Button render={<PublicLink href={ROUTES.checkout} />} className="mt-5 w-full">Continuar pedido</Button>
         <p className="mt-2 text-center text-xs text-muted-foreground">Revisa tus datos antes de confirmar.</p>

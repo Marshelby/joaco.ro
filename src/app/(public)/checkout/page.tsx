@@ -50,6 +50,6 @@ export default async function CheckoutPage() {
 
   if (errorDirecciones) throw errorDirecciones;
   const addresses = ((direcciones as DireccionFila[] | null) ?? []).map((address) => ({ ...address, latitud: address.latitud === null ? null : Number(address.latitud), longitud: address.longitud === null ? null : Number(address.longitud) }));
-  const fechasEntrega = await obtenerFechasEntregaDisponibles();
+  const fechasEntrega = (await obtenerFechasEntregaDisponibles()).slice(0, 3);
   return <Container className="py-8 sm:py-12 lg:py-16"><CheckoutContent claveIdempotencia={claveIdempotencia} cliente={cliente} direcciones={addresses} fechasEntrega={fechasEntrega} estadoCuenta="active_customer" /></Container>;
 }

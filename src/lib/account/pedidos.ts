@@ -38,6 +38,7 @@ export type ItemPedidoCuenta = {
   nombreProductoSnapshot: string;
   nombrePresentacionSnapshot: string | null;
   unidadSnapshot: string;
+  rutaImagen: string | null;
   cantidad: number;
   precioFinalUnitarioSnapshot: number;
   totalLinea: number;
@@ -121,6 +122,7 @@ type PedidoDetalleFila = Omit<PedidoListadoFila, "items_pedido"> & {
     nombre_producto_snapshot: string;
     nombre_presentacion_snapshot: string | null;
     unidad_snapshot: string;
+    productos: { ruta_imagen: string | null } | null;
     cantidad: number | string;
     precio_final_unitario_snapshot: number | string;
     total_linea: number | string;
@@ -178,7 +180,7 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,subtotal,costo_entrega,descuento,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
+    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,subtotal,costo_entrega,descuento,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen)),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
     .eq("id", id)
     .eq("cliente_id", cliente.id)
     .maybeSingle();
@@ -208,6 +210,7 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
       nombreProductoSnapshot: item.nombre_producto_snapshot,
       nombrePresentacionSnapshot: item.nombre_presentacion_snapshot,
       unidadSnapshot: item.unidad_snapshot,
+      rutaImagen: item.productos?.ruta_imagen ?? null,
       cantidad: Number(item.cantidad),
       precioFinalUnitarioSnapshot: Number(item.precio_final_unitario_snapshot),
       totalLinea: Number(item.total_linea),

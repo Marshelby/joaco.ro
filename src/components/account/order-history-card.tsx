@@ -15,7 +15,7 @@ export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
   const itemCount = order.cantidadLineas;
 
   return (
-    <article className="rounded-xl border border-border bg-card p-4 sm:p-5">
+    <article id={`pedido-${order.id}`} className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-semibold tracking-tight text-foreground">{order.numeroPedido}</h2>

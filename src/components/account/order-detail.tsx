@@ -21,7 +21,7 @@ export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
   return (
     <div className="space-y-8">
       <header className="border-b border-border pb-6">
-        <Link href={ROUTES.accountOrders} className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary outline-none transition-colors hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50">
+        <Link href={`${ROUTES.accountOrders}#pedido-${order.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary outline-none transition-colors hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Volver a Mis pedidos
         </Link>

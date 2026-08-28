@@ -13,6 +13,7 @@ import { formatearCantidadPedido, obtenerPedidoAdmin } from "@/lib/admin/pedidos
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
+import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
 import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = { title: "Detalle de pedido" };
@@ -24,6 +25,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
   const mapsUrl = getGoogleMapsLocationUrl(pedido.latitudEntrega, pedido.longitudEntrega);
+  const pagoPrevisto = formatearMetodosPagoPrevistos(pedido.metodosPagoPrevistos) ?? "No registrado";
 
   return (
     <div className="space-y-8">
@@ -68,6 +70,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subtotal</dt><dd>{formatCLP(pedido.subtotal)}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Costo entrega</dt><dd>{formatCLP(pedido.costoEntrega)}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Descuento</dt><dd>{formatCLP(pedido.descuento)}</dd></div>
+          <div className="flex justify-between gap-3 sm:col-span-2"><dt className="text-muted-foreground">Pago previsto</dt><dd className="text-right font-medium text-foreground">{pagoPrevisto}</dd></div>
           <div className="flex justify-between gap-3 border-t border-border pt-3"><dt className="text-muted-foreground">Total original</dt><dd>{formatCLP(pedido.total)}</dd></div>
           {pedido.totalFinal !== null ? <div className="flex justify-between gap-3 text-base font-semibold text-foreground"><dt>Total final</dt><dd>{formatCLP(pedido.totalFinal)}</dd></div> : null}
         </dl>

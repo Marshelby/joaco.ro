@@ -31,6 +31,18 @@ type CatalogRow = {
   }>;
 };
 
+const storefrontHomeSectionSlugs = ["featured", "best-sellers", "opportunities", "new-arrivals"] as const;
+
+export type StorefrontHomeSectionSlug = (typeof storefrontHomeSectionSlugs)[number];
+
+export type StorefrontHomeSections = Record<StorefrontHomeSectionSlug, readonly MockProduct[]>;
+
+type HomeSectionAssignmentRow = {
+  seccion_slug: StorefrontHomeSectionSlug;
+  orden: number;
+  productos: { id: string } | null;
+};
+
 const imageFallbackByCategory: Record<string, ImageFallbackKind> = {
   hidroponicos: "herb",
   "verduras-hortalizas": "fresh-produce",
@@ -113,6 +125,36 @@ async function queryProducts(options?: { slug?: string }) {
 
 export async function getStorefrontProducts() {
   return queryProducts();
+}
+
+export async function getStorefrontHomeSections(
+  products: readonly MockProduct[],
+): Promise<StorefrontHomeSections> {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data, error } = await supabase
+    .from("secciones_inicio_productos")
+    .select("seccion_slug,orden,productos!inner(id)")
+    .in("seccion_slug", storefrontHomeSectionSlugs)
+    .order("seccion_slug")
+    .order("orden");
+
+  if (error) throw new Error("No fue posible cargar las secciones de inicio.");
+
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const sections: Record<StorefrontHomeSectionSlug, MockProduct[]> = {
+    featured: [],
+    "best-sellers": [],
+    opportunities: [],
+    "new-arrivals": [],
+  };
+
+  for (const assignment of (data as unknown as HomeSectionAssignmentRow[] ?? [])) {
+    const productId = assignment.productos?.id;
+    const product = productId ? productsById.get(productId) : null;
+    if (product) sections[assignment.seccion_slug].push(product);
+  }
+
+  return sections;
 }
 
 export async function getStorefrontProduct(slug: string) {

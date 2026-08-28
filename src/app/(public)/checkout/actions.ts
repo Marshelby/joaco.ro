@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { normalizarMetodosPagoPrevistos } from "@/lib/payment-intent";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type EstadoCrearPedido = {
@@ -28,6 +29,8 @@ const mensajesRpc: Record<string, string> = {
   CANTIDAD_INVALIDA: "Una de las cantidades del carrito ya no es válida. Revisa tu pedido.",
   CLAVE_IDEMPOTENCIA_REQUERIDA: "No fue posible preparar el intento de pedido. Intenta nuevamente.",
   CLAVE_IDEMPOTENCIA_EN_USO: "Este intento de pedido ya está asociado a otra cuenta. Intenta nuevamente.",
+  METODOS_PAGO_PREVISTOS_REQUERIDOS: "Selecciona al menos una forma de pago.",
+  METODOS_PAGO_PREVISTOS_INVALIDOS: "La forma de pago seleccionada no es válida. Vuelve a intentarlo.",
 };
 
 function obtenerItems(datos: FormData) {
@@ -53,10 +56,12 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
   const direccionClienteId = String(datos.get("direccionClienteId") ?? "").trim() || null;
   const fechaEntrega = String(datos.get("fechaEntrega") ?? "").trim();
   const observacion = String(datos.get("observacion") ?? "").trim() || null;
+  const metodosPagoPrevistos = normalizarMetodosPagoPrevistos(datos.getAll("metodosPagoPrevistos"));
 
   if (!items || !claveIdempotencia) return { error: "No fue posible preparar el pedido. Revisa el carrito e inténtalo nuevamente." };
   if (!direccionClienteId) return { error: "Selecciona una dirección con ubicación marcada para confirmar el pedido." };
   if (!fechaEntregaValida(fechaEntrega)) return { error: "Selecciona una fecha de entrega para confirmar el pedido." };
+  if (!metodosPagoPrevistos) return { error: "Selecciona al menos una forma de pago." };
 
   const supabase = await crearClienteSupabaseServidor();
   const { data: sesion } = await supabase.auth.getUser();
@@ -90,6 +95,7 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
     p_observacion: observacion,
     p_clave_idempotencia: claveIdempotencia,
     p_fecha_entrega: fechaEntrega,
+    p_metodos_pago_previstos: metodosPagoPrevistos,
   });
 
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible confirmar el pedido. Conservamos tu carrito para que puedas intentarlo nuevamente." };

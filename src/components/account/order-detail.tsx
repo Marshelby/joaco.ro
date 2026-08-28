@@ -8,6 +8,7 @@ import type { PedidoCuentaDetalle } from "@/lib/account/pedidos";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
+import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
 
 import { OrderItemRow } from "./order-item-row";
 import { OrderTrackingTimeline } from "./order-tracking-timeline";
@@ -15,6 +16,7 @@ import { OrderTrackingTimeline } from "./order-tracking-timeline";
 export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
   const direccion = [order.direccionSnapshot, order.comunaSnapshot, order.regionSnapshot].filter(Boolean).join(", ");
   const mapsUrl = getGoogleMapsLocationUrl(order.latitudEntrega, order.longitudEntrega);
+  const pagoPrevisto = formatearMetodosPagoPrevistos(order.metodosPagoPrevistos) ?? "No registrado";
 
   return (
     <div className="space-y-8">
@@ -52,6 +54,7 @@ export function OrderDetail({ order }: { order: PedidoCuentaDetalle }) {
             <dl className="grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-1">
               <div><dt className="text-muted-foreground">Total</dt><dd className="mt-1 text-lg font-semibold text-foreground">{formatCLP(order.total)}</dd></div>
               {order.fechaEntrega ? <div><dt className="text-muted-foreground">Entrega programada</dt><dd className="mt-1 font-medium text-foreground">{formatFechaEntregaLarga(order.fechaEntrega)}</dd></div> : null}
+              <div className="sm:col-span-2 xl:col-span-1"><dt className="text-muted-foreground">Pago previsto</dt><dd className="mt-1 font-medium text-foreground">{pagoPrevisto}</dd></div>
             </dl>
           </section>
 

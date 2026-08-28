@@ -1,4 +1,5 @@
 import { ActionLink } from "@/components/ui/action-link";
+import { CatalogImage } from "@/components/media/catalog-image";
 import { ROUTES } from "@/config/routes";
 import { formatCLP } from "@/lib/formatters";
 import type { ProductoAdmin } from "@/lib/admin/catalogo";
@@ -10,7 +11,12 @@ export function ProductListItem({ product }: { product: ProductoAdmin }) {
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-4 sm:grid-cols-[5rem_minmax(10rem,1.35fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(10rem,0.95fr)_auto] sm:items-center sm:gap-5">
         <div className="relative size-16 overflow-hidden rounded-lg border border-border bg-muted sm:size-20">
-          <span className="flex size-full items-center justify-center text-xs text-muted-foreground">{product.presentacion.unidad}</span>
+          <CatalogImage
+            image={product.rutaImagen ? { src: product.rutaImagen, alt: "", fit: "contain" } : undefined}
+            fallback="package"
+            sizes="(min-width: 640px) 80px, 64px"
+            fallbackIconClassName="size-7 sm:size-9"
+          />
         </div>
         <div className="min-w-0 self-center">
           <h2 className="text-base font-semibold tracking-tight text-foreground">{product.nombre}</h2>

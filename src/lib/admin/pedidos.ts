@@ -2,6 +2,7 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import type { ModoCantidadSnapshot, PreparacionEstado } from "@/lib/order-preparation";
+import type { MetodoPagoPrevisto } from "@/lib/payment-intent";
 
 export type EstadoPedidoAdmin = "recibido" | "en_revision" | "confirmado" | "programado" | "preparando" | "listo_despacho" | "en_reparto" | "entregado" | "entrega_fallida" | "cancelado";
 
@@ -92,6 +93,7 @@ export type PedidoAdminDetalle = PedidoAdminListado & {
   subtotal: number;
   costoEntrega: number;
   descuento: number;
+  metodosPagoPrevistos: readonly MetodoPagoPrevisto[] | null;
   observacionGeneral: string | null;
   items: readonly ItemPedidoAdmin[];
 };
@@ -165,6 +167,7 @@ type PedidoDetalleFila = PedidoListadoFila & {
   subtotal: number | string;
   costo_entrega: number | string;
   descuento: number | string;
+  metodos_pago_previstos: string[] | null;
   observacion_general: string | null;
   items_pedido: ItemPedidoFila[];
 };
@@ -397,7 +400,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen))")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen))")
     .eq("id", id)
     .maybeSingle();
 
@@ -422,6 +425,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
     subtotal: Number(fila.subtotal),
     costoEntrega: Number(fila.costo_entrega),
     descuento: Number(fila.descuento),
+    metodosPagoPrevistos: fila.metodos_pago_previstos as MetodoPagoPrevisto[] | null,
     observacionGeneral: fila.observacion_general,
     items: (fila.items_pedido ?? []).map((item) => ({
       id: item.id,

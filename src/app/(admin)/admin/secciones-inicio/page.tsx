@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import { HomeSectionEditor } from "@/components/admin/home-section-editor";
 import { PageHeader } from "@/components/shared/page-header";
-import { resolveHomeSections } from "@/lib/admin-home-sections";
-import { ADMIN_HOME_SECTIONS_MOCK } from "@/mocks/admin-home-sections";
-import { HOME_PRODUCTS } from "@/mocks/products";
+import { obtenerProductosDisponiblesParaSeccionesInicioAdmin, obtenerSeccionesInicioAdmin } from "@/lib/admin-home-sections";
 
 export const metadata: Metadata = { title: "Secciones Inicio" };
 
-export default function AdminHomeSectionsPage() {
+export default async function AdminHomeSectionsPage() {
+  const [sections, products] = await Promise.all([
+    obtenerSeccionesInicioAdmin(),
+    obtenerProductosDisponiblesParaSeccionesInicioAdmin(),
+  ]);
+
   return (
     <div className="space-y-8">
       <PageHeader title="Secciones Inicio" description="Organiza los productos que aparecerán destacados en la portada." />
-      <HomeSectionEditor sections={resolveHomeSections(ADMIN_HOME_SECTIONS_MOCK, HOME_PRODUCTS)} products={HOME_PRODUCTS} />
+      <HomeSectionEditor sections={sections} products={products} />
     </div>
   );
 }

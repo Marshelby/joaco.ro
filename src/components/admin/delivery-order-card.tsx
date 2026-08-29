@@ -6,16 +6,18 @@ import { FinalizePreparationAction } from "@/components/admin/finalize-preparati
 import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { CustomerQuickViewDialog } from "@/components/admin/customer-quick-view-dialog";
+import { DeliveryContactActions } from "@/components/admin/delivery-contact-actions";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatearCantidadPreparacion, type PedidoEntregaAdmin } from "@/lib/admin/pedidos";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
-export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
+export function DeliveryOrderCard({ pedido, nombreEmisor }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null }) {
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
   const listoParaDespacho = pedido.estado === "listo_despacho";
   const nombreCliente = pedido.destinatarioEntrega ?? pedido.nombreClienteSnapshot;
+  const telefonoEntrega = pedido.telefonoContactoEntregaSnapshot ?? pedido.telefonoClienteSnapshot;
 
   return (
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
@@ -32,6 +34,8 @@ export function DeliveryOrderCard({ pedido }: { pedido: PedidoEntregaAdmin }) {
         <div className="flex flex-wrap gap-2"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></div>
         <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink>
       </div>
+
+      {telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
       {requierePreparacion || pendienteDeConfirmacion || listoParaDespacho ? (
         <div className="mt-4 border-t border-border pt-3">

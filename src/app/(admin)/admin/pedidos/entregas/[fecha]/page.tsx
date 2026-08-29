@@ -9,6 +9,7 @@ import { ActionLink } from "@/components/ui/action-link";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { obtenerDetalleEntregaAdmin } from "@/lib/admin/pedidos";
 import { formatCLP } from "@/lib/formatters";
+import { obtenerIdentidadActual } from "@/lib/account/identity";
 
 export const metadata: Metadata = { title: "Jornada de entrega" };
 
@@ -23,8 +24,9 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
   const { fecha } = await params;
   if (!esFechaReal(fecha)) notFound();
 
-  const entrega = await obtenerDetalleEntregaAdmin(fecha);
+  const [entrega, identidad] = await Promise.all([obtenerDetalleEntregaAdmin(fecha), obtenerIdentidadActual()]);
   const tituloFecha = formatFechaEntregaLarga(fecha).toLocaleLowerCase("es-CL");
+  const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
 
   return (
     <div className="space-y-8">
@@ -50,7 +52,7 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
           <section className="space-y-4" aria-labelledby="pedidos-jornada-title">
             <div><h2 id="pedidos-jornada-title" className="text-xl font-semibold tracking-tight text-foreground">Pedidos</h2><p className="mt-1 text-sm text-muted-foreground">Ordenados por creación; todavía no representa una ruta logística.</p></div>
             <ul className="space-y-3" aria-label="Pedidos de la jornada">
-              {entrega.pedidos.map((pedido) => <DeliveryOrderCard key={pedido.id} pedido={pedido} />)}
+              {entrega.pedidos.map((pedido) => <DeliveryOrderCard key={pedido.id} pedido={pedido} nombreEmisor={nombreEmisor} />)}
             </ul>
           </section>
         </>

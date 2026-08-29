@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { OrderAcceptAction } from "@/components/admin/order-accept-action";
 import { OrderCancelAction } from "@/components/admin/order-cancel-action";
+import { DeliveryContactActions } from "@/components/admin/delivery-contact-actions";
 import { OrderOperationalAction } from "@/components/admin/order-operational-action";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { CatalogImage } from "@/components/media/catalog-image";
@@ -14,18 +15,21 @@ import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
 import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
+import { obtenerIdentidadActual } from "@/lib/account/identity";
 import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = { title: "Detalle de pedido" };
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const pedido = await obtenerPedidoAdmin(id);
+  const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
 
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
   const mapsUrl = getGoogleMapsLocationUrl(pedido.latitudEntrega, pedido.longitudEntrega);
   const pagoPrevisto = formatearMetodosPagoPrevistos(pedido.metodosPagoPrevistos) ?? "No registrado";
+  const telefonoEntrega = pedido.telefonoContactoEntrega ?? pedido.telefonoClienteSnapshot;
+  const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
 
   return (
     <div className="space-y-8">
@@ -55,7 +59,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
           {pedido.fechaEntrega ? <div><dt className="text-muted-foreground">Fecha de entrega</dt><dd className="mt-1 font-medium text-foreground">{formatFechaEntregaLarga(pedido.fechaEntrega)}</dd></div> : null}
           {pedido.destinatarioEntrega ? <div><dt className="text-muted-foreground">Destinatario</dt><dd className="mt-1 font-medium text-foreground">{pedido.destinatarioEntrega}</dd></div> : null}
-          {pedido.telefonoContactoEntrega ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1"><a href={`tel:${pedido.telefonoContactoEntrega}`} className="text-primary underline underline-offset-4">{pedido.telefonoContactoEntrega}</a></dd></div> : null}
+          {telefonoEntrega ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></dd></div> : null}
           {direccion ? <div className="sm:col-span-2"><dt className="text-muted-foreground">Dirección</dt><dd className="mt-1 leading-6 text-foreground">{direccion}</dd></div> : null}
           {pedido.zonaEntrega ? <div><dt className="text-muted-foreground">Zona</dt><dd className="mt-1 text-foreground">{pedido.zonaEntrega}</dd></div> : null}
           {pedido.referenciaDireccionSnapshot ? <div className="sm:col-span-2"><dt className="text-muted-foreground">Referencia</dt><dd className="mt-1 leading-6 text-muted-foreground">{pedido.referenciaDireccionSnapshot}</dd></div> : null}

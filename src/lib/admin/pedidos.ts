@@ -56,6 +56,8 @@ export type ItemPreparacionPedidoAdmin = {
 export type PedidoEntregaAdmin = PedidoAdminListado & {
   clienteId: string | null;
   destinatarioEntrega: string | null;
+  telefonoContactoEntregaSnapshot: string | null;
+  telefonoClienteSnapshot: string | null;
   zonaEntrega: string | null;
   items: readonly ItemPreparacionPedidoAdmin[];
 };
@@ -125,6 +127,8 @@ type ItemPedidoFila = {
 type PedidoEntregaFila = PedidoListadoFila & {
   cliente_id: string | null;
   destinatario_entrega_snapshot: string | null;
+  telefono_contacto_entrega_snapshot: string | null;
+  telefono_cliente_snapshot: string | null;
   zona_entrega_snapshot: string | null;
 };
 
@@ -316,7 +320,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,zona_entrega_snapshot")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot")
     .eq("fecha_entrega", fecha)
     .neq("estado", "cancelado")
     .order("fecha_creacion", { ascending: true });
@@ -328,6 +332,8 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     ...mapPedidoListado(pedido),
     clienteId: pedido.cliente_id,
     destinatarioEntrega: pedido.destinatario_entrega_snapshot,
+    telefonoContactoEntregaSnapshot: pedido.telefono_contacto_entrega_snapshot,
+    telefonoClienteSnapshot: pedido.telefono_cliente_snapshot,
     zonaEntrega: pedido.zona_entrega_snapshot,
     items: [],
   }));

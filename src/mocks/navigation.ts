@@ -14,7 +14,7 @@ export const CUSTOMER_NAVIGATION = [
   { label: "Resumen", href: ROUTES.account, icon: "home", description: "Vista general de tu cuenta." },
   { label: "Pedidos", href: ROUTES.accountOrders, icon: "orders", description: "Revisa el estado de tus compras." },
   { label: "Direcciones", href: ROUTES.accountAddresses, icon: "delivery", description: "Revisa tus direcciones de entrega." },
-  { label: "Beneficios", href: ROUTES.accountBenefits, icon: "account", description: "Revisa sorteos y promociones disponibles." },
+  { label: "Beneficios", href: ROUTES.accountBenefits, icon: "account", description: "Compras acumuladas y cupones." },
 ] as const satisfies readonly NavigationItem[];
 
 export const ADMIN_NAVIGATION = [

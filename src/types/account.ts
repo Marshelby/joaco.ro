@@ -43,14 +43,6 @@ export type CustomerBenefitMock = {
   actionHref?: string | null;
 };
 
-export type CustomerBenefitParticipationMock = {
-  id: string;
-  benefitId: string;
-  participatedAt: string;
-  status: CustomerBenefitStatus;
-  resultText?: string;
-};
-
 export type OrderStatus =
   | "pending"
   | "confirmed"

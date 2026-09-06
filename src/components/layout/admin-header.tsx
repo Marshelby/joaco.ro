@@ -5,11 +5,11 @@ import { ADMIN_NAVIGATION } from "@/mocks/navigation";
 import { cerrarSesion } from "@/app/iniciar-sesion/actions";
 import Link from "next/link";
 
-export function AdminHeader() {
+export function AdminHeader({ mensajesNoLeidos = 0 }: { mensajesNoLeidos?: number }) {
   return (
     <header className="flex min-h-16 items-center gap-3 border-b border-border bg-background px-4 sm:px-6">
       <div className="md:hidden">
-        <MobileNavigation items={ADMIN_NAVIGATION} label="Navegación administrativa" title="Administrador" />
+        <MobileNavigation items={ADMIN_NAVIGATION} label="Navegación administrativa" title="Administrador" badges={{ "/admin/mensajes": mensajesNoLeidos }} />
       </div>
       <div className="md:hidden"><Logo className="rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></div>
       <div className="min-w-0 flex-1">

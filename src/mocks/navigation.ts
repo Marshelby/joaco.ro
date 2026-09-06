@@ -15,6 +15,7 @@ export const CUSTOMER_NAVIGATION = [
   { label: "Pedidos", href: ROUTES.accountOrders, icon: "orders", description: "Revisa el estado de tus compras." },
   { label: "Direcciones", href: ROUTES.accountAddresses, icon: "delivery", description: "Revisa tus direcciones de entrega." },
   { label: "Beneficios", href: ROUTES.accountBenefits, icon: "account", description: "Compras acumuladas y cupones." },
+  { label: "Mensajes", href: ROUTES.accountMessages, icon: "messages", description: "Habla directamente con Hidro Leufú." },
 ] as const satisfies readonly NavigationItem[];
 
 export const ADMIN_NAVIGATION = [
@@ -23,6 +24,7 @@ export const ADMIN_NAVIGATION = [
   { label: "Categorías", href: ROUTES.adminCategories, icon: "category" },
   { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
+  { label: "Mensajes", href: ROUTES.adminMessages, icon: "messages" },
   { label: "Secciones Inicio", href: ROUTES.adminHomeSections, icon: "catalog" },
   { label: "Configuración", href: ROUTES.adminSettings, icon: "settings" },
 ] as const satisfies readonly NavigationItem[];

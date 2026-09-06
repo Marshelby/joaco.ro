@@ -7,6 +7,7 @@ export type NavigationIconName =
   | "customers"
   | "delivery"
   | "home"
+  | "messages"
   | "orders"
   | "routes"
   | "settings";

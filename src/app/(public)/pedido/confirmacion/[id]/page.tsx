@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CalendarDays, Check, ExternalLink, MapPin, PackageCheck, ShoppingBag, Truck, type LucideIcon } from "lucide-react";
 
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { Container } from "@/components/layout/container";
@@ -8,100 +9,49 @@ import { OrderConfirmationSuccess } from "@/components/order/order-confirmation-
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatearCantidadPedido, type EstadoPedidoAdmin } from "@/lib/admin/pedidos";
-import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
+import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
 import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
-import { ExternalLink } from "lucide-react";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Pedido recibido" };
 
-type ItemConfirmacion = {
-  id: string;
-  nombre_producto_snapshot: string;
-  nombre_presentacion_snapshot: string | null;
-  unidad_snapshot: string;
-  cantidad: number | string;
-  total_linea: number | string;
-  productos: { ruta_imagen: string | null } | null;
-};
+type ItemConfirmacion = { id: string; nombre_producto_snapshot: string; nombre_presentacion_snapshot: string | null; unidad_snapshot: string; cantidad: number | string; total_linea: number | string; productos: { ruta_imagen: string | null } | null };
+type PedidoConfirmacion = { numero_pedido: string; estado: EstadoPedidoAdmin; fecha_creacion: string; fecha_entrega: string | null; subtotal: number | string; costo_entrega: number | string; descuento: number | string; total: number | string; metodos_pago_previstos: string[] | null; direccion_snapshot: string | null; comuna_snapshot: string | null; region_snapshot: string | null; destinatario_entrega_snapshot: string | null; zona_entrega_snapshot: string | null; latitud_entrega_snapshot: number | string | null; longitud_entrega_snapshot: number | string | null; items_pedido: ItemConfirmacion[] };
 
-type PedidoConfirmacion = {
-  numero_pedido: string;
-  estado: EstadoPedidoAdmin;
-  fecha_creacion: string;
-  fecha_entrega: string | null;
-  subtotal: number | string;
-  costo_entrega: number | string;
-  descuento: number | string;
-  total: number | string;
-  metodos_pago_previstos: string[] | null;
-  direccion_snapshot: string | null;
-  comuna_snapshot: string | null;
-  region_snapshot: string | null;
-  destinatario_entrega_snapshot: string | null;
-  zona_entrega_snapshot: string | null;
-  latitud_entrega_snapshot: number | string | null;
-  longitud_entrega_snapshot: number | string | null;
-  items_pedido: ItemConfirmacion[];
-};
+const ESTADOS_CONFIRMADOS = new Set<EstadoPedidoAdmin>(["confirmado", "programado", "preparando", "listo_despacho", "en_reparto", "entregado"]);
+const ESTADOS_EN_CAMINO = new Set<EstadoPedidoAdmin>(["listo_despacho", "en_reparto", "entregado"]);
+
+function ProgressStep({ icon: Icon, title, description, complete, current }: { icon: LucideIcon; title: string; description: string; complete: boolean; current: boolean }) {
+  return <li className="relative grid grid-cols-[2.25rem_minmax(0,1fr)] gap-3 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:gap-4"><div className={`relative z-10 flex size-9 items-center justify-center rounded-full sm:size-10 ${complete ? "bg-primary text-primary-foreground" : current ? "border-2 border-primary bg-card text-primary" : "bg-muted text-muted-foreground"}`}>{complete ? <Check className="size-4" strokeWidth={2.5} aria-hidden="true" /> : <Icon className="size-4" aria-hidden="true" />}</div><div className="pb-7 last:pb-0"><p className={`text-sm font-semibold ${current || complete ? "text-foreground" : "text-muted-foreground"}`}>{title}</p><p className="mt-1 max-w-lg text-sm leading-6 text-muted-foreground">{description}</p></div></li>;
+}
 
 export default async function OrderConfirmationPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ nuevo?: string }> }) {
   const { id } = await params;
   const { nuevo } = await searchParams;
   const supabase = await crearClienteSupabaseServidor();
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select("numero_pedido,estado,fecha_creacion,fecha_entrega,subtotal,costo_entrega,descuento,total,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,destinatario_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,total_linea,productos(ruta_imagen))")
-    .eq("id", id)
-    .maybeSingle();
-
+  const { data, error } = await supabase.from("pedidos").select("numero_pedido,estado,fecha_creacion,fecha_entrega,subtotal,costo_entrega,descuento,total,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,destinatario_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,total_linea,productos(ruta_imagen))").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!data) notFound();
+
   const pedido = data as unknown as PedidoConfirmacion;
   const pagoPrevisto = formatearMetodosPagoPrevistos(pedido.metodos_pago_previstos) ?? "No registrado";
   const direccion = [pedido.direccion_snapshot, pedido.comuna_snapshot, pedido.region_snapshot].filter(Boolean).join(", ");
   const mapsUrl = getGoogleMapsLocationUrl(pedido.latitud_entrega_snapshot === null ? null : Number(pedido.latitud_entrega_snapshot), pedido.longitud_entrega_snapshot === null ? null : Number(pedido.longitud_entrega_snapshot));
+  const confirmado = ESTADOS_CONFIRMADOS.has(pedido.estado);
+  const enCamino = ESTADOS_EN_CAMINO.has(pedido.estado);
+  const imagenesDestacadas = pedido.items_pedido.filter((item) => item.productos?.ruta_imagen).slice(0, 2);
 
-  return (
-    <Container className="py-10 sm:py-16">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <header className="rounded-2xl border border-primary/20 bg-card p-6 sm:p-8">
-          <OrderConfirmationSuccess pedidoId={id} reproducirSonido={nuevo === "1"} />
-          <p className="mt-5 text-sm font-semibold text-primary">Pedido enviado correctamente</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">¡Pedido recibido!</h1>
-          <p className="mt-2 text-xl font-semibold tracking-tight text-foreground">{pedido.numero_pedido}</p>
-          <div className="mt-4"><OrderStatusBadge estado={pedido.estado} /></div>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Recibimos tu pedido correctamente. Lo revisaremos y te avisaremos cuando sea confirmado.</p>
-          {pedido.fecha_entrega ? <div className="mt-5 rounded-xl bg-primary/8 p-4"><p className="text-sm text-muted-foreground">Entrega programada</p><p className="mt-1 font-semibold text-foreground">{formatFechaEntregaLarga(pedido.fecha_entrega)}</p></div> : null}
-        </header>
+  return <Container className="py-6 sm:py-10 lg:py-14"><main className="mx-auto max-w-5xl">
+    <section className="relative overflow-hidden rounded-3xl bg-secondary px-5 py-8 sm:px-10 sm:py-11 lg:px-14"><div className="absolute -right-14 -top-14 size-48 rounded-full bg-primary/8 sm:size-64" aria-hidden="true" /><div className="relative max-w-2xl"><OrderConfirmationSuccess pedidoId={id} reproducirSonido={nuevo === "1"} /><p className="mt-5 text-sm font-semibold text-primary">Pedido enviado correctamente</p><div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2"><h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">¡Pedido recibido!</h1><OrderStatusBadge estado={pedido.estado} /></div><p className="mt-3 text-base font-semibold tracking-tight text-foreground">{pedido.numero_pedido}</p><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">Ya recibimos tu pedido. Nuestro equipo lo revisará y comenzará a preparar tus productos para la entrega.</p></div></section>
 
-        <section className="rounded-xl border border-border bg-card p-5">
-          <dl className="grid gap-4 text-sm sm:grid-cols-2">
-            <div className="sm:col-span-2"><dt className="text-muted-foreground">Fecha de creación</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fecha_creacion)}</dd></div>
-            <div className="sm:col-span-2"><dt className="text-muted-foreground">Pago previsto</dt><dd className="mt-1 font-medium text-foreground">{pagoPrevisto}</dd></div>
-            <div className="sm:col-span-2"><dt className="text-muted-foreground">Resumen</dt><dd className="mt-2"><dl className="space-y-3 border-t border-border pt-3"><div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Subtotal</dt><dd className="shrink-0 font-medium text-foreground">{formatCLP(Number(pedido.subtotal))}</dd></div><div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Despacho</dt><dd className="shrink-0 font-medium text-foreground">{Number(pedido.costo_entrega) > 0 ? formatCLP(Number(pedido.costo_entrega)) : "Gratis"}</dd></div>{Number(pedido.descuento) > 0 ? <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Descuento</dt><dd className="shrink-0 font-medium text-foreground">-{formatCLP(Number(pedido.descuento))}</dd></div> : null}<div className="flex items-end justify-between gap-4 border-t border-border pt-3"><dt className="font-semibold text-foreground">Total</dt><dd className="shrink-0 text-lg font-semibold text-foreground">{formatCLP(Number(pedido.total))}</dd></div></dl></dd></div>
-            {pedido.destinatario_entrega_snapshot ? <div className="sm:col-span-2"><dt className="text-muted-foreground">Destinatario</dt><dd className="mt-1 font-medium text-foreground">{pedido.destinatario_entrega_snapshot}</dd></div> : null}
-            {direccion ? <div className="sm:col-span-2"><dt className="text-muted-foreground">Dirección de entrega</dt><dd className="mt-1 text-foreground">{direccion}</dd></div> : null}
-            {pedido.zona_entrega_snapshot ? <div className="sm:col-span-2"><dt className="text-muted-foreground">Zona</dt><dd className="mt-1 text-foreground">{pedido.zona_entrega_snapshot}</dd></div> : null}
-          </dl>
-          {mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary underline underline-offset-4"><ExternalLink className="size-4" aria-hidden="true" />Ver ubicación</a> : null}
-        </section>
+    <section className="mt-6 rounded-3xl border border-primary/15 bg-card p-5 shadow-[0_8px_30px_-22px_color-mix(in_oklch,var(--primary)_50%,transparent)] sm:p-7" aria-labelledby="entrega-title"><div className="flex gap-4"><div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><CalendarDays className="size-5" aria-hidden="true" /></div><div className="min-w-0"><p className="text-sm font-medium text-muted-foreground">Tu pedido llegará</p><h2 id="entrega-title" className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{pedido.fecha_entrega ? formatFechaEntregaLarga(pedido.fecha_entrega) : "Fecha por confirmar"}</h2>{pedido.zona_entrega_snapshot ? <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground"><MapPin className="size-4 text-primary" aria-hidden="true" />Zona {pedido.zona_entrega_snapshot}</p> : null}<p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Te avisaremos cuando tu pedido sea confirmado y esté listo para salir a reparto.</p></div></div></section>
 
-        <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">Productos</h2>
-          <ul className="mt-3 divide-y divide-border">
-            {pedido.items_pedido.map((item) => <li key={item.id} className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-start gap-3 py-3 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
-              <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-14"><CatalogImage image={item.productos?.ruta_imagen ? { src: item.productos.ruta_imagen, alt: "", fit: "contain" } : undefined} fallback="package" sizes="(min-width: 640px) 56px, 48px" fallbackIconClassName="size-6" /></div>
-              <div className="min-w-0"><p className="font-medium text-foreground">{item.nombre_producto_snapshot}</p><p className="mt-1 text-sm text-muted-foreground">{item.nombre_presentacion_snapshot ?? item.unidad_snapshot} · {formatearCantidadPedido(Number(item.cantidad), item.unidad_snapshot)}</p></div>
-              <p className="shrink-0 font-semibold text-foreground">{formatCLP(Number(item.total_linea))}</p>
-            </li>)}
-          </ul>
-        </section>
+    <section className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)] lg:gap-14" aria-labelledby="progreso-title"><div><p className="text-sm font-semibold text-primary">Tu compra está en buenas manos</p><h2 id="progreso-title" className="mt-2 text-2xl font-semibold tracking-tight text-foreground">¿Qué pasa ahora?</h2><ol className="relative mt-7 before:absolute before:bottom-5 before:left-[1.1rem] before:top-5 before:w-px before:bg-border sm:before:left-5"><ProgressStep icon={PackageCheck} title="Pedido recibido" description="Ya recibimos tu solicitud." complete={confirmado} current={!confirmado} /><ProgressStep icon={ShoppingBag} title="Confirmamos tu pedido" description="Revisaremos disponibilidad y prepararemos tus productos." complete={enCamino} current={!enCamino && confirmado} /><ProgressStep icon={Truck} title="Lo llevamos hasta ti" description="Recibirás tu compra en la dirección indicada." complete={pedido.estado === "entregado"} current={enCamino && pedido.estado !== "entregado"} /></ol></div><aside className="self-start rounded-3xl bg-primary px-6 py-7 text-primary-foreground sm:px-8 sm:py-9"><p className="text-sm font-semibold text-primary-foreground/75">Hidro Leufú</p><p className="mt-3 text-2xl font-semibold leading-tight tracking-tight">La feria, directo a tu puerta.</p><p className="mt-4 text-sm leading-6 text-primary-foreground/80">Nosotros nos encargamos de seleccionar, preparar y llevar tu pedido.</p>{imagenesDestacadas.length > 0 ? <div className="mt-6 flex -space-x-3" aria-hidden="true">{imagenesDestacadas.map((item) => <div key={item.id} className="relative size-16 overflow-hidden rounded-2xl border-2 border-primary bg-card"><CatalogImage image={{ src: item.productos!.ruta_imagen!, alt: "", fit: "contain" }} fallback="fresh-produce" sizes="64px" /></div>)}</div> : null}</aside></section>
 
-        <div className="flex flex-wrap gap-3"><ActionLink href={ROUTES.catalog}>Seguir comprando</ActionLink><ActionLink href={ROUTES.accountOrders} variant="secondary">Ver mis pedidos</ActionLink></div>
-      </div>
-    </Container>
-  );
+    <section className="mt-10 border-y border-border py-6 sm:flex sm:items-center sm:justify-between sm:gap-6" aria-label="Acciones del pedido"><div><h2 className="font-semibold text-foreground">¿Necesitas revisar algo?</h2><p className="mt-1 text-sm text-muted-foreground">Puedes consultar el estado y detalle de tu pedido cuando quieras.</p></div><div className="mt-5 grid gap-3 sm:mt-0 sm:flex sm:shrink-0"><ActionLink href={ROUTES.accountOrders} className="w-full sm:w-auto">Ver mis pedidos</ActionLink><ActionLink href={ROUTES.catalog} variant="secondary" className="w-full sm:w-auto">Seguir comprando</ActionLink></div></section>
+
+    <section className="mt-10" aria-labelledby="detalle-title"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-semibold text-primary">Información de compra</p><h2 id="detalle-title" className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Detalle del pedido</h2></div><p className="text-sm font-medium text-muted-foreground">{pedido.numero_pedido}</p></div><div className="mt-6 grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]"><section aria-labelledby="productos-title"><h3 id="productos-title" className="font-semibold text-foreground">Productos</h3><ul className="mt-3 divide-y divide-border border-y border-border">{pedido.items_pedido.map((item) => <li key={item.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 py-4 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:gap-4"><div className="relative size-[4.5rem] shrink-0 overflow-hidden rounded-2xl bg-muted sm:size-20"><CatalogImage image={item.productos?.ruta_imagen ? { src: item.productos.ruta_imagen, alt: "", fit: "contain" } : undefined} fallback="fresh-produce" sizes="(min-width: 640px) 80px, 72px" fallbackIconClassName="size-7" /></div><div className="min-w-0"><p className="font-medium text-foreground">{item.nombre_producto_snapshot}</p><p className="mt-1 text-sm leading-5 text-muted-foreground">{item.nombre_presentacion_snapshot ?? item.unidad_snapshot} <span aria-hidden="true">·</span> {formatearCantidadPedido(Number(item.cantidad), item.unidad_snapshot)}</p></div><p className="shrink-0 text-sm font-semibold text-foreground sm:text-base">{formatCLP(Number(item.total_linea))}</p></li>)}</ul></section><div className="space-y-7"><section aria-labelledby="resumen-title"><h3 id="resumen-title" className="font-semibold text-foreground">Resumen</h3><dl className="mt-3 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Subtotal</dt><dd className="font-medium text-foreground">{formatCLP(Number(pedido.subtotal))}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Despacho</dt><dd className="font-medium text-foreground">{Number(pedido.costo_entrega) > 0 ? formatCLP(Number(pedido.costo_entrega)) : "Gratis"}</dd></div>{Number(pedido.descuento) > 0 ? <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-foreground">-{formatCLP(Number(pedido.descuento))}</dd></div> : null}<div className="flex items-end justify-between gap-4 border-t border-border pt-4"><dt className="font-semibold text-foreground">Total</dt><dd className="text-xl font-semibold tracking-tight text-primary">{formatCLP(Number(pedido.total))}</dd></div></dl></section><section className="border-t border-border pt-6" aria-labelledby="entrega-detalle-title"><h3 id="entrega-detalle-title" className="font-semibold text-foreground">Entrega y pago</h3><dl className="mt-3 space-y-4 text-sm"><div><dt className="text-muted-foreground">Fecha de creación</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fecha_creacion)}</dd></div><div><dt className="text-muted-foreground">Pago previsto</dt><dd className="mt-1 font-medium text-foreground">{pagoPrevisto}</dd></div>{pedido.destinatario_entrega_snapshot ? <div><dt className="text-muted-foreground">Destinatario</dt><dd className="mt-1 font-medium text-foreground">{pedido.destinatario_entrega_snapshot}</dd></div> : null}{direccion ? <div><dt className="text-muted-foreground">Dirección de entrega</dt><dd className="mt-1 leading-6 text-foreground">{direccion}</dd></div> : null}{pedido.zona_entrega_snapshot ? <div><dt className="text-muted-foreground">Zona</dt><dd className="mt-1 text-foreground">{pedido.zona_entrega_snapshot}</dd></div> : null}</dl>{mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary underline underline-offset-4"><ExternalLink className="size-4" aria-hidden="true" />Ver ubicación</a> : null}</section></div></div></section>
+  </main></Container>;
 }

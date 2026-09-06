@@ -15,9 +15,10 @@ type MobileNavigationProps = {
   title: string;
   authenticated?: boolean;
   className?: string;
+  badges?: Readonly<Record<string, number>>;
 };
 
-export function MobileNavigation({ items, label, title, authenticated = false, className }: MobileNavigationProps) {
+export function MobileNavigation({ items, label, title, authenticated = false, className, badges = {} }: MobileNavigationProps) {
   return (
     <Dialog.Root>
       <Dialog.Trigger className={cn("inline-flex size-11 items-center justify-center rounded-lg border border-border bg-background text-foreground outline-none transition-[background-color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50", className)} aria-label={label}>
@@ -40,6 +41,7 @@ export function MobileNavigation({ items, label, title, authenticated = false, c
                     <Dialog.Close nativeButton={false} render={<NavigationLink href={item.href} exact={item.href === "/"} />} className="box-border flex min-h-11 w-full max-w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground outline-none transition-[background-color,color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted hover:text-foreground active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground">
                       <NavigationIcon name={item.icon} className="size-4 shrink-0" />
                       <span className="min-w-0 flex-1"><span className="block truncate">{item.label}</span>{item.description ? <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">{item.description}</span> : null}</span>
+                      {badges[item.href] ? <span aria-label={`${badges[item.href]} mensajes sin leer`} className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{badges[item.href]}</span> : null}
                     </Dialog.Close>
                   </li>
                 ))}

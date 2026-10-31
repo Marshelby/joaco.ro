@@ -17,7 +17,7 @@ const input = "mt-2 min-h-11 w-full rounded-xl border border-input bg-background
 const CLAVE_BORRADOR = "hidro-leufu-posible-pendiente-v1";
 function recuperarContacto(datos: DatosSolicitud) {
   const coincidencia = /^Localidad: ([^\n]*)(?:\n|$)/.exec(datos.observaciones);
-  return { nombre: datos.nombre, telefono: datos.telefono!, localidad: coincidencia?.[1] ?? "", fecha: datos.fecha,
+  return { nombre: datos.nombre, telefono: datos.telefono!.slice(3), localidad: coincidencia?.[1] ?? "", fecha: datos.fecha,
     observaciones: coincidencia ? datos.observaciones.slice(coincidencia[0].length) : datos.observaciones };
 }
 type Confirmada = { datos: DatosSolicitud; respuesta: RespuestaSolicitud };
@@ -76,8 +76,8 @@ export function WhatsappForm() {
     if (enviandoRef.current) return;
     if (!pendienteDatos && (cargandoFechas || !fechas.includes(form.fecha))) { setError("Selecciona una fecha de entrega disponible."); return; }
     if (!pendienteDatos && !form.localidad.trim()) { setError("Indica tu localidad."); return; }
-    const validado = datosSolicitud.safeParse(pendienteDatos ?? { nombre: form.nombre, telefono: form.telefono, fecha: form.fecha, observaciones: `Localidad: ${form.localidad.trim()}${form.observaciones.trim() ? `\n${form.observaciones.trim()}` : ""}`, items: items.map((i) => ({ presentacion_id: i.presentacionId, cantidad: i.cantidad })) });
-    if (!validado.success) { setError("Revisa tu nombre, teléfono móvil chileno, fecha y productos."); return; }
+    const validado = datosSolicitud.safeParse(pendienteDatos ?? { nombre: form.nombre, telefono: `+569${form.telefono}`, fecha: form.fecha, observaciones: `Localidad: ${form.localidad.trim()}${form.observaciones.trim() ? `\n${form.observaciones.trim()}` : ""}`, items: items.map((i) => ({ presentacion_id: i.presentacionId, cantidad: i.cantidad })) });
+    if (!validado.success) { setError("Revisa tu nombre, teléfono, fecha y productos."); return; }
     if (!navigator.locks || !crypto.subtle) { setError("Actualiza tu navegador para registrar la solicitud de forma segura."); return; }
     enviandoRef.current = true; setEnviando(true); setError("");
     try {
@@ -136,13 +136,13 @@ export function WhatsappForm() {
   if (!items.length && !pendienteDatos) return <section className="rounded-2xl border p-8"><h1 className="text-2xl font-semibold">Agrega productos a tu carrito</h1><PublicLink href={ROUTES.catalog} className="mt-4 inline-block text-primary">Ver catálogo</PublicLink></section>;
   return <div className="mx-auto max-w-5xl">
     <PublicLink href={ROUTES.cart} className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="size-4" aria-hidden="true" />Volver al carrito</PublicLink>
-    <header className="mb-8 max-w-2xl"><p className="text-xs font-semibold uppercase tracking-widest text-primary">A tu ritmo, sin crear una cuenta</p><h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Tu pedido comienza con una conversación</h1><p className="mt-3 text-sm leading-7 text-muted-foreground">Déjanos tus datos y una fecha de entrega. Registraremos tu solicitud para que puedas coordinarla con nuestro equipo por WhatsApp.</p></header>
+    <header className="mb-8 max-w-2xl"><p className="text-xs font-semibold uppercase tracking-widest text-primary">A tu ritmo, sin crear una cuenta</p><h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Prepara tu pedido para enviarlo por WhatsApp</h1><p className="mt-3 text-sm leading-7 text-muted-foreground">Completa tus datos y elige una fecha de entrega. Registraremos tu solicitud y generaremos un mensaje con los productos, cantidades y datos del cliente para enviarlo por WhatsApp.</p></header>
     <form onSubmit={enviar} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
       <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
         <fieldset disabled={enviando || !!pendienteDatos || !listo} className="space-y-5">
           <legend className="mb-5 text-lg font-semibold">Datos de contacto</legend>
           <label className="block text-sm font-medium" htmlFor="pp-nombre">Nombre del solicitante<input id="pp-nombre" autoComplete="name" required maxLength={160} className={input} value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></label>
-          <label className="block text-sm font-medium" htmlFor="pp-telefono">Teléfono móvil chileno<input id="pp-telefono" type="tel" autoComplete="tel" required maxLength={40} placeholder="+56 9 1234 5678" className={input} value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /><span className="mt-2 block text-xs font-normal text-muted-foreground">Te contactaremos para revisar la solicitud.</span></label>
+          <label className="block text-sm font-medium" htmlFor="pp-telefono">Teléfono<span className="mt-2 flex min-h-11 items-center rounded-xl border border-input bg-background focus-within:ring-3 focus-within:ring-ring/50"><span className="shrink-0 border-r border-input px-3 text-muted-foreground">+569</span><input id="pp-telefono" type="tel" inputMode="numeric" autoComplete="tel-national" aria-label="Teléfono: 8 dígitos después de +569" required minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="12345678" className="min-h-11 min-w-0 flex-1 rounded-r-xl bg-transparent px-3 py-2 text-sm outline-none disabled:opacity-70" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) })} /></span><span className="mt-2 block text-xs font-normal text-muted-foreground">Te contactaremos para revisar la solicitud.</span></label>
           <label className="block text-sm font-medium" htmlFor="pp-localidad">Localidad<input id="pp-localidad" autoComplete="address-level2" required maxLength={160} className={input} value={form.localidad} onChange={(e) => setForm({ ...form, localidad: e.target.value })} /></label>
           <label className="block text-sm font-medium" htmlFor="pp-fecha">Fecha de entrega solicitada<select id="pp-fecha" required className={input} value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })}><option value="">{cargandoFechas ? "Cargando fechas…" : "Selecciona una fecha"}</option>{(pendienteDatos && !fechas.includes(pendienteDatos.fecha) ? [pendienteDatos.fecha,...fechas] : fechas).map((fecha) => <option key={fecha} value={fecha}>{formatFechaEntregaLarga(fecha)}</option>)}</select></label>
           <p className="text-xs leading-5 text-muted-foreground">Mostramos las próximas tres fechas habilitadas por Hidro Leufú. Los horarios se evalúan en America/Santiago.</p>

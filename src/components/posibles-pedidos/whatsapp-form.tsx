@@ -15,12 +15,17 @@ import { cotizarDespacho } from "@/lib/delivery-pricing";
 
 const input = "mt-2 min-h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-70";
 const CLAVE_BORRADOR = "hidro-leufu-posible-pendiente-v1";
+function recuperarContacto(datos: DatosSolicitud) {
+  const coincidencia = /^Localidad: ([^\n]*)(?:\n|$)/.exec(datos.observaciones);
+  return { nombre: datos.nombre, telefono: datos.telefono!, localidad: coincidencia?.[1] ?? "", fecha: datos.fecha,
+    observaciones: coincidencia ? datos.observaciones.slice(coincidencia[0].length) : datos.observaciones };
+}
 type Confirmada = { datos: DatosSolicitud; respuesta: RespuestaSolicitud };
 export function WhatsappForm() {
   const { items, isHydrated, totalEstimado } = useCart();
   const [fechas, setFechas] = useState<string[]>([]);
   const [cargandoFechas, setCargandoFechas] = useState(true);
-  const [form, setForm] = useState({ nombre: "", telefono: "", fecha: "", observaciones: "" });
+  const [form, setForm] = useState({ nombre: "", telefono: "", localidad: "", fecha: "", observaciones: "" });
   const [pendienteDatos, setPendienteDatos] = useState<DatosSolicitud | null>(null);
   const [confirmada, setConfirmada] = useState<Confirmada | null>(null);
   const [captcha, setCaptcha] = useState("");
@@ -53,7 +58,7 @@ export function WhatsappForm() {
           // Una solicitud incierta nunca recibe una clave nueva por caducidad silenciosa.
           const datos = datosSolicitud.parse(borrador.datos);
           if (borrador.expira <= Date.now()) throw new Error();
-          setForm({ nombre: datos.nombre, telefono: datos.telefono!, fecha: datos.fecha, observaciones: datos.observaciones });
+          setForm(recuperarContacto(datos));
           setPendienteDatos(datos);
           const huella = await huellaSolicitud(datos);
           const intento = obtenerIntento(localStorage, huella);
@@ -70,7 +75,8 @@ export function WhatsappForm() {
     event.preventDefault();
     if (enviandoRef.current) return;
     if (!pendienteDatos && (cargandoFechas || !fechas.includes(form.fecha))) { setError("Selecciona una fecha de entrega disponible."); return; }
-    const validado = datosSolicitud.safeParse(pendienteDatos ?? { ...form, items: items.map((i) => ({ presentacion_id: i.presentacionId, cantidad: i.cantidad })) });
+    if (!pendienteDatos && !form.localidad.trim()) { setError("Indica tu localidad."); return; }
+    const validado = datosSolicitud.safeParse(pendienteDatos ?? { nombre: form.nombre, telefono: form.telefono, fecha: form.fecha, observaciones: `Localidad: ${form.localidad.trim()}${form.observaciones.trim() ? `\n${form.observaciones.trim()}` : ""}`, items: items.map((i) => ({ presentacion_id: i.presentacionId, cantidad: i.cantidad })) });
     if (!validado.success) { setError("Revisa tu nombre, teléfono móvil chileno, fecha y productos."); return; }
     if (!navigator.locks || !crypto.subtle) { setError("Actualiza tu navegador para registrar la solicitud de forma segura."); return; }
     enviandoRef.current = true; setEnviando(true); setError("");
@@ -93,7 +99,7 @@ export function WhatsappForm() {
             // Rechazo definitivo anterior al registro: permitir corregir solo la fecha.
             sessionStorage.removeItem(CLAVE_BORRADOR);
             setPendienteDatos(null);
-            setForm({ nombre: datos.nombre, telefono: datos.telefono!, fecha: "", observaciones: datos.observaciones });
+            setForm({ ...recuperarContacto(datos), fecha: "" });
             setFechas([]);
             if (await cargarFechas()) setError("La fecha elegida ya no está disponible. Selecciona una nueva fecha de entrega.");
             return;
@@ -137,9 +143,10 @@ export function WhatsappForm() {
           <legend className="mb-5 text-lg font-semibold">Datos de contacto</legend>
           <label className="block text-sm font-medium" htmlFor="pp-nombre">Nombre del solicitante<input id="pp-nombre" autoComplete="name" required maxLength={160} className={input} value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></label>
           <label className="block text-sm font-medium" htmlFor="pp-telefono">Teléfono móvil chileno<input id="pp-telefono" type="tel" autoComplete="tel" required maxLength={40} placeholder="+56 9 1234 5678" className={input} value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /><span className="mt-2 block text-xs font-normal text-muted-foreground">Te contactaremos para revisar la solicitud.</span></label>
+          <label className="block text-sm font-medium" htmlFor="pp-localidad">Localidad<input id="pp-localidad" autoComplete="address-level2" required maxLength={160} className={input} value={form.localidad} onChange={(e) => setForm({ ...form, localidad: e.target.value })} /></label>
           <label className="block text-sm font-medium" htmlFor="pp-fecha">Fecha de entrega solicitada<select id="pp-fecha" required className={input} value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })}><option value="">{cargandoFechas ? "Cargando fechas…" : "Selecciona una fecha"}</option>{(pendienteDatos && !fechas.includes(pendienteDatos.fecha) ? [pendienteDatos.fecha,...fechas] : fechas).map((fecha) => <option key={fecha} value={fecha}>{formatFechaEntregaLarga(fecha)}</option>)}</select></label>
           <p className="text-xs leading-5 text-muted-foreground">Mostramos las próximas tres fechas habilitadas por Hidro Leufú. Los horarios se evalúan en America/Santiago.</p>
-          <label className="block text-sm font-medium" htmlFor="pp-observaciones">Observaciones <span className="font-normal text-muted-foreground">(opcional)</span><textarea id="pp-observaciones" rows={4} maxLength={2000} className={input} value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} /></label>
+          <label className="block text-sm font-medium" htmlFor="pp-observaciones">Observaciones <span className="font-normal text-muted-foreground">(opcional)</span><textarea id="pp-observaciones" rows={4} maxLength={1800} className={input} value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} /></label>
         </fieldset>
         {!cargandoFechas && !fechas.length && !pendienteDatos ? <Button type="button" variant="outline" onClick={() => void cargarFechas()} className="mt-4">Volver a cargar fechas</Button> : null}
         {pendienteDatos ? <p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-950">Conservamos los datos del intento anterior para evitar duplicados. Reintenta esta misma solicitud para comprobar su resultado.</p> : null}

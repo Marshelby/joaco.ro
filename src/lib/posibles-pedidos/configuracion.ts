@@ -1,7 +1,7 @@
 import "server-only";
 
 export function fasePosiblesPedidosHabilitada() {
-  return process.env.POSIBLES_PEDIDOS_ENABLED === "true";
+  return process.env.POSIBLES_PEDIDOS_ENABLED !== "false";
 }
 export function configuracionRegistro() {
   if (!fasePosiblesPedidosHabilitada()) return null;

@@ -55,8 +55,8 @@ export function CartPageContent() {
         <div className="mt-5 space-y-3" role="group" aria-label="Cómo continuar tu pedido">
           <p className="text-sm font-medium text-foreground">Elige cómo continuar</p>
           <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
-            <Button type="button" disabled aria-describedby="whatsapp-proximamente" size="lg" className="w-full bg-[#167647] text-white"><MessageCircle aria-hidden="true" />Por WhatsApp · Próximamente</Button>
-            <p id="whatsapp-proximamente" className="mt-2 text-center text-xs leading-5 text-muted-foreground">Pronto podrás coordinar tu pedido con nuestro equipo por WhatsApp.</p>
+            <Button render={<PublicLink href={ROUTES.cartWhatsapp} />} aria-describedby="whatsapp-descripcion" size="lg" className="w-full bg-[#167647] text-white hover:bg-[#115c37]"><MessageCircle aria-hidden="true" />Pedir por WhatsApp</Button>
+            <p id="whatsapp-descripcion" className="mt-2 text-center text-xs leading-5 text-muted-foreground">Completa tus datos y registra la solicitud antes de coordinar por WhatsApp.</p>
           </div>
           <Button render={<PublicLink href={ROUTES.checkout} />} className="min-h-11 w-full">Realizar pedido por la web</Button>
         </div>

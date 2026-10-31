@@ -1,0 +1,22 @@
+import { formatCLP } from "@/lib/formatters";
+import { formatFechaEntregaLarga } from "@/lib/delivery-date";
+import { crearEnlaceWhatsapp } from "@/lib/whatsapp";
+import type { DatosSolicitud, RespuestaSolicitud } from "./contrato";
+
+export function mensajeSolicitud(datos: DatosSolicitud, respuesta: RespuestaSolicitud) {
+  return [
+    "Hola, quisiera coordinar esta solicitud con Hidro Leufú.",
+    `Referencia: ${respuesta.codigo}`,
+    `Nombre: ${datos.nombre}`,
+    `Teléfono: +${datos.telefono}`,
+    `Entrega solicitada: ${formatFechaEntregaLarga(respuesta.fecha_solicitada)}`,
+    "", ...respuesta.items.map((i) => `• ${i.producto} · ${i.presentacion} (${i.unidad}) · ${i.cantidad} × ${formatCLP(i.precio_unitario)} = ${formatCLP(i.subtotal)}`),
+    "", `Subtotal: ${formatCLP(respuesta.subtotal)}`, `Despacho: ${formatCLP(respuesta.despacho)}`,
+    `Total referencial: ${formatCLP(respuesta.total)}`,
+    ...(datos.observaciones ? [`Observaciones: ${datos.observaciones}`] : []),
+    "", "Solicitud registrada, pendiente de confirmación por Hidro Leufú. No es un pedido oficialmente aceptado.",
+  ].join("\n");
+}
+export function enlaceSolicitud(datos: DatosSolicitud, respuesta: RespuestaSolicitud) {
+  return crearEnlaceWhatsapp("+56936208602", mensajeSolicitud(datos, respuesta))!;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ShoppingCart } from "lucide-react";
+import { MessageCircle, ShoppingCart } from "lucide-react";
 
 import { CartLineItem } from "@/components/cart/cart-line-item";
 import { useCart } from "@/components/cart/cart-provider";
@@ -52,7 +52,14 @@ export function CartPageContent() {
         </dl>
         {!cotizacion.tieneDespachoGratis ? <p className="mt-4 rounded-lg bg-primary/10 px-3 py-2 text-sm leading-5 text-primary">Agrega {formatCLP(cotizacion.faltanteParaGratis)} más y obtén despacho gratis.</p> : null}
         <p className="mt-3 text-xs leading-5 text-muted-foreground">El total es referencial. Precio y disponibilidad se validarán antes de crear un pedido.</p>
-        <Button render={<PublicLink href={ROUTES.checkout} />} className="mt-5 w-full">Continuar pedido</Button>
+        <div className="mt-5 space-y-3" role="group" aria-label="Cómo continuar tu pedido">
+          <p className="text-sm font-medium text-foreground">Elige cómo continuar</p>
+          <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
+            <Button type="button" disabled aria-describedby="whatsapp-proximamente" size="lg" className="w-full bg-[#167647] text-white"><MessageCircle aria-hidden="true" />Por WhatsApp · Próximamente</Button>
+            <p id="whatsapp-proximamente" className="mt-2 text-center text-xs leading-5 text-muted-foreground">Pronto podrás coordinar tu pedido con nuestro equipo por WhatsApp.</p>
+          </div>
+          <Button render={<PublicLink href={ROUTES.checkout} />} className="min-h-11 w-full">Realizar pedido por la web</Button>
+        </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">Revisa tus datos antes de confirmar.</p>
       </aside>
     </div>

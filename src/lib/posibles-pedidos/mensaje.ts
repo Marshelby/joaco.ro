@@ -18,5 +18,5 @@ export function mensajeSolicitud(datos: DatosSolicitud, respuesta: RespuestaSoli
   ].join("\n");
 }
 export function enlaceSolicitud(datos: DatosSolicitud, respuesta: RespuestaSolicitud) {
-  return crearEnlaceWhatsapp("+56936208602", mensajeSolicitud(datos, respuesta))!;
+  return crearEnlaceWhatsapp("+56954878711", mensajeSolicitud(datos, respuesta))!;
 }

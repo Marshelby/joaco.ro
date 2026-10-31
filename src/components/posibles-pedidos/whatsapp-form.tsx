@@ -21,7 +21,7 @@ function recuperarContacto(datos: DatosSolicitud) {
     observaciones: coincidencia ? datos.observaciones.slice(coincidencia[0].length) : datos.observaciones };
 }
 type Confirmada = { datos: DatosSolicitud; respuesta: RespuestaSolicitud };
-export function WhatsappForm() {
+export function WhatsappForm({ registroDisponible }: { registroDisponible: boolean }) {
   const { items, isHydrated, totalEstimado } = useCart();
   const [fechas, setFechas] = useState<string[]>([]);
   const [cargandoFechas, setCargandoFechas] = useState(true);
@@ -73,6 +73,7 @@ export function WhatsappForm() {
 
   async function enviar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!registroDisponible) { setError("El registro por WhatsApp no está disponible por configuración del servicio."); return; }
     if (enviandoRef.current) return;
     if (!pendienteDatos && (cargandoFechas || !fechas.includes(form.fecha))) { setError("Selecciona una fecha de entrega disponible."); return; }
     if (!pendienteDatos && !form.localidad.trim()) { setError("Indica tu localidad."); return; }
@@ -151,7 +152,8 @@ export function WhatsappForm() {
         {!cargandoFechas && !fechas.length && !pendienteDatos ? <Button type="button" variant="outline" onClick={() => void cargarFechas()} className="mt-4">Volver a cargar fechas</Button> : null}
         {pendienteDatos ? <p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-950">Conservamos los datos del intento anterior para evitar duplicados. Reintenta esta misma solicitud para comprobar su resultado.</p> : null}
         <div className="mt-6"><TurnstileCaptcha onTokenChange={setCaptcha} resetSignal={resetCaptcha} /></div>
-        <Button type="submit" size="lg" disabled={!listo || enviando || !captcha || (!pendienteDatos && (cargandoFechas || !fechas.includes(form.fecha)))} className="mt-5 w-full bg-[#167647] text-white hover:bg-[#115c37]"><MessageCircle aria-hidden="true" />{enviando ? "Registrando solicitud…" : pendienteDatos ? "Reintentar solicitud" : "Registrar y continuar por WhatsApp"}</Button>
+        {!registroDisponible ? <p role="alert" className="mt-4 text-sm text-destructive">El registro por WhatsApp no está disponible por configuración del servicio. Intenta más tarde o contacta a Hidro Leufú.</p> : !captcha ? <p role="status" className="mt-4 text-sm text-muted-foreground">Completa la verificación de acceso para habilitar el envío.</p> : null}
+        <Button type="submit" size="lg" disabled={!registroDisponible || !listo || enviando || !captcha || (!pendienteDatos && (cargandoFechas || !fechas.includes(form.fecha)))} className="mt-5 w-full bg-[#167647] text-white hover:bg-[#115c37]"><MessageCircle aria-hidden="true" />{enviando ? "Registrando solicitud…" : pendienteDatos ? "Reintentar solicitud" : "Enviar pedido por WhatsApp"}</Button>
         {error ? <p role="alert" className="mt-4 text-sm leading-6 text-destructive">{error}</p> : null}
         <p className="mt-4 flex gap-2 text-xs leading-5 text-muted-foreground"><ShieldCheck aria-hidden="true" className="size-4 shrink-0" />No se realizará ningún cobro. La solicitud requiere confirmación de nuestro equipo.</p>
       </section>

@@ -18,7 +18,12 @@ function leerIntentos(almacen: Storage, ahora = Date.now()): Record<string,Inten
   // Si el almacenamiento está corrupto, bloquear: no generar otra clave silenciosamente.
   const guardados: unknown = JSON.parse(texto);
   if (!guardados || typeof guardados !== "object" || Array.isArray(guardados)) throw new Error("ALMACEN_INVALIDO");
-  return Object.fromEntries(Object.entries(guardados).filter(([,i]) => i && typeof i === "object" && typeof i.clave === "string" && typeof i.secreto === "string" && Number.isFinite(i.expira) && i.expira > ahora));
+  for (const i of Object.values(guardados)) {
+    if (!i || typeof i !== "object" || typeof i.clave !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(i.clave) || typeof i.secreto !== "string" || !/^[a-f0-9]{64}$/.test(i.secreto) || !Number.isFinite(i.expira)) throw new Error("ALMACEN_INVALIDO");
+    if (i.respuesta) respuestaSolicitud.parse(i.respuesta);
+  }
+  // Conservar intentos inciertos incluso vencidos: descartarlos podría duplicar un alta.
+  return Object.fromEntries(Object.entries(guardados).filter(([,i]) => !i.respuesta || i.expira > ahora));
 }
 export function guardarRespuesta(almacen: Storage, huella: string, intento: Intento, respuesta: RespuestaSolicitud) {
   const guardados = leerIntentos(almacen);

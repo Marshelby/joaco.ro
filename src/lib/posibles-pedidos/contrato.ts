@@ -5,7 +5,7 @@ export const fechaISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((valor) =
   const fecha = new Date(`${valor}T12:00:00Z`);
   return Number.isFinite(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
 });
-export const itemSolicitud = z.strictObject({ presentacion_id: z.uuid(), cantidad: z.number().finite().positive().max(100000) });
+export const itemSolicitud = z.strictObject({ presentacion_id: z.uuid().transform((id) => id.toLowerCase()), cantidad: z.number().finite().positive().max(100000) });
 export const datosSolicitud = z.strictObject({
   nombre: z.string().trim().min(1).max(160),
   telefono: z.string().trim().max(40).transform(normalizarTelefonoWhatsapp).refine((valor) => valor !== null),
@@ -14,9 +14,11 @@ export const datosSolicitud = z.strictObject({
   items: z.array(itemSolicitud).min(1).max(100).refine((items) => new Set(items.map((i) => i.presentacion_id)).size === items.length),
 });
 export const payloadSolicitud = datosSolicitud.extend({
-  claveIdempotencia: z.uuid(), secretoReintento: z.string().regex(/^[a-f0-9]{64}$/), captchaToken: z.string().min(1).max(2048),
+  solicitudClave: z.uuid().optional(), solicitudSecreto: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  claveIdempotencia: z.uuid(), secretoReintento: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export const respuestaSolicitud = z.object({
+  version_solicitud: z.number().int().min(1).max(5).default(1), codigo_solicitud: z.string().optional(),
   codigo: z.string().regex(/^PP-[a-f0-9]{32}$/), fecha_solicitada: fechaISO,
   subtotal: z.number().int().nonnegative(), despacho: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
   moneda: z.literal("CLP"), estado: z.literal("registrado"),
@@ -27,6 +29,7 @@ export type PayloadSolicitud = z.infer<typeof payloadSolicitud>;
 export type RespuestaSolicitud = z.infer<typeof respuestaSolicitud>;
 
 const errores: Record<string, string> = {
+  LIMITE_VERSIONES: "Esta solicitud ya tiene cinco versiones. Contacta a Hidro Leufú.",
   NO_AUTORIZADO: "Tu sesión no tiene permisos para esta operación.",
   POSIBLE_PEDIDO_DESACTUALIZADO: "Otra persona actualizó esta solicitud. Actualiza la página antes de continuar.",
   POSIBLE_PEDIDO_CERRADO: "Esta solicitud ya está cerrada. Actualiza la página para ver su estado.",

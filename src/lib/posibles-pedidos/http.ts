@@ -1,9 +1,6 @@
 import { mensajeErrorPosiblePedido, payloadSolicitud, respuestaSolicitud, type PayloadSolicitud } from "./contrato";
 
 export type DependenciasRegistro = {
-  origen: string;
-  limitar: (request: Request, telefono: string) => Promise<boolean>;
-  verificarCaptcha: (token: string) => Promise<boolean>;
   registrar: (datos: PayloadSolicitud) => Promise<{ data: unknown; error: { message: string } | null }>;
 };
 export function respuestaHTTP(valor: unknown, status = 200, extras?: Record<string,string>) {
@@ -28,7 +25,7 @@ async function leerCuerpoAcotado(request: Request) {
   return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(cuerpo));
 }
 export async function registrarSolicitudHTTP(request: Request, deps: DependenciasRegistro) {
-  if (request.headers.get("origin") !== deps.origen || request.headers.get("sec-fetch-site") === "cross-site") return respuestaHTTP({ error: "Origen no permitido." }, 403);
+  if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") return respuestaHTTP({ error: "Origen no permitido." }, 403);
   if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") return respuestaHTTP({ error: "Envía los datos como JSON." }, 415);
   let cuerpo: unknown;
   try { cuerpo = await leerCuerpoAcotado(request); } catch (error) {
@@ -37,11 +34,10 @@ export async function registrarSolicitudHTTP(request: Request, deps: Dependencia
   const validado = payloadSolicitud.safeParse(cuerpo);
   if (!validado.success) return respuestaHTTP({ error: "Revisa el nombre, teléfono, fecha y productos de tu solicitud." }, 400);
   try {
-    if (!await deps.limitar(request, validado.data.telefono!)) return respuestaHTTP({ error: "Recibimos varios intentos. Espera unos minutos antes de volver a intentar." }, 429, { "Retry-After": "600" });
-    if (!await deps.verificarCaptcha(validado.data.captchaToken)) return respuestaHTTP({ error: "Completa nuevamente la verificación de acceso." }, 422);
     const { data, error } = await deps.registrar(validado.data);
     if (error) {
-      const conflicto = ["REINTENTO_INVALIDO","FECHA_FUERA_DE_OPCIONES"].includes(error.message);
+      if (error.message === "LIMITE_SOLICITUDES") return respuestaHTTP({ error: "Recibimos varias solicitudes. Espera unos minutos antes de volver a intentar." }, 429, { "Retry-After": "600" });
+      const conflicto = ["REINTENTO_INVALIDO","FECHA_FUERA_DE_OPCIONES","POSIBLE_PEDIDO_CERRADO","LIMITE_VERSIONES"].includes(error.message);
       const conocido = /^(PRODUCTO_NO_DISPONIBLE|PRESENTACION_NO_DISPONIBLE|CATEGORIA_NO_DISPONIBLE|CANTIDAD_INVALIDA|PRESENTACION_DUPLICADA|PRECIO_INVALIDO|LIMITE_.*|SOLICITUD_INVALIDA|TELEFONO_INVALIDO)$/.test(error.message);
       return respuestaHTTP({ error: mensajeErrorPosiblePedido(error.message), ...(error.message === "FECHA_FUERA_DE_OPCIONES" ? { codigo: error.message } : {}) }, conflicto ? 409 : conocido ? 400 : 503);
     }

@@ -23,7 +23,7 @@ export type DireccionClienteFormulario = {
 
 export type ZonaEntregaFormulario = { id: string; nombre: string };
 
-const campo = "mt-2 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+import { campoDireccion as campo } from "@/components/account/address-form-styles";
 
 function obtenerDigitosTelefono(telefono: string | null | undefined) {
   return (telefono ?? "").replace(/\D/g, "").replace(/^569/, "").slice(0, 8);

@@ -5,16 +5,17 @@ import type { DatosSolicitud, RespuestaSolicitud } from "./contrato";
 
 export function mensajeSolicitud(datos: DatosSolicitud, respuesta: RespuestaSolicitud) {
   return [
-    "Hola, quisiera coordinar esta solicitud con Hidro Leufú.",
-    `Referencia: ${respuesta.codigo_solicitud ?? respuesta.codigo} · Versión ${respuesta.version_solicitud}`,
-    `Nombre: ${datos.nombre}`,
-    `Teléfono: +${datos.telefono}`,
-    `Entrega solicitada: ${formatFechaEntregaLarga(respuesta.fecha_solicitada)}`,
-    "", ...respuesta.items.map((i) => `• ${i.producto} · ${i.presentacion} (${i.unidad}) · ${i.cantidad} × ${formatCLP(i.precio_unitario)} = ${formatCLP(i.subtotal)}`),
-    "", `Subtotal: ${formatCLP(respuesta.subtotal)}`, `Despacho: ${formatCLP(respuesta.despacho)}`,
-    `Total referencial: ${formatCLP(respuesta.total)}`,
-    `Ubicación y observaciones: ${datos.observaciones || "Sin observaciones"}`,
-    "", "Solicitud registrada, pendiente de confirmación por Hidro Leufú. No es un pedido oficialmente aceptado.",
+    "Hola, Hidro Leufu. Quisiera realizar el siguiente pedido.",
+    "",
+    `*Nombre:* ${datos.nombre}`,
+    `*Teléfono:* +${datos.telefono}`,
+    `*Fecha de entrega:* ${formatFechaEntregaLarga(respuesta.fecha_solicitada)}`,
+    datos.observaciones.replace(/^Localidad:/, "*Localidad:*") || "*Localidad:* Sin especificar",
+    "", "*Productos:*",
+    ...respuesta.items.map((i) => `• *${i.producto}* · ${i.presentacion} (${i.unidad})\n  Cantidad: ${i.cantidad} × ${formatCLP(i.precio_unitario)}\n  Subtotal: ${formatCLP(i.subtotal)}`),
+    "", `*Subtotal:* ${formatCLP(respuesta.subtotal)}`, `*Despacho:* ${formatCLP(respuesta.despacho)}`,
+    `*Total estimado:* ${formatCLP(respuesta.total)}`,
+    "", "Quedo esperando la confirmacion de mi pedido. ¡Gracias!",
   ].join("\n");
 }
 export function enlaceSolicitud(datos: DatosSolicitud, respuesta: RespuestaSolicitud) {

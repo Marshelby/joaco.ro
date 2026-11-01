@@ -7,11 +7,12 @@ import { cargarFichaComercial, guardarFichaComercial } from "@/app/(admin)/admin
 import { Button } from "@/components/ui/button";
 import { PendingButton } from "@/components/ui/pending-button";
 import { campoDireccion } from "@/components/account/address-form-styles";
+import { documentoComercialSchema } from "@/lib/admin/cliente-comercial-contrato";
 import type { ClienteComercial, DireccionComercial, DocumentoComercial, EstadoComercial, FichaComercial } from "@/lib/admin/cliente-comercial-contrato";
 
 type Props = { clienteId?: string; zonas: readonly { id: string; nombre: string }[]; posible?: { id: string; version: number; nombre: string; telefono: string } };
 const vacio: ClienteComercial = { nombre: "", telefono: null, email: null, observaciones: null, activo: true };
-const camposDireccion = [ ["nombre", "Nombre de dirección"], ["destinatario", "Destinatario (opcional)"], ["telefono_contacto", "Teléfono de contacto"], ["direccion", "Dirección"], ["comuna", "Comuna"], ["region", "Región"], ["referencia", "Referencia (opcional)"] ] as const;
+const camposDireccion = [ ["nombre", "Nombre de dirección (opcional)"], ["destinatario", "Destinatario (opcional)"], ["telefono_contacto", "Teléfono de contacto (opcional)"], ["direccion", "Dirección"], ["comuna", "Comuna"], ["region", "Región (opcional)"], ["referencia", "Referencia (opcional)"] ] as const;
 
 export function CustomerCommercialForm(props: Props) {
   const [abierto, setAbierto] = useState(false);
@@ -32,6 +33,13 @@ export function CustomerCommercialForm(props: Props) {
 function Formulario({ ficha, zonas, posible, cerrar }: Props & { ficha?: FichaComercial; cerrar: () => void }) {
   const router = useRouter();
   const [cliente, setCliente] = useState<ClienteComercial>(() => ficha ? { nombre: ficha.cliente.nombre, telefono: ficha.cliente.telefono, email: ficha.cliente.email, observaciones: ficha.cliente.observaciones, activo: ficha.cliente.activo } : { ...vacio, nombre: posible?.nombre ?? "", telefono: posible?.telefono ?? null });
+  const [celular, setCelular] = useState(() => {
+    const original = posible?.telefono ?? "";
+    const digitos = original.replace(/\D/g, "");
+    return /^569[0-9]{8}$/.test(digitos) ? digitos.slice(3) : /^9[0-9]{8}$/.test(digitos) ? digitos.slice(1) : original;
+  });
+  const [direccionEscrita, setDireccionEscrita] = useState("");
+  const [comuna, setComuna] = useState("");
   const [direcciones, setDirecciones] = useState<DireccionComercial[]>(ficha?.direcciones ?? []);
   const [estado, setEstado] = useState<EstadoComercial>({});
   const [confirmado, setConfirmado] = useState(false);
@@ -44,7 +52,14 @@ function Formulario({ ficha, zonas, posible, cerrar }: Props & { ficha?: FichaCo
   }
   return <form className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6" onSubmit={(e) => {
     e.preventDefault();
-    if (!documento.current) documento.current = { clave: crypto.randomUUID(), clienteId: ficha?.cliente.id ?? null, revision: ficha?.revision ?? null, cliente, direcciones, posibleId: posible?.id ?? null, version: posible?.version ?? null };
+    if (!documento.current) {
+      const validado = documentoComercialSchema.safeParse({ clave: crypto.randomUUID(), clienteId: ficha?.cliente.id ?? null, revision: ficha?.revision ?? null,
+        cliente: ficha ? cliente : { ...cliente, telefono: `+569${celular}`, activo: true }, direcciones: ficha ? direcciones : [],
+        ...(!ficha ? { direccionRapida: direccionEscrita.trim() || comuna.trim() ? { direccion: direccionEscrita, comuna } : null } : {}),
+        posibleId: posible?.id ?? null, version: posible?.version ?? null });
+      if (!validado.success) { setEstado({ error: validado.error.issues[0]?.message ?? "Revisa los datos." }); return; }
+      documento.current = validado.data;
+    }
     const datos = documento.current;
     iniciar(async () => {
       try {
@@ -56,6 +71,12 @@ function Formulario({ ficha, zonas, posible, cerrar }: Props & { ficha?: FichaCo
   }}>
     <h2 className="text-xl font-semibold">{ficha ? "Editar ficha comercial" : posible ? "Crear y asociar cliente" : "Crear ficha comercial"}</h2>
     <fieldset disabled={bloqueado} className="space-y-5">
+      {!ficha ? <div className="grid gap-5 sm:grid-cols-2">
+        <label className="text-sm font-medium">Nombre comercial<input required maxLength={200} className={campoDireccion} value={cliente.nombre} onChange={(e) => { cambiar(); setCliente({ ...cliente, nombre: e.target.value }); }} /></label>
+        <label className="text-sm font-medium">Celular chileno<span className="flex items-center gap-2"><span>+569</span><input required type="tel" inputMode="numeric" pattern="[0-9]{8}" minLength={8} maxLength={8} title="Ingresa exactamente 8 dígitos después de +569." aria-label="Ocho dígitos del celular después de +569" className={campoDireccion} value={celular} onChange={(e) => { cambiar(); setCelular(e.target.value); }} /></span></label>
+        <label className="text-sm font-medium">Dirección escrita (opcional)<input maxLength={1000} className={campoDireccion} value={direccionEscrita} onChange={(e) => { cambiar(); setDireccionEscrita(e.target.value); }} /></label>
+        <label className="text-sm font-medium">Comuna{direccionEscrita.trim() ? " (obligatoria)" : " (solo si ingresas dirección)"}<input required={!!direccionEscrita.trim()} maxLength={1000} className={campoDireccion} value={comuna} onChange={(e) => { cambiar(); setComuna(e.target.value); }} /></label>
+      </div> : <>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="text-sm font-medium">Nombre<input required maxLength={200} className={campoDireccion} value={cliente.nombre} onChange={(e) => { cambiar(); setCliente({ ...cliente, nombre: e.target.value }); }} /></label>
         <label className="text-sm font-medium">Teléfono (con código de país)<input type="tel" maxLength={100} className={campoDireccion} value={cliente.telefono ?? ""} onChange={(e) => { cambiar(); setCliente({ ...cliente, telefono: e.target.value || null }); }} /></label>
@@ -65,7 +86,7 @@ function Formulario({ ficha, zonas, posible, cerrar }: Props & { ficha?: FichaCo
       <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={cliente.activo} onChange={(e) => { cambiar(); setCliente({ ...cliente, activo: e.target.checked }); }} />Cliente activo</label>
       <h3 className="font-semibold">Direcciones ({direcciones.length}/50)</h3>
       {direcciones.map((d, i) => <section key={d.id ?? `nueva-${i}`} className="space-y-4 rounded-xl border p-4" aria-label={`Dirección ${i + 1}`}>
-        <div className="grid gap-5 sm:grid-cols-2">{camposDireccion.map(([campo, etiqueta]) => <label key={campo} className="text-sm font-medium">{etiqueta}<input required={!["destinatario", "referencia"].includes(campo)} type={campo === "telefono_contacto" ? "tel" : "text"} maxLength={1000} className={campoDireccion} value={d[campo] ?? ""} onChange={(e) => direccion(i, { [campo]: e.target.value, ...(["direccion", "comuna", "region"].includes(campo) ? { latitud: null, longitud: null } : {}) })} /></label>)}
+        <div className="grid gap-5 sm:grid-cols-2">{camposDireccion.map(([campo, etiqueta]) => <label key={campo} className="text-sm font-medium">{etiqueta}<input required={["direccion", "comuna"].includes(campo)} type={campo === "telefono_contacto" ? "tel" : "text"} maxLength={campo === "telefono_contacto" ? 100 : 1000} className={campoDireccion} value={d[campo] ?? ""} onChange={(e) => direccion(i, { [campo]: e.target.value || null, ...(["direccion", "comuna", "region"].includes(campo) ? { latitud: null, longitud: null } : {}) })} /></label>)}
           <label className="text-sm font-medium">Zona (opcional)<select className={campoDireccion} value={d.zona_entrega_id ?? ""} onChange={(e) => direccion(i, { zona_entrega_id: e.target.value || null })}><option value="">Sin zona</option>{d.zona_entrega_id && !zonas.some((z) => z.id === d.zona_entrega_id) && <option value={d.zona_entrega_id}>Zona inactiva: selecciona otra o sin zona</option>}{zonas.map((z) => <option key={z.id} value={z.id}>{z.nombre}</option>)}</select></label>
         </div>
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={d.activa} onChange={(e) => direccion(i, { activa: e.target.checked, ...(!e.target.checked ? { es_principal: false } : {}) })} />Dirección activa</label>
@@ -74,7 +95,8 @@ function Formulario({ ficha, zonas, posible, cerrar }: Props & { ficha?: FichaCo
         {d.latitud !== null && <Button type="button" variant="outline" onClick={() => direccion(i, { latitud: null, longitud: null })}>Retirar coordenadas</Button>}
         {!d.id && <Button type="button" variant="ghost" onClick={() => { cambiar(); setDirecciones(direcciones.filter((_, n) => n !== i)); }}>Quitar dirección nueva</Button>}
       </section>)}
-      <Button type="button" variant="outline" disabled={direcciones.length >= 50} onClick={() => { cambiar(); setDirecciones([...direcciones, { id: null, nombre: "", destinatario: null, telefono_contacto: cliente.telefono ?? "", direccion: "", comuna: "", region: "", zona_entrega_id: null, referencia: null, latitud: null, longitud: null, es_principal: !direcciones.some((d) => d.es_principal), activa: true }]); }}>Agregar dirección</Button>
+      <Button type="button" variant="outline" disabled={direcciones.length >= 50} onClick={() => { cambiar(); setDirecciones([...direcciones, { id: null, nombre: null, destinatario: null, telefono_contacto: cliente.telefono, direccion: "", comuna: "", region: null, zona_entrega_id: null, referencia: null, latitud: null, longitud: null, es_principal: !direcciones.some((d) => d.es_principal), activa: true }]); }}>Agregar dirección</Button>
+      </>}
     </fieldset>
     {!!estado.coincidencias?.length && <div className="space-y-3 rounded-lg border p-4"><p className="text-sm font-medium">Hay clientes con el mismo teléfono o email, incluidos inactivos. No se fusionarán automáticamente.</p><ul className="space-y-2 text-sm">{estado.coincidencias.map((c) => <li key={c.cliente_id}><Link className="text-primary underline" href={`/admin/clientes/${c.cliente_id}`} target="_blank" rel="noopener noreferrer">{c.nombre}</Link> · { [c.por_telefono && "teléfono", c.por_email && "email"].filter(Boolean).join(" y ")}</li>)}</ul>{!estado.clienteId && <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={confirmado} onChange={(e) => setConfirmado(e.target.checked)} />Revisé las coincidencias y confirmo crear una ficha independiente.</label>}</div>}
     {estado.error && <p role="alert" className="text-sm text-destructive">{estado.error}</p>}

@@ -8,8 +8,8 @@
 -- p_cliente es documento completo: nombre, telefono, email, observaciones, activo.
 -- p_direcciones es una lista de upserts completos (máx. 50); omitir una dirección
 -- NO la borra. id NULL crea; id existente sólo puede pertenecer a esta ficha.
--- Cada dirección: id, nombre, destinatario opcional, telefono_contacto, direccion,
--- comuna, region, zona_entrega_id opcional, referencia, latitud, longitud,
+-- Cada dirección: id, nombre/destinatario/telefono_contacto nullable, direccion,
+-- comuna, region nullable (derivada si es unívoca), zona_entrega_id opcional, referencia, latitud, longitud,
 -- es_principal, activa. Desactivar conserva identidad e historia.
 -- Reintento: mismos argumentos y UUID; devuelve respuesta original, luego refrescar.
 -- Con posible pedido: ambos parámetros no nulos; asociación usa la misma clave,
@@ -23,6 +23,10 @@
 -- Validación de ejecución/concurrencia pendiente en entorno aislado (fase 2).
 
 begin;
+
+-- El CHECK original btrim(region) <> '' admite NULL (UNKNOWN), pero sigue
+-- rechazando texto vacío. No se modifica zonas_entrega ni la autogestión.
+alter table public.direcciones_cliente alter column region drop not null;
 
 create table public.operaciones_clientes_administrativas (
   clave_operacion uuid primary key,
@@ -69,6 +73,7 @@ declare
   v_p public.posibles_pedidos%rowtype; v_id uuid; v_d jsonb; v_k text; v_tipo text;
   v_nombre text; v_telefono text; v_email text; v_activo boolean;
   v_did uuid; v_zid uuid; v_lat numeric; v_lon numeric;
+  v_region text;
   v_ids uuid[] := array[]::uuid[]; v_zonas uuid[] := array[]::uuid[];
   v_nprincipales integer := 0; v_asociacion jsonb; v_resultado jsonb; v_coincidencias jsonb;
   v_direccion public.direcciones_cliente%rowtype;
@@ -134,6 +139,9 @@ begin
   if length(coalesce(p_cliente ->> 'observaciones','')) > 4000 then raise exception 'OBSERVACIONES_INVALIDAS'; end if;
   if p_cliente_id is null then
     if p_revision_esperada is not null then raise exception 'REVISION_INVALIDA'; end if;
+    if coalesce(p_cliente ->> 'telefono','') !~ '^\+569[0-9]{8}$' then
+      raise exception 'TELEFONO_INVALIDO';
+    end if;
     insert into public.clientes (usuario_id, nombre, telefono, email, observaciones, activo)
       values (null, v_nombre, case when v_telefono is not null then '+' || v_telefono end,
         v_email, nullif(btrim(p_cliente ->> 'observaciones'),''), v_activo) returning id into v_id;
@@ -168,11 +176,13 @@ begin
       end if;
       if v_tipo = 'string' and length(v_d ->> v_k) > 1000 then raise exception 'DIRECCION_DEMASIADO_LARGA'; end if;
     end loop;
-    if nullif(btrim(v_d ->> 'nombre'),'') is null
-      or nullif(btrim(v_d ->> 'direccion'),'') is null
+    if nullif(btrim(v_d ->> 'direccion'),'') is null
       or nullif(btrim(v_d ->> 'comuna'),'') is null
-      or nullif(btrim(v_d ->> 'region'),'') is null
-      or regexp_replace(coalesce(v_d ->> 'telefono_contacto',''), '[^0-9]', '', 'g') !~ '^[0-9]{8,15}$' then
+      or ((v_d ->> 'nombre') is not null and nullif(btrim(v_d ->> 'nombre'),'') is null)
+      or ((v_d ->> 'region') is not null and nullif(btrim(v_d ->> 'region'),'') is null)
+      or ((v_d ->> 'telefono_contacto') is not null and
+        (length(v_d ->> 'telefono_contacto') > 100 or
+        regexp_replace(v_d ->> 'telefono_contacto', '[^0-9]', '', 'g') !~ '^[0-9]{8,15}$')) then
       raise exception 'DIRECCION_INCOMPLETA';
     end if;
     v_lat := (v_d ->> 'latitud')::numeric; v_lon := (v_d ->> 'longitud')::numeric;
@@ -205,11 +215,22 @@ begin
     -- Documento completo: null en ambos ejes conserva una dirección escrita;
     -- al editar permite retirar ubicación previa explícitamente. No geocodifica.
     v_direccion := null;
-    v_direccion.nombre := btrim(v_d ->> 'nombre');
-    v_direccion.destinatario := coalesce(nullif(btrim(v_d ->> 'destinatario'),''), v_direccion.nombre);
-    v_direccion.telefono_contacto := '+' || regexp_replace(v_d ->> 'telefono_contacto', '[^0-9]', '', 'g');
+    v_direccion.nombre := nullif(btrim(v_d ->> 'nombre'),'');
+    v_direccion.destinatario := nullif(btrim(v_d ->> 'destinatario'),'');
+    v_direccion.telefono_contacto := '+' || nullif(regexp_replace(v_d ->> 'telefono_contacto', '[^0-9]', '', 'g'), '');
     v_direccion.direccion := btrim(v_d ->> 'direccion');
-    v_direccion.comuna := btrim(v_d ->> 'comuna'); v_direccion.region := btrim(v_d ->> 'region');
+    v_direccion.comuna := btrim(v_d ->> 'comuna');
+    v_region := nullif(btrim(v_d ->> 'region'),'');
+    if v_region is null then
+      -- Compara comuna_base ignorando espacios exteriores, mayúsculas y tildes.
+      -- Incluye zonas inactivas para detectar también ambigüedades históricas.
+      -- Varias zonas de la misma comuna/región no constituyen ambigüedad.
+      select case when count(distinct btrim(z.region)) = 1 then min(btrim(z.region)) end
+        into v_region from public.zonas_entrega z
+        where translate(lower(btrim(z.comuna_base)), 'áéíóúü', 'aeiouu')
+          = translate(lower(v_direccion.comuna), 'áéíóúü', 'aeiouu');
+    end if;
+    v_direccion.region := v_region;
     v_direccion.zona_entrega_id := (v_d ->> 'zona_entrega_id')::uuid;
     v_direccion.referencia := nullif(btrim(v_d ->> 'referencia'),'');
     v_direccion.latitud := (v_d ->> 'latitud')::numeric; v_direccion.longitud := (v_d ->> 'longitud')::numeric;

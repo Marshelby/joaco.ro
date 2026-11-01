@@ -18,6 +18,16 @@ export async function guardarFichaComercial(entrada: DocumentoComercial, confirm
   try {
     const db = await administradorComercial();
     if (!d.clienteId) {
+      // La creación rápida no acepta direcciones completas ni valores derivados del navegador.
+      d.cliente.activo = true;
+      if (d.direcciones.length) return { error: "Para crear usa únicamente la dirección simplificada." };
+      if (d.direccionRapida) {
+        // La RPC deriva la región dentro de la operación idempotente, sin inventar datos.
+        d.direcciones = [{ id: null, nombre: null, destinatario: null, telefono_contacto: null,
+          direccion: d.direccionRapida.direccion, comuna: d.direccionRapida.comuna, region: null, zona_entrega_id: null,
+          referencia: null, latitud: null, longitud: null, activa: true, es_principal: true }];
+      }
+
       // Incluye inactivos y compara exactamente como SQL, sin inferir país.
       const coincidencias: CoincidenciaComercial[] = [];
       const tel = d.cliente.telefono?.replace(/\D/g, "");
@@ -39,16 +49,23 @@ export async function guardarFichaComercial(entrada: DocumentoComercial, confirm
     enviado = true;
     let resultado = await db.rpc("guardar_cliente_administrativo", argumentos);
     // Solo reintentar fallos de transporte con los mismos argumentos y UUID.
-    if (resultado.error && !resultado.error.code) resultado = await db.rpc("guardar_cliente_administrativo", argumentos);
+    const transporteIncierto = !!resultado.error && !resultado.error.code;
+    if (transporteIncierto) resultado = await db.rpc("guardar_cliente_administrativo", argumentos);
     if (resultado.error) {
       const mensaje = resultado.error.message;
+      if (resultado.error.code === "PGRST202" || (resultado.error.code === "42883" && /guardar_cliente_administrativo/.test(mensaje))) {
+        return transporteIncierto
+          ? { error: "No se pudo confirmar el primer guardado y la RPC guardar_cliente_administrativo no está disponible para reintentarlo. Recarga para revisar el estado.", incierto: true }
+          : { error: "La función guardar_cliente_administrativo no está disponible en la base de datos. No se ejecutó el guardado. Se requiere habilitar la RPC existente." };
+      }
       if (/CLIENTE_DESACTUALIZADO|POSIBLE_PEDIDO_DESACTUALIZADO/.test(mensaje) || resultado.error.code === "40001") return { conflicto: true, error: "La ficha o solicitud cambió. Recarga antes de volver a editar; no se sobrescribieron los cambios." };
       const errores: Record<string, string> = {
         NO_AUTORIZADO: "Tu sesión no tiene autorización administrativa.", CLAVE_OPERACION_EN_USO: "La clave ya fue usada con otros datos. Recarga la ficha.",
         ZONA_INVALIDA: "Una zona seleccionada ya no está activa. Recarga la ficha.", CLIENTE_NO_ENCONTRADO: "El cliente ya no está disponible.",
         POSIBLE_PEDIDO_CERRADO: "La solicitud ya está cerrada. Recarga la página.",
       };
-      return { error: errores[mensaje] ?? "No fue posible guardar. Reintenta con los mismos datos o recarga para revisar el estado.", incierto: !/^(P0001|40001|42501|22|23)/.test(resultado.error.code ?? "") };
+      const incierto = !/^(P0001|40001|42501|22|23)/.test(resultado.error.code ?? "");
+      return { error: errores[mensaje] ?? (incierto ? "No se pudo confirmar si el cliente quedó guardado. Reintenta con los mismos datos o recarga para revisar el estado." : "No fue posible guardar el cliente. Revisa los datos y vuelve a intentar."), incierto };
     }
     const id = resultado.data?.cliente_id;
     if (typeof id !== "string") return { error: "Respuesta inesperada. Reintenta sin cambiar los datos.", incierto: true };

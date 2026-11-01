@@ -16,8 +16,8 @@ export async function leerFichaComercial(id: string) {
   if (error) throw new Error(error.message);
   // Las filas completas incluyen columnas que no se deben reenviar como ownership.
   return z.object({ cliente: z.object({ id: z.uuid(), nombre: z.string(), telefono: z.string().nullable(), email: z.string().nullable(), observaciones: z.string().nullable(), activo: z.boolean() }), direcciones: z.array(
-    z.object({ id: z.uuid(), nombre: z.string().nullable().transform((v) => v ?? ""), destinatario: z.string().nullable(), telefono_contacto: z.string().nullable().transform((v) => v ?? ""),
-      direccion: z.string(), comuna: z.string(), region: z.string(), zona_entrega_id: z.uuid().nullable(), referencia: z.string().nullable(),
+    z.object({ id: z.uuid(), nombre: z.string().nullable(), destinatario: z.string().nullable(), telefono_contacto: z.string().nullable(),
+      direccion: z.string(), comuna: z.string(), region: z.string().nullable(), zona_entrega_id: z.uuid().nullable(), referencia: z.string().nullable(),
       latitud: z.number().nullable(), longitud: z.number().nullable(), es_principal: z.boolean(), activa: z.boolean() })
   ), revision: z.string() }).parse(data);
 }

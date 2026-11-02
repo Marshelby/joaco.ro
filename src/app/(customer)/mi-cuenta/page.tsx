@@ -49,7 +49,7 @@ async function AccountContent() {
 
   const supabase = await crearClienteSupabaseServidor();
   const [{ data: direcciones }, { data: pedidos }] = await Promise.all([
-    supabase.from("direcciones_cliente").select("id,nombre,destinatario,direccion,comuna,latitud,longitud,zonas_entrega(nombre)").eq("cliente_id", cuenta.cliente.id).eq("activa", true).order("es_principal", { ascending: false }).order("fecha_creacion", { ascending: true }),
+    supabase.from("direcciones_cliente").select("id,nombre,destinatario,direccion,comuna,latitud,longitud,zonas_entrega(nombre)").eq("cliente_id", cuenta.cliente.id).eq("ambito", "personal").eq("activa", true).order("es_principal", { ascending: false }).order("fecha_creacion", { ascending: true }),
     supabase.from("pedidos").select("id").eq("cliente_id", cuenta.cliente.id).order("fecha_creacion", { ascending: false }).limit(1),
   ]);
   const direccionesActivas = (direcciones as DireccionDashboard[] | null) ?? [];

@@ -18,7 +18,7 @@ export default async function EditCustomerAddressPage({ params, searchParams }: 
   if (!cliente) notFound();
   const supabase = await crearClienteSupabaseServidor();
   const [{ data }, { data: zonas }] = await Promise.all([
-    supabase.from("direcciones_cliente").select("id,nombre,destinatario,telefono_contacto,direccion,comuna,referencia,es_principal,zona_entrega_id,latitud,longitud").eq("id", id).eq("cliente_id", cliente.id).eq("activa", true).maybeSingle(),
+    supabase.from("direcciones_cliente").select("id,nombre,destinatario,telefono_contacto,direccion,comuna,referencia,es_principal,zona_entrega_id,latitud,longitud").eq("id", id).eq("cliente_id", cliente.id).eq("ambito", "personal").eq("activa", true).maybeSingle(),
     supabase.from("zonas_entrega").select("id,nombre,comuna_base").eq("activa", true).order("orden").order("nombre"),
   ]);
   if (!data) notFound();

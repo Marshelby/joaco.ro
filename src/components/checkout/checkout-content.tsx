@@ -20,13 +20,14 @@ import { formatCLP } from "@/lib/formatters";
 import { PAYMENT_INTENT_OPTIONS, type MetodoPagoPrevisto } from "@/lib/payment-intent";
 import type { FechaEntregaDisponible } from "@/types/delivery";
 
-type DireccionCheckout = { id: string; nombre: string | null; destinatario: string | null; direccion: string; comuna: string; region: string; referencia: string | null; latitud: number | null; longitud: number | null; zonas_entrega: { nombre: string }[] };
+type DireccionCheckout = { ambito: "personal" | "comercial"; id: string; nombre: string | null; destinatario: string | null; direccion: string; comuna: string; region: string | null; referencia: string | null; latitud: number | null; longitud: number | null; zonas_entrega: { nombre: string }[] };
 type ClienteCheckout = { nombre: string; telefono: string | null; email: string | null };
 export type EstadoCuentaCheckout = "guest" | "admin" | "inactive_customer" | "account_error" | "active_customer";
 
-export function CheckoutContent({ claveIdempotencia, cliente, direcciones, fechasEntrega, estadoCuenta }: { claveIdempotencia: string; cliente: ClienteCheckout | null; direcciones: readonly DireccionCheckout[]; fechasEntrega: readonly FechaEntregaDisponible[]; estadoCuenta: EstadoCuentaCheckout }) {
+export function CheckoutContent({ claveIdempotencia, cliente, direcciones: direccionesRecibidas, fechasEntrega, estadoCuenta }: { claveIdempotencia: string; cliente: ClienteCheckout | null; direcciones: readonly DireccionCheckout[]; fechasEntrega: readonly FechaEntregaDisponible[]; estadoCuenta: EstadoCuentaCheckout }) {
   const router = useRouter();
   const { items, totalEstimado, isHydrated, vaciar } = useCart();
+  const direcciones = direccionesRecibidas.filter((direccion) => direccion.ambito === "personal");
   const direccionesConUbicacion = direcciones.filter((direccion) => Number.isFinite(direccion.latitud) && Number.isFinite(direccion.longitud));
   const [direccionClienteId, setDireccionClienteId] = useState(direccionesConUbicacion[0]?.id ?? "");
   const [fechaEntrega, setFechaEntrega] = useState("");

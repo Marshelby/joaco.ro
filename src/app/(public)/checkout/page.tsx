@@ -9,7 +9,7 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Checkout" };
 
-type DireccionFila = { id: string; nombre: string | null; destinatario: string | null; direccion: string; comuna: string; region: string; referencia: string | null; latitud: number | null; longitud: number | null; zonas_entrega: { nombre: string }[] };
+type DireccionFila = { ambito: "personal" | "comercial"; id: string; nombre: string | null; destinatario: string | null; direccion: string; comuna: string; region: string | null; referencia: string | null; latitud: number | null; longitud: number | null; zonas_entrega: { nombre: string }[] };
 
 function checkoutSinCuenta(claveIdempotencia: string, estadoCuenta: EstadoCuentaCheckout) {
   return <Container className="py-8 sm:py-12 lg:py-16"><CheckoutContent claveIdempotencia={claveIdempotencia} cliente={null} direcciones={[]} fechasEntrega={[]} estadoCuenta={estadoCuenta} /></Container>;
@@ -42,14 +42,14 @@ export default async function CheckoutPage() {
 
   const { data: direcciones, error: errorDirecciones } = await supabase
     .from("direcciones_cliente")
-    .select("id,nombre,destinatario,direccion,comuna,region,referencia,latitud,longitud,zonas_entrega(nombre)")
+    .select("ambito,id,nombre,destinatario,direccion,comuna,region,referencia,latitud,longitud,zonas_entrega(nombre)")
     .eq("cliente_id", cliente.id)
-    .eq("activa", true)
+    .eq("ambito", "personal").eq("activa", true)
     .order("es_principal", { ascending: false })
     .order("fecha_creacion", { ascending: true });
 
   if (errorDirecciones) throw errorDirecciones;
-  const addresses = ((direcciones as DireccionFila[] | null) ?? []).map((address) => ({ ...address, latitud: address.latitud === null ? null : Number(address.latitud), longitud: address.longitud === null ? null : Number(address.longitud) }));
+  const addresses = ((direcciones as DireccionFila[] | null) ?? []).filter((address) => address.ambito === "personal").map((address) => ({ ...address, latitud: address.latitud === null ? null : Number(address.latitud), longitud: address.longitud === null ? null : Number(address.longitud) }));
   const fechasEntrega = (await obtenerFechasEntregaDisponibles()).slice(0, 3);
   return <Container className="py-8 sm:py-12 lg:py-16"><CheckoutContent claveIdempotencia={claveIdempotencia} cliente={cliente} direcciones={addresses} fechasEntrega={fechasEntrega} estadoCuenta="active_customer" /></Container>;
 }

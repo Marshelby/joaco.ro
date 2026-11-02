@@ -24,7 +24,7 @@ export default async function CustomerAddressesPage({ searchParams }: { searchPa
     .from("direcciones_cliente")
     .select("id,nombre,destinatario,telefono_contacto,direccion,comuna,referencia,es_principal,latitud,longitud,zonas_entrega(nombre)")
     .eq("cliente_id", cliente.id)
-    .eq("activa", true)
+    .eq("ambito", "personal").eq("activa", true)
     .order("es_principal", { ascending: false })
     .order("fecha_creacion", { ascending: true });
   const addresses = (direcciones ?? []) as DireccionFila[];

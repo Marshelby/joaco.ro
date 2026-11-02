@@ -81,7 +81,7 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
     .select("id,latitud,longitud")
     .eq("id", direccionClienteId)
     .eq("cliente_id", cliente.id)
-    .eq("activa", true)
+    .eq("ambito", "personal").eq("activa", true)
     .maybeSingle();
 
   if (errorDireccion || !direccion || direccion.latitud === null || direccion.longitud === null) {

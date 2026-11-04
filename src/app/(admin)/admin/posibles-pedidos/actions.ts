@@ -19,6 +19,7 @@ export async function operarPosiblePedido(_: EstadoOperacionPosible, form: FormD
     if (error) return { error: mensajeErrorPosiblePedido(error.message) };
     if (!data?.posible_pedido_id) return { error: "No pudimos verificar el resultado. Reintenta la misma operación." };
     revalidatePath("/admin/posibles-pedidos");
+    revalidatePath("/admin/pedidos");
     revalidatePath(`/admin/posibles-pedidos/${validado.data.id}`);
     if (data.pedido_id) {
       revalidatePath("/admin"); revalidatePath("/admin/pedidos"); revalidatePath(`/admin/pedidos/${data.pedido_id}`);

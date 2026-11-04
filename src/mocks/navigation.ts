@@ -26,6 +26,5 @@ export const ADMIN_NAVIGATION = [
   { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
   { label: "Mensajes", href: ROUTES.adminMessages, icon: "messages" },
-  { label: "Posibles pedidos", href: ROUTES.adminPossibleOrders, icon: "messages" },
   { label: "Configuración", href: ROUTES.adminSettings, icon: "settings" },
 ] as const satisfies readonly NavigationItem[];

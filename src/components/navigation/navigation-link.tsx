@@ -16,7 +16,10 @@ export function NavigationLink({ className, activeClassName, exact = false, href
   const pathname = usePathname();
   const feedback = usePublicNavigationFeedback();
   const target = typeof href === "string" ? href : href.pathname ?? "";
-  const active = exact ? pathname === target : pathname === target || pathname.startsWith(`${target}/`);
+  const activePathname = target === "/admin/pedidos" && (pathname === "/admin/posibles-pedidos" || pathname.startsWith("/admin/posibles-pedidos/"))
+    ? pathname.replace("/admin/posibles-pedidos", "/admin/pedidos")
+    : pathname;
+  const active = exact ? activePathname === target : activePathname === target || activePathname.startsWith(`${target}/`);
 
   return (
     <Link

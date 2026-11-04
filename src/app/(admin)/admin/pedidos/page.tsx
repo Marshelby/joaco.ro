@@ -1,3 +1,5 @@
+import { OrderViews } from "@/components/admin/order-views";
+import { PossibleOrdersList } from "@/components/admin/possible-orders-list";
 import type { Metadata } from "next";
 import { ChevronDown } from "lucide-react";
 
@@ -13,8 +15,14 @@ import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 export const metadata: Metadata = { title: "Pedidos" };
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ filtro?: string }> }) {
-  const { filtro } = await searchParams;
+export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ filtro?: string; estado?: string; pagina?: string }> }) {
+  const params = await searchParams;
+  const { filtro } = params;
+  if (filtro === "posibles") return <div className="space-y-8">
+    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." />
+    <OrderViews vista="posibles" />
+    <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
+  </div>;
   const vista = filtro === "todos" || filtro === "entregas" ? filtro : "recibidos";
   const soloRecibidos = vista === "recibidos";
   const [pedidos, cantidadRecibidos, entregas] = await Promise.all([
@@ -32,11 +40,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             <h2 id="lista-pedidos-title" className="text-2xl font-semibold tracking-tight text-foreground">{vista === "entregas" ? "Próximas entregas" : soloRecibidos ? `Pedidos recibidos (${cantidadRecibidos})` : "Todos los pedidos"}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{vista === "entregas" ? `${entregas.length} ${entregas.length === 1 ? "jornada" : "jornadas"} programadas` : `${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"} visibles`}</p>
           </div>
-          <nav aria-label="Filtro de pedidos" className="flex flex-wrap gap-2">
-            <ActionLink href="/admin/pedidos" variant={soloRecibidos ? "primary" : "secondary"}>Recibidos</ActionLink>
-            <ActionLink href="/admin/pedidos?filtro=entregas" variant={vista === "entregas" ? "primary" : "secondary"}>Próximas entregas</ActionLink>
-            <ActionLink href="/admin/pedidos?filtro=todos" variant={vista === "todos" ? "primary" : "secondary"}>Todos</ActionLink>
-          </nav>
+          <OrderViews vista={vista} />
         </div>
         {vista === "entregas" ? entregas.length > 0 ? (
           <ul className="grid gap-3 sm:grid-cols-2" aria-label="Próximas jornadas de entrega">

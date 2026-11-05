@@ -19,7 +19,11 @@ export const direccionComercialSchema = z.object({
 export const documentoComercialSchema = z.object({
   clave: z.uuid(), clienteId: z.uuid().nullable(), revision: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
   cliente: clienteComercialSchema, direcciones: z.array(direccionComercialSchema).max(50),
-  direccionRapida: z.object({ direccion: texto, comuna: texto }).strict().nullable().optional(),
+  direccionRapida: z.object({
+    direccion: texto, comuna: texto,
+    latitud: z.number().min(-90).max(90).nullable().optional(),
+    longitud: z.number().min(-180).max(180).nullable().optional(),
+  }).strict().refine((d) => (d.latitud == null) === (d.longitud == null), "Coordenadas incompletas.").nullable().optional(),
   posibleId: z.uuid().nullable(), version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
 }).strict().refine((d) => (d.posibleId === null) === (d.version === null), "Asociación incompleta.")
   .refine((d) => (d.clienteId === null) === (d.revision === null), "Revisión requerida para editar.")

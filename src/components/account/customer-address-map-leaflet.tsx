@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 
 import L from "leaflet";
 import { LocateFixed, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 import type { AddressCoordinates } from "@/components/account/customer-address-map";
@@ -56,7 +56,13 @@ export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoord
   const [isLocating, setIsLocating] = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
 
+  const locationRequest = useRef(0);
+  useEffect(() => () => { locationRequest.current += 1; }, []);
+
   function updateCoordinates(nextCoordinates: Coordinate) {
+    // Una selección manual prevalece sobre una solicitud de ubicación pendiente.
+    locationRequest.current += 1;
+    setIsLocating(false);
     setGeolocationError(null);
     onCoordinatesChange(nextCoordinates);
   }
@@ -69,12 +75,15 @@ export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoord
 
     setIsLocating(true);
     setGeolocationError(null);
+    const request = ++locationRequest.current;
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (request !== locationRequest.current) return;
         updateCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
         setIsLocating(false);
       },
       () => {
+        if (request !== locationRequest.current) return;
         setGeolocationError("No pudimos acceder a tu ubicación. Puedes marcarla manualmente en el mapa.");
         setIsLocating(false);
       },
@@ -90,7 +99,7 @@ export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoord
           <p className="mt-1 text-sm text-muted-foreground">Marca en el mapa el punto exacto de entrega.</p>
         </div>
         <Button type="button" variant="secondary" onClick={useCurrentLocation} disabled={isLocating}>
-          <LocateFixed aria-hidden="true" /> {isLocating ? "Obteniendo ubicación..." : "Usar mi ubicación"}
+          <LocateFixed aria-hidden="true" /> {isLocating ? "Obteniendo ubicación..." : "Usar mi ubicación actual"}
         </Button>
       </div>
       {!hasLocation ? <p className="text-sm text-amber-700 dark:text-amber-300">Esta dirección aún no tiene ubicación marcada.</p> : <p className="flex items-center gap-1.5 text-sm text-primary"><MapPin aria-hidden="true" className="size-4" /> Ubicación marcada</p>}

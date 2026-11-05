@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { cargarFichaComercial, guardarFichaComercial } from "@/app/(admin)/admin/clientes/comercial-actions";
 import { Button } from "@/components/ui/button";
 import { PendingButton } from "@/components/ui/pending-button";
+import { CustomerAddressMap, type AddressCoordinates } from "@/components/account/customer-address-map";
 import { campoDireccion } from "@/components/account/address-form-styles";
 import { documentoComercialSchema } from "@/lib/admin/cliente-comercial-contrato";
 import type { ClienteComercial, DireccionComercial, DocumentoComercial, EstadoComercial, FichaComercial } from "@/lib/admin/cliente-comercial-contrato";
@@ -40,6 +41,8 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
   });
   const [direccionEscrita, setDireccionEscrita] = useState("");
   const [comuna, setComuna] = useState("");
+  const [ubicacionRapida, setUbicacionRapida] = useState<AddressCoordinates>({ latitude: null, longitude: null });
+  const [mapaAbierto, setMapaAbierto] = useState<number | "rapida" | null>(null);
   const [direcciones, setDirecciones] = useState<DireccionComercial[]>(ficha?.direcciones ?? []);
   const [estado, setEstado] = useState<EstadoComercial>({});
   const [confirmado, setConfirmado] = useState(false);
@@ -48,6 +51,7 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
   const bloqueado = pendiente || !!estado.incierto || !!estado.clienteId || !!estado.conflicto;
   function cambiar() { setEstado({}); setConfirmado(false); documento.current = null; }
   function direccion(indice: number, cambios: Partial<DireccionComercial>) {
+    if (["direccion", "comuna", "region"].some((campo) => campo in cambios)) setMapaAbierto(null);
     cambiar(); setDirecciones((previas) => previas.map((d, i) => i === indice ? { ...d, ...cambios } : cambios.es_principal ? { ...d, es_principal: false } : d));
   }
   return <form className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6" onSubmit={(e) => {
@@ -56,7 +60,7 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
     if (!documento.current) {
       const validado = documentoComercialSchema.safeParse({ clave: crypto.randomUUID(), clienteId: ficha?.cliente.id ?? null, revision: ficha?.revision ?? null,
         cliente: ficha ? cliente : { ...cliente, telefono: `+569${celular}`, activo: true }, direcciones: ficha && soloDirecciones ? direcciones : [],
-        ...(!ficha ? { direccionRapida: direccionEscrita.trim() || comuna.trim() ? { direccion: direccionEscrita, comuna } : null } : {}),
+        ...(!ficha ? { direccionRapida: direccionEscrita.trim() || comuna.trim() ? { direccion: direccionEscrita, comuna, latitud: ubicacionRapida.latitude, longitud: ubicacionRapida.longitude } : null } : {}),
         posibleId: posible?.id ?? null, version: posible?.version ?? null });
       if (!validado.success) { setEstado({ error: validado.error.issues[0]?.message ?? "Revisa los datos." }); return; }
       documento.current = validado.data;
@@ -75,8 +79,14 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
       {!ficha ? <div className="grid gap-5 sm:grid-cols-2">
         <label className="text-sm font-medium">Nombre comercial<input required maxLength={200} className={campoDireccion} value={cliente.nombre} onChange={(e) => { cambiar(); setCliente({ ...cliente, nombre: e.target.value }); }} /></label>
         <label className="text-sm font-medium">Celular chileno<span className="flex items-center gap-2"><span>+569</span><input required type="tel" inputMode="numeric" pattern="[0-9]{8}" minLength={8} maxLength={8} title="Ingresa exactamente 8 dígitos después de +569." aria-label="Ocho dígitos del celular después de +569" className={campoDireccion} value={celular} onChange={(e) => { cambiar(); setCelular(e.target.value); }} /></span></label>
-        <label className="text-sm font-medium">Dirección escrita (opcional)<input maxLength={1000} className={campoDireccion} value={direccionEscrita} onChange={(e) => { cambiar(); setDireccionEscrita(e.target.value); }} /></label>
-        <label className="text-sm font-medium">Comuna{direccionEscrita.trim() ? " (obligatoria)" : " (solo si ingresas dirección)"}<input required={!!direccionEscrita.trim()} maxLength={1000} className={campoDireccion} value={comuna} onChange={(e) => { cambiar(); setComuna(e.target.value); }} /></label>
+        <label className="text-sm font-medium">Dirección escrita (opcional)<input maxLength={1000} className={campoDireccion} value={direccionEscrita} onChange={(e) => { cambiar(); setDireccionEscrita(e.target.value); setUbicacionRapida({ latitude: null, longitude: null }); setMapaAbierto(null); }} /></label>
+        <label className="text-sm font-medium">Comuna{direccionEscrita.trim() ? " (obligatoria)" : " (solo si ingresas dirección)"}<input required={!!direccionEscrita.trim()} maxLength={1000} className={campoDireccion} value={comuna} onChange={(e) => { cambiar(); setComuna(e.target.value); setUbicacionRapida({ latitude: null, longitude: null }); setMapaAbierto(null); }} /></label>
+        <div className="space-y-3 sm:col-span-2">
+          <p role="status" className="text-sm text-muted-foreground">{ubicacionRapida.latitude === null || ubicacionRapida.longitude === null ? "Sin ubicación confirmada. Selecciona un punto en el mapa; si cambias la dirección o comuna, debes seleccionarlo de nuevo." : `Ubicación seleccionada: ${ubicacionRapida.latitude}, ${ubicacionRapida.longitude}`}</p>
+          <Button type="button" variant="outline" disabled={!direccionEscrita.trim() || !comuna.trim()} onClick={() => setMapaAbierto(mapaAbierto === "rapida" ? null : "rapida")}>{mapaAbierto === "rapida" ? "Cerrar mapa" : "Seleccionar ubicación en el mapa"}</Button>
+          {!bloqueado && mapaAbierto === "rapida" && <CustomerAddressMap {...ubicacionRapida} onCoordinatesChange={(coordinates) => { cambiar(); setUbicacionRapida(coordinates); }} />}
+          {ubicacionRapida.latitude !== null && <Button type="button" variant="outline" onClick={() => { cambiar(); setUbicacionRapida({ latitude: null, longitude: null }); setMapaAbierto(null); }}>Retirar ubicación</Button>}
+        </div>
       </div> : <>
       {!soloDirecciones && <><div className="grid gap-5 sm:grid-cols-2">
         <label className="text-sm font-medium">Nombre<input required maxLength={200} className={campoDireccion} value={cliente.nombre} onChange={(e) => { cambiar(); setCliente({ ...cliente, nombre: e.target.value }); }} /></label>
@@ -92,10 +102,11 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
         </div>
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={d.activa} onChange={(e) => direccion(i, { activa: e.target.checked, ...(!e.target.checked ? { es_principal: false } : {}) })} />Dirección activa</label>
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" disabled={!d.activa} checked={d.es_principal} onChange={(e) => direccion(i, { es_principal: e.target.checked })} />Principal comercial</label>
-        {d.latitud === null || d.longitud === null || !d.zona_entrega_id ? <p className="text-sm text-amber-700 dark:text-amber-400">Dirección pendiente de geolocalización: no apta para conversión oficial ni rutas hasta completar coordenadas y zona.</p> : <p className="text-sm text-muted-foreground">Coordenadas guardadas: {d.latitud}, {d.longitud}. Se conservan al guardar. Al cambiar dirección, comuna o región se retirarán para dejarla pendiente.</p>}
-        <div className="grid gap-5 sm:grid-cols-2">{(["latitud", "longitud"] as const).map((eje) => <label key={eje} className="text-sm font-medium">{eje === "latitud" ? "Latitud" : "Longitud"} (opcional)<input type="number" step="any" min={eje === "latitud" ? -90 : -180} max={eje === "latitud" ? 90 : 180} className={campoDireccion} value={d[eje] ?? ""} onChange={(e) => direccion(i, { [eje]: e.target.value === "" ? null : Number(e.target.value) })} /></label>)}</div>
-        {d.latitud !== null && <Button type="button" variant="outline" onClick={() => direccion(i, { latitud: null, longitud: null })}>Retirar coordenadas</Button>}
-        {!d.id && <Button type="button" variant="ghost" onClick={() => { cambiar(); setDirecciones(direcciones.filter((_, n) => n !== i)); }}>Quitar dirección nueva</Button>}
+        <p role="status" className="text-sm text-muted-foreground">{d.latitud === null || d.longitud === null ? "Sin ubicación confirmada. Selecciona un punto en el mapa; si cambias la dirección, comuna o región, debes seleccionarlo de nuevo." : `Ubicación seleccionada: ${d.latitud}, ${d.longitud}`}</p>
+        <Button type="button" variant="outline" onClick={() => setMapaAbierto(mapaAbierto === i ? null : i)}>{mapaAbierto === i ? "Cerrar mapa" : "Seleccionar ubicación en el mapa"}</Button>
+        {!bloqueado && mapaAbierto === i && <CustomerAddressMap latitude={d.latitud} longitude={d.longitud} onCoordinatesChange={({ latitude, longitude }) => direccion(i, { latitud: latitude, longitud: longitude })} />}
+        {d.latitud !== null && <Button type="button" variant="outline" onClick={() => { direccion(i, { latitud: null, longitud: null }); setMapaAbierto(null); }}>Retirar coordenadas</Button>}
+        {!d.id && <Button type="button" variant="ghost" onClick={() => { cambiar(); setMapaAbierto(null); setDirecciones(direcciones.filter((_, n) => n !== i)); }}>Quitar dirección nueva</Button>}
       </section>)}
       <Button type="button" variant="outline" disabled={direcciones.length >= 50} onClick={() => { cambiar(); setDirecciones([...direcciones, { id: null, nombre: null, destinatario: null, telefono_contacto: null, direccion: "", comuna: "", region: null, zona_entrega_id: null, referencia: null, latitud: null, longitud: null, es_principal: !direcciones.some((d) => d.es_principal), activa: true }]); }}>Agregar dirección comercial</Button></>}
       </>}

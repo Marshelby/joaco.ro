@@ -18,14 +18,14 @@ export async function guardarFichaComercial(entrada: DocumentoComercial, confirm
   try {
     const db = await administradorComercial();
     if (!d.clienteId) {
-      // La creación rápida no acepta direcciones completas ni valores derivados del navegador.
+      // La creación rápida no acepta direcciones completas ni campos adicionales fuera del contrato.
       d.cliente.activo = true;
       if (d.direcciones.length) return { error: "Para crear usa únicamente la dirección simplificada." };
       if (d.direccionRapida) {
         // La RPC deriva la región dentro de la operación idempotente, sin inventar datos.
         d.direcciones = [{ id: null, nombre: null, destinatario: null, telefono_contacto: null,
           direccion: d.direccionRapida.direccion, comuna: d.direccionRapida.comuna, region: null, zona_entrega_id: null,
-          referencia: null, latitud: null, longitud: null, activa: true, es_principal: true }];
+          referencia: null, latitud: d.direccionRapida.latitud ?? null, longitud: d.direccionRapida.longitud ?? null, activa: true, es_principal: true }];
       }
 
       // Incluye inactivos y compara exactamente como SQL, sin inferir país.

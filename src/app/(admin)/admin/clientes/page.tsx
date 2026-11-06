@@ -1,3 +1,4 @@
+import { CustomerSearch } from "@/components/admin/customer-search";
 import { CustomerCommercialForm } from "@/components/admin/customer-commercial-form";
 import { zonasComerciales } from "@/lib/admin/cliente-comercial";
 import type { Metadata } from "next";
@@ -11,17 +12,30 @@ import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 export const metadata: Metadata = { title: "Clientes" };
 
-export default async function AdminCustomersPage() {
-  const [clientes, zonas] = await Promise.all([obtenerClientesAdmin(), zonasComerciales()]);
+export default async function AdminCustomersPage({ searchParams }: { searchParams: Promise<{ q?: string | string[]; pagina?: string | string[] }> }) {
+  const parametros = await searchParams;
+  const busqueda = typeof parametros.q === "string" ? parametros.q.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120) : "";
+  const numeroPagina = typeof parametros.pagina === "string" ? Number(parametros.pagina) : 1;
+  const pagina = Number.isSafeInteger(numeroPagina) && numeroPagina > 0 ? Math.min(numeroPagina, 100000) : 1;
+  const [{ clientes, total, porPagina }, zonas] = await Promise.all([obtenerClientesAdmin(busqueda, pagina), zonasComerciales()]);
+  const enlacePagina = (numero: number) => `/admin/clientes?${new URLSearchParams({ ...(busqueda ? { q: busqueda } : {}), pagina: String(numero) })}`;
 
   return (
     <div className="space-y-8">
       <PageHeader title="Clientes" description="Revisa la cuenta corriente y los pedidos históricos de cada cliente." />
       <CustomerCommercialForm zonas={zonas} />
-      {clientes.length === 0 ? <EmptyState title="No hay clientes" description="Los clientes aparecerán aquí cuando se creen sus fichas comerciales." /> : <section className="space-y-3" aria-label="Clientes">{clientes.map((cliente) => {
+      <CustomerSearch busqueda={busqueda} total={total} />
+      <div id="resultados-clientes">
+      {clientes.length === 0 ? <EmptyState title={busqueda ? "Sin resultados" : "No hay clientes en esta página"} description={busqueda ? "No encontramos clientes con ese nombre, teléfono o correo. Prueba otra búsqueda o límpiala." : "Los clientes aparecerán aquí cuando se creen sus fichas comerciales."} /> : <section className="space-y-3" aria-label="Clientes">{clientes.map((cliente) => {
         const saldo = describirSaldoCuenta(cliente.saldoActual);
         return <article key={cliente.id} className="rounded-xl border border-border bg-card p-4 sm:p-5"><div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.65fr)_auto] sm:items-center sm:gap-5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold tracking-tight text-foreground">{cliente.nombre}</h2>{!cliente.activo ? <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Inactivo</span> : null}</div>{cliente.telefono ? <p className="mt-2 text-sm text-muted-foreground">{cliente.telefono}</p> : null}{cliente.email ? <p className="mt-1 break-words text-sm text-muted-foreground">{cliente.email}</p> : null}</div><dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Cuenta corriente</dt><dd className="mt-1 font-semibold text-foreground">{saldo.texto === "Al día" ? formatCLP(0) : `${saldo.texto === "Debe" ? "Debe " : ""}${formatCLP(saldo.monto)}${saldo.texto === "A favor" ? " a favor" : ""}`}</dd></div><div className="sm:mt-3"><dt className="text-muted-foreground">Pedidos</dt><dd className="mt-1 font-medium text-foreground">{cliente.cantidadPedidos} · {cliente.fechaUltimoMovimiento ? formatDateTimeCL(cliente.fechaUltimoMovimiento) : "Sin movimientos"}</dd></div></dl><ActionLink href={ROUTES.adminCustomer(cliente.id)} variant="quiet" aria-label={`Ver cliente ${cliente.nombre}`}>Ver cliente</ActionLink></div></article>;
       })}</section>}
+      {total > porPagina || pagina > 1 ? <nav aria-label="Paginación de clientes" className="mt-5 flex flex-wrap items-center gap-3">
+        {pagina > 1 ? <ActionLink href={enlacePagina(pagina - 1)} variant="quiet">Anterior</ActionLink> : null}
+        <span className="text-sm text-muted-foreground">Página {pagina} de {Math.max(1, Math.ceil(total / porPagina))}</span>
+        {pagina * porPagina < total ? <ActionLink href={enlacePagina(pagina + 1)} variant="quiet">Siguiente</ActionLink> : null}
+      </nav> : null}
+      </div>
     </div>
   );
 }

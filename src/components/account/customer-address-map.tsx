@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
 
 export type AddressCoordinates = {
   latitude: number | null;
@@ -8,6 +9,7 @@ export type AddressCoordinates = {
 };
 
 export type CustomerAddressMapProps = AddressCoordinates & {
+  renderLocationSearch?: (onSelect: (coordinates: { latitude: number; longitude: number }) => void) => ReactNode;
   requireConfirmation?: boolean;
   locationConfirmed?: boolean;
   onConfirmLocation?: (coordinates: AddressCoordinates) => void;

@@ -7,6 +7,7 @@ import { cargarFichaComercial, guardarFichaComercial } from "@/app/(admin)/admin
 import { Button } from "@/components/ui/button";
 import { PendingButton } from "@/components/ui/pending-button";
 import { CustomerAddressMap, type AddressCoordinates } from "@/components/account/customer-address-map";
+import { CommercialLocationSearch } from "@/components/admin/commercial-location-search";
 import { campoDireccion } from "@/components/account/address-form-styles";
 import { documentoComercialSchema } from "@/lib/admin/cliente-comercial-contrato";
 import type { ClienteComercial, DireccionComercial, DocumentoComercial, EstadoComercial, FichaComercial } from "@/lib/admin/cliente-comercial-contrato";
@@ -135,6 +136,7 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
         </details>
         <Button type="button" variant="outline" className="h-auto min-h-11 w-full whitespace-normal px-3 py-2 sm:w-auto" aria-expanded={mapaAbierto === i} onClick={() => setMapaAbierto(mapaAbierto === i ? null : i)}>{mapaAbierto === i ? "Cerrar mapa" : "Marcar o ajustar en el mapa"}</Button>
         {!bloqueado && mapaAbierto === i && <CustomerAddressMap
+          renderLocationSearch={(onSelect) => <CommercialLocationSearch onSelect={onSelect} />}
           latitude={ubicacionesProvisionales[i] ? ubicacionesProvisionales[i].latitude : d.latitud}
           longitude={ubicacionesProvisionales[i] ? ubicacionesProvisionales[i].longitude : d.longitud}
           requireConfirmation

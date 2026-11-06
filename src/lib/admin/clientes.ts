@@ -108,19 +108,31 @@ function mapSaldo(cliente: ClienteFila, saldo?: SaldoFila): ClienteAdminListado 
   };
 }
 
-export async function obtenerClientesAdmin(): Promise<ClienteAdminListado[]> {
+export async function obtenerClientesAdmin(busqueda = "", pagina = 1) {
+  const termino = busqueda.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120);
+  const paginaActual = Number.isSafeInteger(pagina) && pagina > 0 ? Math.min(pagina, 100000) : 1;
+  const porPagina = 50;
   const supabase = await crearClienteSupabaseServidor();
-  const [{ data: clientes, error: clientesError }, { data: saldos, error: saldosError }] = await Promise.all([
-    supabase.from("clientes").select("id,nombre,telefono,email,activo"),
-    supabase.from("v_saldos_cuenta_clientes").select("cliente_id,total_pedidos,total_pagos_confirmados,total_ajustes_cargo,total_ajustes_abono,saldo_actual,cantidad_pedidos,fecha_ultimo_movimiento"),
-  ]);
+  let consulta = supabase.from("clientes").select("id,nombre,telefono,email,activo", { count: "exact" });
+  if (termino) {
+    // Escape LIKE wildcards, then quote the value for PostgREST's OR grammar.
+    const patron = `%${termino.replace(/[\\%_*]/g, (caracter) => `\\${caracter}`)}%`;
+    const valor = `"${patron.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+    consulta = consulta.or(["nombre", "telefono", "email"].map((campo) => `${campo}.ilike.${valor}`).join(","));
+  }
+  const { data: clientes, error: clientesError, count } = await consulta
+    .order("activo", { ascending: false }).order("nombre").order("id")
+    .range((paginaActual - 1) * porPagina, paginaActual * porPagina - 1);
   if (clientesError) throw clientesError;
-  if (saldosError) throw saldosError;
+  const filas = (clientes ?? []) as ClienteFila[];
+  if (!filas.length) return { clientes: [], total: count ?? 0, porPagina };
 
+  const { data: saldos, error: saldosError } = await supabase.from("v_saldos_cuenta_clientes")
+    .select("cliente_id,total_pedidos,total_pagos_confirmados,total_ajustes_cargo,total_ajustes_abono,saldo_actual,cantidad_pedidos,fecha_ultimo_movimiento")
+    .in("cliente_id", filas.map((cliente) => cliente.id));
+  if (saldosError) throw saldosError;
   const saldosPorCliente = new Map((saldos as SaldoFila[] ?? []).map((saldo) => [saldo.cliente_id, saldo]));
-  return (clientes as ClienteFila[] ?? [])
-    .map((cliente) => mapSaldo(cliente, saldosPorCliente.get(cliente.id)))
-    .sort((a, b) => Number(b.activo) - Number(a.activo) || Number(b.saldoActual > 0) - Number(a.saldoActual > 0) || a.nombre.localeCompare(b.nombre, "es-CL"));
+  return { clientes: filas.map((cliente) => mapSaldo(cliente, saldosPorCliente.get(cliente.id))), total: count ?? 0, porPagina };
 }
 
 export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetalle | null> {

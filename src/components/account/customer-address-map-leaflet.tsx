@@ -41,20 +41,24 @@ function MapEvents({ onCoordinatesChange }: { onCoordinatesChange: (coordinates:
   return null;
 }
 
-function RecenterMap({ center }: { center: Coordinate }) {
+function RecenterMap({ center, searchFocus }: { center: Coordinate; searchFocus: Coordinate | null }) {
   const map = useMap();
   useEffect(() => {
     map.setView([center.latitude, center.longitude], map.getZoom(), { animate: true });
   }, [center, map]);
+  useEffect(() => {
+    if (searchFocus) map.setView([searchFocus.latitude, searchFocus.longitude], Math.max(map.getZoom(), 17), { animate: true });
+  }, [searchFocus, map]);
   return null;
 }
 
-export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoordinatesChange, requireConfirmation = false, locationConfirmed = false, onConfirmLocation }: CustomerAddressMapProps) {
+export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoordinatesChange, requireConfirmation = false, locationConfirmed = false, onConfirmLocation, renderLocationSearch }: CustomerAddressMapProps) {
   const coordinates = { latitude, longitude };
   const hasLocation = hasCoordinates(coordinates);
   const center = hasLocation ? coordinates : DELIVERY_MAP_INITIAL_CENTER;
   const [isLocating, setIsLocating] = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
+  const [searchFocus, setSearchFocus] = useState<Coordinate | null>(null);
 
   const [locationAccuracy, setLocationAccuracy] = useState<(Coordinate & { meters: number }) | null>(null);
   const locationRequest = useRef(0);
@@ -151,11 +155,17 @@ export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoord
       </div>
       {requireConfirmation && <Button type="button" disabled={!hasLocation || locationConfirmed || isLocating} onClick={() => { if (hasCoordinates(coordinates)) onConfirmLocation?.(coordinates); }}>Confirmar ubicación</Button>}
       {geolocationError ? <p role="alert" className="text-sm text-destructive">{geolocationError}</p> : null}
+      {renderLocationSearch?.((nextCoordinates) => {
+        if (!hasCoordinates(nextCoordinates)) return;
+        const point = { latitude: nextCoordinates.latitude, longitude: nextCoordinates.longitude };
+        updateCoordinates(point);
+        setSearchFocus(point);
+      })}
       <div className="h-80 overflow-hidden rounded-xl border border-border" aria-label="Mapa para marcar la ubicación de entrega">
         <MapContainer center={[center.latitude, center.longitude]} zoom={hasLocation ? 16 : DELIVERY_MAP_INITIAL_ZOOM} scrollWheelZoom className="h-full w-full" aria-label="Mapa de ubicación de entrega">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapEvents onCoordinatesChange={updateCoordinates} />
-          <RecenterMap center={center} />
+          <RecenterMap center={center} searchFocus={searchFocus} />
           {hasLocation ? <Marker icon={requireConfirmation && !locationConfirmed ? provisionalPin : confirmedPin} title={requireConfirmation && !locationConfirmed ? "Punto provisional: arrastra para ajustar" : "Ubicación de entrega: arrastra para ajustar"} position={[coordinates.latitude, coordinates.longitude]} draggable eventHandlers={{ dragstart: invalidateLocationRequest, dragend: (event) => { const position = event.target.getLatLng(); updateCoordinates({ latitude: position.lat, longitude: position.lng }); } }} /> : null}
         </MapContainer>
       </div>

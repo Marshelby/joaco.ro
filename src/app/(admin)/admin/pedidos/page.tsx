@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
-import { obtenerCantidadPedidosRecibidos, obtenerEntregasProximasAdmin, obtenerPedidosAdmin } from "@/lib/admin/pedidos";
+import { obtenerEtiquetaCanalPedido, obtenerCantidadPedidosRecibidos, obtenerEntregasProximasAdmin, obtenerPedidosAdmin } from "@/lib/admin/pedidos";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 export const metadata: Metadata = { title: "Pedidos" };
@@ -19,7 +19,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const { filtro } = params;
   if (filtro === "posibles") return <div className="space-y-8">
-    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." />
+    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<ActionLink href={ROUTES.adminNewOrder()}>Crear pedido</ActionLink>} />
     <OrderViews vista="posibles" />
     <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
   </div>;
@@ -33,7 +33,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." />
+      <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<ActionLink href={ROUTES.adminNewOrder()}>Crear pedido</ActionLink>} />
       <section className="space-y-5" aria-labelledby="lista-pedidos-title">
         <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -77,8 +77,8 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             {pedidos.map((pedido) => (
               <li key={pedido.id} className="rounded-xl border border-border bg-card p-4 sm:p-5">
                 <div className="grid gap-4 sm:grid-cols-[minmax(0,1.35fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_auto] sm:items-center sm:gap-5">
-                  <div className="min-w-0"><h3 className="font-semibold tracking-tight text-foreground">{pedido.numeroPedido}</h3><p className="mt-1 truncate text-sm text-muted-foreground">{pedido.nombreClienteSnapshot}</p></div>
-                  <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
+                  <div className="min-w-0"><h3 className="font-semibold tracking-tight text-foreground">{pedido.numeroPedido}</h3><p className="mt-1 truncate text-sm text-muted-foreground">{pedido.nombreClienteSnapshot}</p><p className="mt-1 text-sm font-medium text-foreground">Canal: {obtenerEtiquetaCanalPedido(pedido.canalOrigen)}</p>{pedido.nombreUbicacionSnapshot ? <p className="mt-1 break-words text-sm text-muted-foreground">Ubicación: {pedido.nombreUbicacionSnapshot}</p> : pedido.canalOrigen === "manual" ? <p className="mt-1 text-sm text-muted-foreground">Ubicación no registrada</p> : null}</div>
+                  <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
                   <div><span className="text-sm text-muted-foreground sm:sr-only">Estado</span><div className="mt-1 sm:mt-0"><OrderStatusBadge estado={pedido.estado} /></div></div>
                   <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
                 </div>

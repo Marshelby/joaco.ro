@@ -20,6 +20,9 @@ export const ROUTES = {
   adminCategories: "/admin/categorias",
   adminHomeSections: "/admin/secciones-inicio",
   adminOrders: "/admin/pedidos",
+  adminNewOrder: (clienteId?: string) => clienteId
+    ? `/admin/pedidos/nuevo?${new URLSearchParams({ cliente_id: clienteId })}`
+    : "/admin/pedidos/nuevo",
   adminCustomers: "/admin/clientes",
   adminDeliveries: "/admin/entregas",
   adminRoutes: "/admin/rutas",

@@ -39,7 +39,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
 
   return (
     <div className="space-y-8">
-      <PageHeader title={cliente.nombre} description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."} actions={<><ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary">Enviar mensaje</ActionLink><ActionLink href={ROUTES.adminCustomers} variant="secondary">Volver a clientes</ActionLink></>} />
+      <PageHeader title={cliente.nombre} description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."} actions={<div className="flex flex-wrap justify-end gap-2"><ActionLink href={ROUTES.adminNewOrder(cliente.id)} variant="primary">Crear pedido</ActionLink><ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary">Enviar mensaje</ActionLink><ActionLink href={ROUTES.adminCustomers} variant="secondary">Volver a clientes</ActionLink></div>} />
       <CustomerCommercialForm clienteId={cliente.id} zonas={zonas} />
       <CustomerCommercialAddresses key={ficha.revision} ficha={ficha} zonas={zonas} />
       <CustomerWebAccess clienteId={cliente.id} clienteActivo={cliente.activo} usuarioId={cliente.usuarioId} invitacion={cliente.invitacionAcceso} />

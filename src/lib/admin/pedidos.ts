@@ -10,6 +10,8 @@ export type PedidoAdminListado = {
   id: string;
   numeroPedido: string;
   nombreClienteSnapshot: string;
+  canalOrigen: string | null;
+  nombreUbicacionSnapshot: string | null;
   estado: EstadoPedidoAdmin;
   total: number;
   fechaCreacion: string;
@@ -80,7 +82,8 @@ export type DetalleEntregaAdmin = {
 };
 
 export type PedidoAdminDetalle = PedidoAdminListado & {
-  canalOrigen: string;
+  clienteId: string | null;
+  historialPrecios: readonly AjustePrecioPedidoAdmin[] | null;
   telefonoClienteSnapshot: string | null;
   emailClienteSnapshot: string | null;
   direccionSnapshot: string | null;
@@ -100,10 +103,21 @@ export type PedidoAdminDetalle = PedidoAdminListado & {
   items: readonly ItemPedidoAdmin[];
 };
 
+export type AjustePrecioPedidoAdmin = {
+  itemPedidoId: string;
+  precioReferencia: number;
+  precioAplicado: number;
+  motivo: string;
+  administradorId: string;
+  fechaAutorizacion: string;
+};
+
 type PedidoListadoFila = {
   id: string;
   numero_pedido: string;
   nombre_cliente_snapshot: string;
+  canal_origen?: string | null;
+  nombre_ubicacion_snapshot?: string | null;
   estado: EstadoPedidoAdmin;
   total: number | string;
   fecha_creacion: string;
@@ -156,7 +170,7 @@ export type ItemParaConsolidarEntrega = Pick<
 >;
 
 type PedidoDetalleFila = PedidoListadoFila & {
-  canal_origen: string;
+  cliente_id: string | null;
   telefono_cliente_snapshot: string | null;
   email_cliente_snapshot: string | null;
   direccion_snapshot: string | null;
@@ -181,6 +195,8 @@ function mapPedidoListado(fila: PedidoListadoFila): PedidoAdminListado {
     id: fila.id,
     numeroPedido: fila.numero_pedido,
     nombreClienteSnapshot: fila.nombre_cliente_snapshot,
+    canalOrigen: fila.canal_origen ?? null,
+    nombreUbicacionSnapshot: fila.nombre_ubicacion_snapshot ?? null,
     estado: fila.estado,
     total: Number(fila.total),
     fechaCreacion: fila.fecha_creacion,
@@ -229,18 +245,58 @@ export function consolidarItemsEntrega(items: readonly ItemParaConsolidarEntrega
   );
 }
 
+// La columna nueva puede no estar desplegada todavía; no reconstruir snapshots
+// desde direcciones actuales ni ocultar errores de permisos o conectividad.
+async function obtenerUbicacionesSnapshot(supabase: Awaited<ReturnType<typeof crearClienteSupabaseServidor>>, ids: string[]) {
+  const ubicaciones = new Map<string, string | null>();
+  if (ids.length === 0) return ubicaciones;
+  const { data, error } = await supabase.from("pedidos").select("id,nombre_ubicacion_snapshot").in("id", ids);
+  if (error) {
+    if (["42703", "PGRST204"].includes(error.code) && error.message.includes("nombre_ubicacion_snapshot")) return ubicaciones;
+    throw error;
+  }
+  for (const fila of data ?? []) ubicaciones.set(fila.id, fila.nombre_ubicacion_snapshot);
+  return ubicaciones;
+}
+
+async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnType<typeof crearClienteSupabaseServidor>>, itemIds: string[]): Promise<AjustePrecioPedidoAdmin[] | null> {
+  if (itemIds.length === 0) return [];
+  const { data: admin, error: errorAdmin } = await supabase.rpc("es_admin");
+  if (errorAdmin) throw errorAdmin;
+  if (admin !== true) throw new Error("NO_AUTORIZADO");
+  const { data, error } = await supabase.from("auditoria_precios_pedido_administrativo")
+    .select("item_pedido_id,precio_referencia,precio_aplicado,motivo,administrador_id,fecha_autorizacion")
+    .in("item_pedido_id", itemIds)
+    .order("fecha_autorizacion", { ascending: false })
+    .order("item_pedido_id");
+  if (error) {
+    if (["42P01", "PGRST205"].includes(error.code)) return null;
+    throw error;
+  }
+  return (data ?? []).map((fila) => ({
+    itemPedidoId: fila.item_pedido_id,
+    precioReferencia: Number(fila.precio_referencia),
+    precioAplicado: Number(fila.precio_aplicado),
+    motivo: fila.motivo,
+    administradorId: fila.administrador_id,
+    fechaAutorizacion: fila.fecha_autorizacion,
+  }));
+}
+
 export async function obtenerPedidosAdmin(soloRecibidos: boolean) {
   const supabase = await crearClienteSupabaseServidor();
   let consulta = supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
+    .select("id,numero_pedido,nombre_cliente_snapshot,canal_origen,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
     .order("fecha_creacion", { ascending: false });
 
   if (soloRecibidos) consulta = consulta.eq("estado", "recibido");
 
   const { data, error } = await consulta;
   if (error) throw error;
-  return (data as PedidoListadoFila[] ?? []).map(mapPedidoListado);
+  const filas = (data ?? []) as PedidoListadoFila[];
+  const ubicaciones = await obtenerUbicacionesSnapshot(supabase, filas.map((fila) => fila.id));
+  return filas.map((fila) => mapPedidoListado({ ...fila, nombre_ubicacion_snapshot: ubicaciones.get(fila.id) }));
 }
 
 export async function obtenerCantidadPedidosRecibidos() {
@@ -406,7 +462,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen))")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen))")
     .eq("id", id)
     .maybeSingle();
 
@@ -414,9 +470,15 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   if (!data) return null;
 
   const fila = data as unknown as PedidoDetalleFila;
+  const [ubicaciones, historialPrecios] = await Promise.all([
+    obtenerUbicacionesSnapshot(supabase, [fila.id]),
+    obtenerHistorialPreciosAdministrativos(supabase, (fila.items_pedido ?? []).map((item) => item.id)),
+  ]);
   return {
     ...mapPedidoListado(fila),
-    canalOrigen: fila.canal_origen,
+    nombreUbicacionSnapshot: ubicaciones.get(fila.id) ?? null,
+    clienteId: fila.cliente_id,
+    historialPrecios,
     telefonoClienteSnapshot: fila.telefono_cliente_snapshot,
     emailClienteSnapshot: fila.email_cliente_snapshot,
     direccionSnapshot: fila.direccion_snapshot,
@@ -475,4 +537,11 @@ export function formatearCantidadConUnidadEntrega(cantidad: number, unidad: stri
 
 export function formatearCantidadPreparacion(item: Pick<ItemPreparacionPedidoAdmin, "cantidad" | "nombrePresentacion" | "unidad" | "modoCantidadSnapshot">) {
   return formatearCantidadPreparacionEntrega(item.cantidad, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
+}
+
+export function obtenerEtiquetaCanalPedido(canal: string | null) {
+  if (canal === "manual") return "Manual · Administrativo";
+  if (canal === "web") return "Web";
+  if (canal === "whatsapp") return "WhatsApp";
+  return canal || "No registrado";
 }

@@ -74,7 +74,7 @@ export async function buscarClientesPedido(busqueda: string, pagina: number) {
   await administradorComercial();
   // El rango queda limitado solo por la precisión segura de los índices numéricos.
   const limitePaginas = Math.floor(Number.MAX_SAFE_INTEGER / 50);
-  return obtenerClientesAdmin(z.string().max(120).parse(busqueda), z.number().int().min(1).max(limitePaginas).parse(pagina), limitePaginas);
+  return obtenerClientesAdmin(z.string().max(120).parse(busqueda), z.number().int().min(1).max(limitePaginas).parse(pagina));
 }
 
 export async function cargarClientePedido(id: string) {

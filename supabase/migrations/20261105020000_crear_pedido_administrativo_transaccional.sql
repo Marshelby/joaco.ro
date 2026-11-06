@@ -1,3 +1,6 @@
+-- REFERENCIA HISTÓRICA: ejecutada en Supabase remoto. No volver a ejecutar.
+-- Contrato unitario original; la adaptación incremental está en
+-- 20261105030000_totales_linea_pedido_administrativo.sql.
 -- Contrato p_pedido: PedidoBorrador (camelCase), sin campos opcionales ni
 -- actor/fecha/totales de despacho suministrados por el consumidor.
 -- Sólo persistencia: no modifica las RPC del checkout ni conecta el formulario.

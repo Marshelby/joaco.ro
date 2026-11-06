@@ -8,7 +8,7 @@ export type LineaPedidoBorrador = {
   presentacion: PresentacionPedido;
   cantidad: string;
   precioReferencia: number;
-  precioAplicado: string;
+  totalFinal: string;
   motivoAjuste: string;
 };
 
@@ -22,17 +22,19 @@ export type PedidoPreciosBorrador = {
     presentacionId: string;
     cantidad: number;
     precioReferencia: number;
-    precioAplicado: number;
+    totalFinal: number;
     motivoAjuste: string | null;
-    total: number;
+    totalOriginal: number;
   }[];
   subtotal: number;
 };
 
+export const IMPORTE_MAXIMO_PEDIDO = 9_000_000_000_000;
+
 export function leerPrecioPedido(valor: string): number | null {
   if (!/^\d+$/.test(valor)) return null;
   const precio = Number(valor);
-  return Number.isSafeInteger(precio) ? precio : null;
+  return Number.isSafeInteger(precio) && precio <= IMPORTE_MAXIMO_PEDIDO ? precio : null;
 }
 
 export function totalLineaPedido(item: PresentacionPedido, cantidad: string, precio: number | null): number | null {
@@ -42,7 +44,7 @@ export function totalLineaPedido(item: PresentacionPedido, cantidad: string, pre
   // Las cantidades admitidas son enteras o medios kilos. Redondeo al peso
   // por línea, igual que el contrato de cantidades, sin multiplicación decimal.
   const total = (BigInt(unidades * 2) * BigInt(precio) + BigInt(1)) / BigInt(2);
-  return total <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(total) : null;
+  return total <= BigInt(IMPORTE_MAXIMO_PEDIDO) ? Number(total) : null;
 }
 
 export function crearBorradorPrecios(clienteId: string, ubicacionId: string, lineas: LineaPedidoBorrador[], catalogo: PresentacionPedido[]): PedidoPreciosBorrador | null {
@@ -51,15 +53,16 @@ export function crearBorradorPrecios(clienteId: string, ubicacionId: string, lin
   const ids = new Set<string>();
   for (const linea of lineas) {
     const item = catalogo.find((actual) => actual.presentacionId === linea.presentacion.presentacionId && actual.productoId === linea.presentacion.productoId);
-    const precio = leerPrecioPedido(linea.precioAplicado);
-    const total = item ? totalLineaPedido(item, linea.cantidad, precio) : null;
-    if (!item || precio === null || total === null || ids.has(item.presentacionId)
-      || !Number.isSafeInteger(linea.precioReferencia) || linea.precioReferencia < 0
-      || (precio !== linea.precioReferencia && !linea.motivoAjuste.trim())) return null;
+    const precio = leerPrecioPedido(linea.totalFinal);
+    const original = item ? totalLineaPedido(item, linea.cantidad, item.precioFinalReferencia) : null;
+    const total = precio;
+    if (!item || precio === null || original === null || total === null || ids.has(item.presentacionId)
+      || !Number.isSafeInteger(linea.precioReferencia) || linea.precioReferencia !== item.precioFinalReferencia
+      || (precio !== original && !linea.motivoAjuste.trim()) || linea.motivoAjuste.length > 1000) return null;
     ids.add(item.presentacionId);
-    resultado.lineas.push({ productoId: item.productoId, presentacionId: item.presentacionId, cantidad: Number(linea.cantidad), precioReferencia: linea.precioReferencia, precioAplicado: precio, motivoAjuste: precio === linea.precioReferencia ? null : linea.motivoAjuste.trim(), total });
+    resultado.lineas.push({ productoId: item.productoId, presentacionId: item.presentacionId, cantidad: Number(linea.cantidad), precioReferencia: linea.precioReferencia, totalFinal: precio, motivoAjuste: precio === original ? null : linea.motivoAjuste.trim(), totalOriginal: original });
     resultado.subtotal += total;
-    if (!Number.isSafeInteger(resultado.subtotal)) return null;
+    if (!Number.isSafeInteger(resultado.subtotal) || resultado.subtotal > IMPORTE_MAXIMO_PEDIDO) return null;
   }
   return resultado;
 }

@@ -106,7 +106,9 @@ export type PedidoAdminDetalle = PedidoAdminListado & {
 export type AjustePrecioPedidoAdmin = {
   itemPedidoId: string;
   precioReferencia: number;
-  precioAplicado: number;
+  precioAplicado: number | null;
+  totalOriginal: number | null;
+  totalAplicado: number | null;
   motivo: string;
   administradorId: string;
   fechaAutorizacion: string;
@@ -265,7 +267,7 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
   if (errorAdmin) throw errorAdmin;
   if (admin !== true) throw new Error("NO_AUTORIZADO");
   const { data, error } = await supabase.from("auditoria_precios_pedido_administrativo")
-    .select("item_pedido_id,precio_referencia,precio_aplicado,motivo,administrador_id,fecha_autorizacion")
+    .select("*")
     .in("item_pedido_id", itemIds)
     .order("fecha_autorizacion", { ascending: false })
     .order("item_pedido_id");
@@ -276,7 +278,9 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
   return (data ?? []).map((fila) => ({
     itemPedidoId: fila.item_pedido_id,
     precioReferencia: Number(fila.precio_referencia),
-    precioAplicado: Number(fila.precio_aplicado),
+    precioAplicado: fila.precio_aplicado == null ? null : Number(fila.precio_aplicado),
+    totalOriginal: fila.total_original == null ? null : Number(fila.total_original),
+    totalAplicado: fila.total_aplicado == null ? null : Number(fila.total_aplicado),
     motivo: fila.motivo,
     administradorId: fila.administrador_id,
     fechaAutorizacion: fila.fecha_autorizacion,

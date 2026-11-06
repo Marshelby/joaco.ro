@@ -5,11 +5,11 @@ import { obtenerFechasEntregaDisponibles } from "@/lib/delivery-availability";
 import { z } from "zod";
 import { administradorComercial, leerFichaComercial } from "@/lib/admin/cliente-comercial";
 import { obtenerClienteAdmin, obtenerClientesAdmin } from "@/lib/admin/clientes";
-import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
+import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
 import { PAYMENT_INTENT_OPTIONS } from "@/lib/payment-intent";
 import { ROUTES } from "@/config/routes";
 
-const importe = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const importe = z.number().int().nonnegative().max(IMPORTE_MAXIMO_PEDIDO);
 // Solo estructura y límites de transporte. La RPC verifica referencias,
 // disponibilidad, cantidades por presentación, precios, totales y entrega.
 const pedidoConfirmacion: z.ZodType<PedidoBorrador> = z.strictObject({
@@ -18,8 +18,8 @@ const pedidoConfirmacion: z.ZodType<PedidoBorrador> = z.strictObject({
   lineas: z.array(z.strictObject({
     productoId: z.uuid(), presentacionId: z.uuid(),
     cantidad: z.number().positive().max(Number.MAX_SAFE_INTEGER),
-    precioReferencia: importe, precioAplicado: importe,
-    motivoAjuste: z.string().max(1000).nullable(), total: importe,
+    precioReferencia: importe, totalFinal: importe,
+    motivoAjuste: z.string().max(1000).nullable(), totalOriginal: importe,
   })).min(1).max(100),
   subtotal: importe,
   fechaEntrega: z.iso.date(),
@@ -72,7 +72,9 @@ export async function confirmarPedidoAdministrativo(entrada: CrearPedidoAdminist
 
 export async function buscarClientesPedido(busqueda: string, pagina: number) {
   await administradorComercial();
-  return obtenerClientesAdmin(z.string().max(120).parse(busqueda), z.number().int().min(1).max(100000).parse(pagina));
+  // El rango queda limitado solo por la precisión segura de los índices numéricos.
+  const limitePaginas = Math.floor(Number.MAX_SAFE_INTEGER / 50);
+  return obtenerClientesAdmin(z.string().max(120).parse(busqueda), z.number().int().min(1).max(limitePaginas).parse(pagina), limitePaginas);
 }
 
 export async function cargarClientePedido(id: string) {
@@ -99,19 +101,36 @@ export async function cargarCatalogoPedido(clienteId: string, ubicacionId: strin
   const ubicacion = z.uuid().parse(ubicacionId);
   if (!seleccion.ubicaciones.some((item) => item.id === ubicacion)) throw new Error("Ubicación no disponible");
   const supabase = await crearClienteSupabaseServidor();
-  const { data, error } = await supabase.from("productos")
-    .select("id,nombre,categorias!inner(activa),presentaciones_producto!inner(id,nombre,cantidad,unidad,precio_final,activa,orden)")
-    .eq("activo", true).eq("disponible", true).eq("categorias.activa", true)
-    .eq("presentaciones_producto.activa", true).order("nombre");
-  if (error) throw new Error("No fue posible cargar el catálogo vigente");
-  return (data ?? []).flatMap((producto) => producto.presentaciones_producto
-    .filter((item) => item.activa)
-    .sort((a, b) => a.orden - b.orden)
+  // Paginar presentaciones (también las de un mismo producto) evita los
+  // límites implícitos de filas de Supabase y de las relaciones anidadas.
+  type PresentacionCatalogo = {
+    id: string; nombre: string; cantidad: number | string; unidad: string;
+    precio_final: number | string; es_principal: boolean; orden: number;
+    productos: { id: string; nombre: string };
+  };
+  const items: PresentacionCatalogo[] = [];
+  let desde = 0;
+  while (true) {
+    const { data, error } = await supabase.from("presentaciones_producto")
+      .select("id,nombre,cantidad,unidad,precio_final,es_principal,orden,productos!inner(id,nombre,activo,disponible,categorias!inner(activa))")
+      .eq("activa", true).eq("productos.activo", true).eq("productos.disponible", true)
+      .eq("productos.categorias.activa", true)
+      .order("id").range(desde, desde + 199);
+    if (error) throw new Error("No fue posible cargar el catálogo vigente");
+    if (!data?.length) break;
+    items.push(...(data as unknown as PresentacionCatalogo[]));
+    desde += data.length;
+  }
+  return [...new Map(items.map((item) => [item.id, item])).values()]
+    .sort((a, b) => a.productos.nombre.localeCompare(b.productos.nombre, "es-CL")
+      || a.productos.id.localeCompare(b.productos.id)
+      || Number(b.es_principal) - Number(a.es_principal)
+      || a.orden - b.orden || a.id.localeCompare(b.id))
     .map((item) => ({
-      productoId: producto.id, nombre: producto.nombre, presentacionId: item.id,
+      productoId: item.productos.id, nombre: item.productos.nombre, presentacionId: item.id,
       presentacionNombre: item.nombre, cantidadPresentacion: Number(item.cantidad),
       unidad: item.unidad, precioFinalReferencia: Number(item.precio_final),
-    })))
+    }))
     .filter((item) => Number.isFinite(item.precioFinalReferencia) && item.precioFinalReferencia > 0
       && Number.isFinite(item.cantidadPresentacion) && item.cantidadPresentacion > 0);
 }

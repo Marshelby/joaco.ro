@@ -95,7 +95,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               </div>
               <div className="min-w-0"><h3 className="font-medium text-foreground">{item.nombreProductoSnapshot}</h3><p className="mt-1 text-sm text-muted-foreground">{item.nombrePresentacionSnapshot ?? "Presentación no registrada"}</p></div>
             </div>
-            <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Cantidad</dt><dd className="mt-1 font-medium text-foreground">{formatearCantidadPedido(item.cantidad, item.unidadSnapshot)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Precio aplicado unitario</dt><dd className="mt-1 font-medium text-foreground">{formatCLP(item.precioFinalUnitarioSnapshot)}</dd></div></dl>
+            <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Cantidad</dt><dd className="mt-1 font-medium text-foreground">{formatearCantidadPedido(item.cantidad, item.unidadSnapshot)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Precio unitario snapshot</dt><dd className="mt-1 font-medium text-foreground">{formatCLP(item.precioFinalUnitarioSnapshot)}</dd></div></dl>
             <p className="text-right font-semibold text-foreground">{formatCLP(item.totalLinea)}</p>
           </li>)}
         </ul>
@@ -111,8 +111,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               return <li key={ajuste.itemPedidoId} className="space-y-3 py-4">
                 <h3 className="font-medium text-foreground">{item ? [item.nombreProductoSnapshot, item.nombrePresentacionSnapshot].filter(Boolean).join(" · ") : "Producto no disponible"}</h3>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div><dt className="text-muted-foreground">Precio de referencia unitario</dt><dd className="mt-1">{formatCLP(ajuste.precioReferencia)}</dd></div>
-                  <div><dt className="text-muted-foreground">Precio aplicado unitario</dt><dd className="mt-1">{formatCLP(ajuste.precioAplicado)}</dd></div>
+                  <div><dt className="text-muted-foreground">{ajuste.totalOriginal === null ? "Precio de referencia unitario" : "Total original de línea"}</dt><dd className="mt-1">{formatCLP(ajuste.totalOriginal ?? ajuste.precioReferencia)}</dd></div>
+                  <div><dt className="text-muted-foreground">{ajuste.totalAplicado === null ? "Precio aplicado unitario" : "Total final de línea"}</dt><dd className="mt-1">{formatCLP(ajuste.totalAplicado ?? ajuste.precioAplicado ?? 0)}</dd></div>
                   <div className="sm:col-span-2"><dt className="text-muted-foreground">Motivo</dt><dd className="mt-1 whitespace-pre-wrap break-words">{ajuste.motivo}</dd></div>
                   <div><dt className="text-muted-foreground">Actor (ID administrador)</dt><dd className="mt-1 break-all">{ajuste.administradorId}</dd></div>
                   <div><dt className="text-muted-foreground">Fecha de autorización</dt><dd className="mt-1"><time dateTime={ajuste.fechaAutorizacion}>{formatDateTimeCL(ajuste.fechaAutorizacion)}</time></dd></div>

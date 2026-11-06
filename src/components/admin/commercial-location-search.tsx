@@ -96,7 +96,7 @@ export function CommercialLocationSearch({ provider = administrativeProvider, on
         setResults([]);
         setActive(-1);
         setOpen(true);
-        setStatus(provider && event.target.value.trim().length >= 3 && event.target.value.trim().length <= 200 ? "searching" : "idle");
+        setStatus(event.target.value.trim().length >= 3 && event.target.value.trim().length <= 200 ? "searching" : "idle");
       }} onKeyDown={(event) => {
         if (event.key === "Escape") { event.preventDefault(); setOpen(false); setActive(-1); }
         if ((event.key === "ArrowDown" || event.key === "ArrowUp") && results.length) {
@@ -110,7 +110,7 @@ export function CommercialLocationSearch({ provider = administrativeProvider, on
         }
       }} />
     <p id={`${id}-status`} role="status" aria-live="polite" className="text-sm text-muted-foreground">
-      {!provider ? "La búsqueda aún no está disponible. Puedes marcar el punto en el mapa o usar tu ubicación actual." : status === "searching" ? "Buscando…" : status === "error" ? errorMessage : status === "ready" && !results.length ? "Sin resultados. Prueba con otra dirección o lugar." : status === "ready" ? `${results.length} sugerencias disponibles. Usa las flechas y Enter para seleccionar.` : "Escribe al menos 3 caracteres para buscar."}
+      {status === "searching" ? "Buscando…" : status === "error" ? errorMessage : status === "ready" && !results.length ? "Sin resultados. Prueba con otra dirección o lugar." : status === "ready" ? `${results.length} sugerencias disponibles. Usa las flechas y Enter para seleccionar.` : "Escribe al menos 3 caracteres para buscar."}
     </p>
     <ul id={`${id}-results`} role="listbox" aria-label="Direcciones y lugares sugeridos" hidden={!expanded} className="max-h-60 overflow-y-auto rounded-lg border border-border">
       {results.map((result, index) => <li key={`${result.id}-${index}`} id={`${id}-option-${index}`} role="option" aria-selected={active === index}

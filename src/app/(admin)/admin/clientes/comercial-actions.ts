@@ -18,15 +18,7 @@ export async function guardarFichaComercial(entrada: DocumentoComercial, confirm
   try {
     const db = await administradorComercial();
     if (!d.clienteId) {
-      // La creación rápida no acepta direcciones completas ni campos adicionales fuera del contrato.
       d.cliente.activo = true;
-      if (d.direcciones.length) return { error: "Para crear usa únicamente la dirección simplificada." };
-      if (d.direccionRapida) {
-        // La RPC deriva la región dentro de la operación idempotente, sin inventar datos.
-        d.direcciones = [{ id: null, nombre: null, destinatario: null, telefono_contacto: null,
-          direccion: d.direccionRapida.direccion, comuna: d.direccionRapida.comuna, region: null, zona_entrega_id: null,
-          referencia: null, latitud: d.direccionRapida.latitud ?? null, longitud: d.direccionRapida.longitud ?? null, activa: true, es_principal: true }];
-      }
 
       // Incluye inactivos y compara exactamente como SQL, sin inferir país.
       const coincidencias: CoincidenciaComercial[] = [];
@@ -53,6 +45,7 @@ export async function guardarFichaComercial(entrada: DocumentoComercial, confirm
     if (transporteIncierto) resultado = await db.rpc("guardar_cliente_administrativo", argumentos);
     if (resultado.error) {
       const mensaje = resultado.error.message;
+      if (resultado.error.code === "23505" && mensaje.includes("direcciones_cliente_nombre_ubicacion_unico")) return { error: "El nombre de ubicación ya existe en este cliente." };
       if (resultado.error.code === "PGRST202" || (resultado.error.code === "42883" && /guardar_cliente_administrativo/.test(mensaje))) {
         return transporteIncierto
           ? { error: "No se pudo confirmar el primer guardado y la RPC guardar_cliente_administrativo no está disponible para reintentarlo. Recarga para revisar el estado.", incierto: true }
@@ -61,6 +54,10 @@ export async function guardarFichaComercial(entrada: DocumentoComercial, confirm
       if (/CLIENTE_DESACTUALIZADO|POSIBLE_PEDIDO_DESACTUALIZADO/.test(mensaje) || resultado.error.code === "40001") return { conflicto: true, error: "La ficha o solicitud cambió. Recarga antes de volver a editar; no se sobrescribieron los cambios." };
       const errores: Record<string, string> = {
         NO_AUTORIZADO: "Tu sesión no tiene autorización administrativa.", CLAVE_OPERACION_EN_USO: "La clave ya fue usada con otros datos. Recarga la ficha.",
+        UBICACION_REQUERIDA: "Cada ubicación nueva requiere nombre y coordenadas confirmadas.",
+        COORDENADAS_NO_RETIRABLES: "No se pueden retirar las coordenadas existentes.",
+        LIMITE_UBICACIONES: "El cliente admite hasta 50 ubicaciones comerciales.",
+        NOMBRE_UBICACION_DUPLICADO: "El nombre de ubicación ya existe en este cliente.",
         ZONA_INVALIDA: "Una zona seleccionada ya no está activa. Recarga la ficha.", CLIENTE_NO_ENCONTRADO: "El cliente ya no está disponible.",
         POSIBLE_PEDIDO_CERRADO: "La solicitud ya está cerrada. Recarga la página.",
       };

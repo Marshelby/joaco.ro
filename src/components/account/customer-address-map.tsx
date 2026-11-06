@@ -7,7 +7,10 @@ export type AddressCoordinates = {
   longitude: number | null;
 };
 
-type CustomerAddressMapProps = AddressCoordinates & {
+export type CustomerAddressMapProps = AddressCoordinates & {
+  requireConfirmation?: boolean;
+  locationConfirmed?: boolean;
+  onConfirmLocation?: (coordinates: AddressCoordinates) => void;
   onCoordinatesChange: (coordinates: AddressCoordinates) => void;
 };
 

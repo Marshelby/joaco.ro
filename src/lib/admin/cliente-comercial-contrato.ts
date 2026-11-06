@@ -10,25 +10,22 @@ export const clienteComercialSchema = z.object({
   observaciones: z.string().trim().max(4000).nullable(), activo: z.boolean(),
 }).strict();
 export const direccionComercialSchema = z.object({
-  id: z.uuid().nullable(), nombre: texto.nullable(), destinatario: opcional, telefono_contacto: telefono.nullable(),
-  direccion: texto, comuna: texto, region: texto.nullable(), zona_entrega_id: z.uuid().nullable(), referencia: opcional,
+  id: z.uuid().nullable(), nombre_ubicacion: texto.nullable(), nombre: texto.nullable(), destinatario: opcional, telefono_contacto: telefono.nullable(),
+  direccion: texto.nullable(), comuna: texto.nullable(), region: texto.nullable(), zona_entrega_id: z.uuid().nullable(), referencia: opcional,
   latitud: z.number().min(-90).max(90).nullable(), longitud: z.number().min(-180).max(180).nullable(),
   es_principal: z.boolean(), activa: z.boolean(),
 }).strict().refine((d) => (d.latitud === null) === (d.longitud === null), "Coordenadas incompletas.")
+  .refine((d) => d.id !== null || (!!d.nombre_ubicacion && d.latitud !== null && d.longitud !== null), "Cada ubicación nueva requiere nombre y un punto confirmado en el mapa.")
   .refine((d) => !d.es_principal || d.activa, "La dirección principal debe estar activa.");
 export const documentoComercialSchema = z.object({
   clave: z.uuid(), clienteId: z.uuid().nullable(), revision: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
   cliente: clienteComercialSchema, direcciones: z.array(direccionComercialSchema).max(50),
-  direccionRapida: z.object({
-    direccion: texto, comuna: texto,
-    latitud: z.number().min(-90).max(90).nullable().optional(),
-    longitud: z.number().min(-180).max(180).nullable().optional(),
-  }).strict().refine((d) => (d.latitud == null) === (d.longitud == null), "Coordenadas incompletas.").nullable().optional(),
   posibleId: z.uuid().nullable(), version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
 }).strict().refine((d) => (d.posibleId === null) === (d.version === null), "Asociación incompleta.")
   .refine((d) => (d.clienteId === null) === (d.revision === null), "Revisión requerida para editar.")
   .refine((d) => d.clienteId !== null || celularChilenoSchema.safeParse(d.cliente.telefono).success, "Celular: ingresa exactamente 8 dígitos después de +569.")
-  .refine((d) => d.clienteId === null || !d.direccionRapida, "La dirección simplificada solo está disponible al crear.")
+  .refine((d) => d.clienteId !== null || d.direcciones.length > 0, "Agrega al menos una ubicación comercial.")
+  .refine((d) => { const nombres = d.direcciones.flatMap((a) => a.nombre_ubicacion ? [a.nombre_ubicacion.toLowerCase()] : []); return new Set(nombres).size === nombres.length; }, "El nombre de ubicación debe ser único dentro del cliente.")
   .refine((d) => d.direcciones.filter((a) => a.es_principal).length <= 1, "Selecciona una sola dirección principal.");
 export type ClienteComercial = z.infer<typeof clienteComercialSchema>;
 export type DireccionComercial = z.infer<typeof direccionComercialSchema>;

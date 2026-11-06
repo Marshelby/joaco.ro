@@ -40,7 +40,7 @@ export default async function AdminNewOrderPage({
       />
 
       <div id="estado-integracion" role="status" className="rounded-xl border border-border bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">
-        Selecciona un cliente, su ubicación comercial y los productos. Revisa los precios por línea y selecciona fecha de entrega y métodos previstos de pago; la confirmación permanece deshabilitada.
+        Selecciona un cliente, su ubicación comercial y los productos. Revisa los precios por línea y selecciona fecha de entrega y métodos previstos de pago; confirma el pedido después de revisar el resumen.
       </div>
       {errorInicial ? <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{errorInicial}</p> : null}
 

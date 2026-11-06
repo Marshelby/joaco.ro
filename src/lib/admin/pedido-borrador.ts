@@ -39,8 +39,12 @@ export function leerPrecioPedido(valor: string): number | null {
 
 export function totalLineaPedido(item: PresentacionPedido, cantidad: string, precio: number | null): number | null {
   const unidades = Number(cantidad);
-  if (!cantidad.trim() || !isValidCartQuantity(item, unidades) || !Number.isSafeInteger(unidades * 2)
-    || precio === null || !Number.isSafeInteger(precio) || precio < 0) return null;
+  if (!cantidad.trim() || unidades > 100000 || !isValidCartQuantity(item, unidades) || !Number.isSafeInteger(unidades * 2)
+    || precio === null || !Number.isSafeInteger(precio) || precio <= 0 || precio > IMPORTE_MAXIMO_PEDIDO) return null;
+  // Coincidir también con la clasificación SQL (subcadenas y unidad sin espacios).
+  const fraccionableSQL = item.unidad.trim().toUpperCase() === "KG"
+    && item.cantidadPresentacion === 1 && !/(saco|malla|caja|paquete|docena)/i.test(item.presentacionNombre);
+  if (!Number.isInteger(unidades) && !fraccionableSQL) return null;
   // Las cantidades admitidas son enteras o medios kilos. Redondeo al peso
   // por línea, igual que el contrato de cantidades, sin multiplicación decimal.
   const total = (BigInt(unidades * 2) * BigInt(precio) + BigInt(1)) / BigInt(2);
@@ -48,7 +52,7 @@ export function totalLineaPedido(item: PresentacionPedido, cantidad: string, pre
 }
 
 export function crearBorradorPrecios(clienteId: string, ubicacionId: string, lineas: LineaPedidoBorrador[], catalogo: PresentacionPedido[]): PedidoPreciosBorrador | null {
-  if (!clienteId || !ubicacionId || !lineas.length) return null;
+  if (!clienteId || !ubicacionId || !lineas.length || lineas.length > 100) return null;
   const resultado: PedidoPreciosBorrador = { clienteId, ubicacionId, lineas: [], subtotal: 0 };
   const ids = new Set<string>();
   for (const linea of lineas) {
@@ -72,9 +76,9 @@ export type PedidoBorrador = PedidoPreciosBorrador & {
   metodosPagoPrevistos: MetodoPagoPrevisto[];
 };
 
-// Pendiente de validar y aplicar la migración transaccional. Habilitación manual
-// compartida por interfaz y servidor; no depende de datos enviados por el cliente.
-export const CONFIRMACION_ADMINISTRATIVA_HABILITADA: boolean = false;
+// Contrato auditado contra 20261105020000 y su adaptación 20261105030000.
+// Habilitación compartida por interfaz y servidor.
+export const CONFIRMACION_ADMINISTRATIVA_HABILITADA: boolean = true;
 
 // Contrato de persistencia; no habilita por sí solo el envío.
 // Conservar clave y documento completos al reintentar. El resultado es el
@@ -96,7 +100,7 @@ export type CrearPedidoAdministrativoResultado = {
 
 export type ConfirmarPedidoAdministrativoRespuesta =
   | { ok: true; pedido: CrearPedidoAdministrativoResultado; destino: string }
-  | { ok: false; mensaje: string };
+  | { ok: false; mensaje: string; resultadoIncierto?: boolean };
 
 export function crearBorradorEntrega(precios: PedidoPreciosBorrador | null, fecha: string, metodos: readonly unknown[], disponibles: readonly FechaEntregaDisponible[]): PedidoBorrador | null {
   const normalizados = normalizarMetodosPagoPrevistos(metodos);

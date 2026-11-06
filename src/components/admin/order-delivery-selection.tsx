@@ -4,7 +4,7 @@ import { useOrderStep, useOrderWizard } from "@/components/admin/order-wizard";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cargarFechasEntregaPedido, confirmarPedidoAdministrativo } from "@/app/(admin)/admin/pedidos/nuevo/actions";
-import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, crearBorradorEntrega, type CrearPedidoAdministrativoParametros, type LineaPedidoBorrador, type PedidoPreciosBorrador } from "@/lib/admin/pedido-borrador";
+import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, crearBorradorEntrega, type CrearPedidoAdministrativoParametros, type LineaPedidoBorrador, type PedidoBorrador, type PedidoPreciosBorrador } from "@/lib/admin/pedido-borrador";
 import { PAYMENT_INTENT_LABELS, PAYMENT_INTENT_OPTIONS, formatearMetodosPagoPrevistos, type MetodoPagoPrevisto } from "@/lib/payment-intent";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import type { FechaEntregaDisponible } from "@/types/delivery";
@@ -26,7 +26,7 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const version = useRef(0);
-  const { activo } = useOrderWizard();
+  const { activo, pasosValidos, bloqueado, bloquear, completar } = useOrderWizard();
   const enEntrega = activo === 3;
   const contextoPrecios = JSON.stringify(precios);
   const router = useRouter();
@@ -35,17 +35,8 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
   const intentoConfirmacion = useRef<CrearPedidoAdministrativoParametros | null>(null);
   const [errorConfirmacion, setErrorConfirmacion] = useState("");
   const [destinoCreado, setDestinoCreado] = useState("");
-  // No depende de la disponibilidad temporal de fechas ni de las peticiones
-  // de lectura: un error de red no debe renovar la clave de un mismo borrador.
-  const contenido = JSON.stringify({ precios, fecha, metodos, lineas: lineas.map((linea) => ({
-    productoId: linea.presentacion.productoId, presentacionId: linea.presentacion.presentacionId,
-    cantidad: linea.cantidad, precioReferencia: linea.precioReferencia,
-    totalFinal: linea.totalFinal, motivoAjuste: linea.motivoAjuste,
-  })) });
-  useEffect(() => {
-    intentoConfirmacion.current = null;
-    setErrorConfirmacion("");
-  }, [contenido]);
+  const contenidoIntento = useRef("");
+  const [pedidoEnviado, setPedidoEnviado] = useState<PedidoBorrador | null>(null);
 
   const actualizar = useCallback(async () => {
     const solicitud = ++version.current;
@@ -91,29 +82,46 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
   // respuesta; solo un error o una fecha efectivamente inválida lo bloquean.
   const borrador = !error ? crearBorradorEntrega(precios, fecha, metodos, fechas) : null;
   useOrderStep(3, Boolean(borrador) && (!cargando || activo === 4), cargando ? "Espera a que se verifiquen las fechas disponibles." : error || (!precios ? "Completa los pasos anteriores con datos válidos." : !fecha || !fechas.some((item) => item.fecha === fecha) ? "Selecciona una fecha de entrega vigente." : "Selecciona al menos un método previsto de pago."));
-  const elegida = fechas.find((item) => item.fecha === fecha);
+  // Si una lectura posterior invalida la fecha, seguir mostrando lo enviado.
+  const resumen = bloqueado ? pedidoEnviado ?? borrador : borrador;
+  const elegida = fechas.find((item) => item.fecha === resumen?.fechaEntrega);
 
   function confirmar() {
-    if (!CONFIRMACION_ADMINISTRATIVA_HABILITADA || !borrador || bloqueoEnvio.current || destinoCreado) return;
+    if (!CONFIRMACION_ADMINISTRATIVA_HABILITADA || bloqueoEnvio.current || destinoCreado) return;
+    // Un resultado incierto solo permite recuperar el documento original,
+    // aunque la fecha haya vencido o falle una actualización de lectura.
+    if (!bloqueado && (activo !== 4 || !pasosValidos || !borrador)) return;
+    if (bloqueado && !intentoConfirmacion.current) return;
     // El ref bloquea incluso dos clics anteriores al siguiente render.
     bloqueoEnvio.current = true;
+    bloquear(true);
     setErrorConfirmacion("");
     iniciarEnvio(async () => {
       try {
-        if (!intentoConfirmacion.current) {
+        const contenido = JSON.stringify(borrador);
+        if (!bloqueado && contenidoIntento.current !== contenido) intentoConfirmacion.current = null;
+        if (!intentoConfirmacion.current && borrador) {
+          contenidoIntento.current = contenido;
           intentoConfirmacion.current = {
             p_clave_idempotencia: crypto.randomUUID(),
             p_pedido: borrador,
           };
+          setPedidoEnviado(borrador);
         }
-        const respuesta = await confirmarPedidoAdministrativo(intentoConfirmacion.current);
+        const intento = intentoConfirmacion.current;
+        if (!intento) throw new Error("INTENTO_REQUERIDO");
+        const respuesta = await confirmarPedidoAdministrativo(intento);
         if (!respuesta.ok) {
           setErrorConfirmacion(respuesta.mensaje);
+          if (respuesta.resultadoIncierto === false) bloquear(false);
           return;
         }
         setDestinoCreado(respuesta.destino);
-        router.push(respuesta.destino);
+        intentoConfirmacion.current = null;
+        completar(respuesta.destino);
+        router.replace(respuesta.destino);
       } catch {
+        if (!intentoConfirmacion.current) bloquear(false);
         setErrorConfirmacion("No se pudo completar la comunicación. Tu borrador se conserva; reintenta sin modificarlo para recuperar el mismo pedido si ya se creó.");
       } finally {
         bloqueoEnvio.current = false;
@@ -152,12 +160,12 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
     </section>
     <section hidden={activo !== 4} id="confirmacion" aria-labelledby="confirmacion-titulo" className="scroll-mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
       <h2 tabIndex={-1} id="confirmacion-titulo" className="text-xl font-semibold">5. Resumen preliminar</h2>
-      {borrador ? <div className="mt-4 space-y-3 text-sm">
+      {resumen ? <div className="mt-4 space-y-3 text-sm">
         <p><strong>Cliente:</strong> {clienteNombre}</p>
         <p><strong>Ubicación comercial:</strong> {ubicacionResumen}</p>
-        <p><strong>Entrega:</strong> {elegida?.etiquetaLarga}</p>
-        <p><strong>Métodos previstos:</strong> {formatearMetodosPagoPrevistos(borrador.metodosPagoPrevistos)}</p>
-        <ul className="space-y-3">{borrador.lineas.map((linea) => {
+        <p><strong>Entrega:</strong> {elegida?.etiquetaLarga ?? formatFechaEntregaLarga(resumen.fechaEntrega)}</p>
+        <p><strong>Métodos previstos:</strong> {formatearMetodosPagoPrevistos(resumen.metodosPagoPrevistos)}</p>
+        <ul className="space-y-3">{resumen.lineas.map((linea) => {
           const item = lineas.find((actual) => actual.presentacion.presentacionId === linea.presentacionId)?.presentacion;
           return <li key={linea.presentacionId} className="rounded-lg border border-border p-3">
             <p className="font-medium">{item?.nombre} · {item?.presentacionNombre} · {item?.cantidadPresentacion} {item?.unidad}</p>
@@ -165,17 +173,17 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
             {linea.motivoAjuste ? <p>Ajuste de total: {formatCLP(linea.totalOriginal)} → {formatCLP(linea.totalFinal)} ({formatCLP(linea.totalFinal - linea.totalOriginal)}). Motivo: {linea.motivoAjuste}</p> : null}
           </li>;
         })}</ul>
-        <p className="font-semibold">Subtotal: {formatCLP(borrador.subtotal)}</p>
-        <p>Despacho: {formatCLP(cotizarDespacho(borrador.subtotal).costoEntrega)}</p>
-        <p className="font-semibold">Total: {formatCLP(cotizarDespacho(borrador.subtotal).totalEstimado)}</p>
+        <p className="font-semibold">Subtotal: {formatCLP(resumen.subtotal)}</p>
+        <p>Despacho: {formatCLP(cotizarDespacho(resumen.subtotal).costoEntrega)}</p>
+        <p className="font-semibold">Total: {formatCLP(cotizarDespacho(resumen.subtotal).totalEstimado)}</p>
       </div> : <p role="status" className="mt-4 text-sm">Completa las etapas anteriores, selecciona una fecha vigente y al menos un método previsto para ver el resumen.</p>}
-      <p id="confirmacion-pendiente" className="mt-4 text-sm text-muted-foreground">Borrador conservado solo en esta página. La confirmación está deshabilitada hasta validar y aplicar la migración administrativa.</p>
+      <p id="confirmacion-pendiente" className="mt-4 text-sm text-muted-foreground">{bloqueado ? "Conservamos el intento original. Reintenta para recuperar su resultado antes de editar o iniciar otro pedido." : "Revisa el resumen antes de confirmar. El pedido se guardará con estos totales; los métodos previstos no registran pagos."}</p>
       {enviando ? <p role="status" className="mt-3 text-sm">Confirmando pedido…</p> : null}
       {errorConfirmacion ? <p role="alert" className="mt-3 text-sm text-destructive">{errorConfirmacion}</p> : null}
       {destinoCreado ? <p role="status" className="mt-3 text-sm">Pedido creado. <a href={destinoCreado} className="underline">Ir al detalle del pedido</a></p> : null}
       <div className="mt-5 flex flex-wrap gap-3">
-        <button type="button" disabled={!CONFIRMACION_ADMINISTRATIVA_HABILITADA || !borrador || enviando || Boolean(destinoCreado)} aria-busy={enviando} aria-describedby="confirmacion-pendiente" onClick={confirmar} className={buttonVariants()}>{enviando ? "Confirmando…" : "Confirmar pedido"}</button>
-        <ActionLink href={ROUTES.adminOrders} variant="quiet">Volver a pedidos</ActionLink>
+        <button type="button" disabled={!CONFIRMACION_ADMINISTRATIVA_HABILITADA || (!bloqueado && (!borrador || !pasosValidos || activo !== 4)) || enviando || Boolean(destinoCreado)} aria-busy={enviando} aria-describedby="confirmacion-pendiente" onClick={confirmar} className={buttonVariants()}>{enviando ? "Confirmando…" : bloqueado ? "Reintentar confirmación" : "Confirmar pedido"}</button>
+        {!bloqueado ? <ActionLink href={ROUTES.adminOrders} variant="quiet">Volver a pedidos</ActionLink> : null}
       </div>
     </section>
   </>;

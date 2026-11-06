@@ -29,7 +29,11 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
   const saldo = seleccion ? describirSaldoCuenta(seleccion.saldoActual) : null;
 
   const { activo } = useOrderWizard();
-  useOrderStep(0, Boolean(seleccion && ubicacion && !cargando), cargando ? "Espera a que termine la carga del cliente." : !seleccion ? "Selecciona un cliente activo para continuar." : "Selecciona una ubicación comercial activa para continuar.");
+  const ubicacionValida = Boolean(ubicacion
+    && [ubicacion.nombre_ubicacion, ubicacion.nombre, ubicacion.direccion].some((valor) => valor?.trim())
+    && ubicacion.latitud !== null && Number.isFinite(ubicacion.latitud) && Math.abs(ubicacion.latitud) <= 90
+    && ubicacion.longitud !== null && Number.isFinite(ubicacion.longitud) && Math.abs(ubicacion.longitud) <= 180);
+  useOrderStep(0, Boolean(seleccion && ubicacionValida && !cargando), cargando ? "Espera a que termine la carga del cliente." : !seleccion ? "Selecciona un cliente activo para continuar." : "Selecciona una ubicación comercial activa con nombre o dirección y coordenadas válidas para continuar.");
 
   function limpiar() {
     carga.current += 1;

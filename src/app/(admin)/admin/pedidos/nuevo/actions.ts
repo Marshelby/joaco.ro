@@ -7,6 +7,7 @@ import { administradorComercial, leerFichaComercial } from "@/lib/admin/cliente-
 import { obtenerClienteAdmin, obtenerClientesAdmin } from "@/lib/admin/clientes";
 import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
 import { PAYMENT_INTENT_OPTIONS } from "@/lib/payment-intent";
+import { cotizarDespacho } from "@/lib/delivery-pricing";
 import { ROUTES } from "@/config/routes";
 
 const importe = z.number().int().nonnegative().max(IMPORTE_MAXIMO_PEDIDO);
@@ -17,8 +18,8 @@ const pedidoConfirmacion: z.ZodType<PedidoBorrador> = z.strictObject({
   ubicacionId: z.uuid(),
   lineas: z.array(z.strictObject({
     productoId: z.uuid(), presentacionId: z.uuid(),
-    cantidad: z.number().positive().max(Number.MAX_SAFE_INTEGER),
-    precioReferencia: importe, totalFinal: importe,
+    cantidad: z.number().positive().max(100000),
+    precioReferencia: importe.positive(), totalFinal: importe,
     motivoAjuste: z.string().max(1000).nullable(), totalOriginal: importe,
   })).min(1).max(100),
   subtotal: importe,
@@ -41,16 +42,32 @@ export async function confirmarPedidoAdministrativo(entrada: CrearPedidoAdminist
     return { ok: false, mensaje: "No fue posible validar tu sesión administrativa. Inicia sesión con una cuenta administradora y reintenta." };
   }
   if (!CONFIRMACION_ADMINISTRATIVA_HABILITADA) {
-    return { ok: false, mensaje: "La confirmación está pendiente de validar y aplicar la migración administrativa. Tu borrador se conserva en esta página." };
+    return { ok: false, mensaje: "La confirmación administrativa está deshabilitada. Tu borrador se conserva en esta página." };
   }
   const parametros = parametrosConfirmacion.safeParse(entrada);
   if (!parametros.success) return { ok: false, mensaje: "El borrador contiene datos inválidos. Revisa las etapas antes de confirmar." };
   try {
     const { data, error } = await db.rpc("crear_pedido_administrativo", parametros.data);
     if (error) {
+      // Solo errores de negocio posteriores a la búsqueda idempotente prueban
+      // que no hay una creación previa para esta clave. Un rechazo de sesión,
+      // timeout o error de transporte no permite descartar un éxito anterior.
+      const erroresSinCreacion = new Set([
+        "CAMPOS_PEDIDO_INVALIDOS", "TIPOS_PEDIDO_INVALIDOS", "REFERENCIAS_PEDIDO_INVALIDAS",
+        "LIMITE_LINEAS", "METODOS_PAGO_PREVISTOS_INVALIDOS", "CLIENTE_INVALIDO",
+        "UBICACION_COMERCIAL_INVALIDA", "UBICACION_SIN_COORDENADAS", "NOMBRE_UBICACION_REQUERIDO",
+        "ZONA_INVALIDA", "CAMPOS_LINEA_INVALIDOS", "TIPOS_LINEA_INVALIDOS",
+        "REFERENCIAS_LINEA_INVALIDAS", "PRESENTACION_DUPLICADA", "CANTIDAD_O_PRECIO_INVALIDO",
+        "PRODUCTO_NO_DISPONIBLE", "PRESENTACION_NO_DISPONIBLE", "CATEGORIA_NO_DISPONIBLE",
+        "PRECIO_REFERENCIA_DESACTUALIZADO", "CANTIDAD_INVALIDA", "LIMITE_IMPORTE",
+        "TOTAL_ORIGINAL_INCORRECTO", "MOTIVO_PRECIO_REQUERIDO", "MOTIVO_SIN_AJUSTE",
+        "SUBTOTAL_INCORRECTO", "FECHA_ENTREGA_NO_DISPONIBLE",
+      ]);
+      const resultadoIncierto = !erroresSinCreacion.has(error.message)
+        || !["P0001", "40001"].includes(error.code);
       const mensajes: Record<string, string> = {
         NO_AUTORIZADO: "Tu sesión no tiene permisos administrativos. Vuelve a iniciar sesión.",
-        CLAVE_IDEMPOTENCIA_EN_USO: "La clave de este intento corresponde a otro contenido. Revisa el borrador antes de continuar.",
+        CLAVE_IDEMPOTENCIA_EN_USO: "No fue posible recuperar este intento con la sesión y el contenido originales. Conservamos la clave; vuelve a la cuenta administradora que inició el intento.",
         PRECIO_REFERENCIA_DESACTUALIZADO: "Cambió un precio de referencia. Revisa el catálogo y los precios antes de reintentar.",
         FECHA_ENTREGA_NO_DISPONIBLE: "La fecha de entrega dejó de estar disponible. Actualiza las fechas y selecciona otra.",
         CLIENTE_INVALIDO: "El cliente ya no está disponible. Revisa la selección del cliente.",
@@ -59,11 +76,20 @@ export async function confirmarPedidoAdministrativo(entrada: CrearPedidoAdminist
         PRODUCTO_NO_DISPONIBLE: "Un producto dejó de estar disponible. Revisa las líneas del pedido.",
         PRESENTACION_NO_DISPONIBLE: "Una presentación dejó de estar disponible. Revisa las líneas del pedido.",
         CATEGORIA_NO_DISPONIBLE: "La categoría de un producto dejó de estar disponible. Revisa las líneas del pedido.",
+        ZONA_INVALIDA: "La zona de la ubicación comercial ya no está activa. Revisa la ficha del cliente.",
+        NOMBRE_UBICACION_REQUERIDO: "La ubicación comercial requiere un nombre o dirección antes de confirmar.",
+        CANTIDAD_INVALIDA: "Revisa las cantidades permitidas para cada presentación.",
+        MOTIVO_PRECIO_REQUERIDO: "Completa el motivo de cada ajuste de total.",
+        SUBTOTAL_INCORRECTO: "El subtotal no coincide con las líneas. Revisa los precios antes de confirmar.",
+        TOTAL_ORIGINAL_INCORRECTO: "Un total original no coincide con el catálogo. Revisa los precios y cantidades.",
       };
-      return { ok: false, mensaje: mensajes[error.message] ?? "No fue posible confirmar el pedido. Conservamos tu borrador; reintenta sin modificarlo para recuperar el resultado del mismo intento." };
+      return { ok: false, resultadoIncierto, mensaje: mensajes[error.message] ?? "No fue posible confirmar el pedido. Conservamos tu borrador; reintenta sin modificarlo para recuperar el resultado del mismo intento." };
     }
     const comprobante = comprobanteConfirmacion.safeParse(data);
-    if (!comprobante.success) return { ok: false, mensaje: "No fue posible verificar el comprobante. El pedido podría haberse creado; reintenta sin modificar el borrador para recuperar el mismo resultado." };
+    const cotizacion = cotizarDespacho(parametros.data.p_pedido.subtotal);
+    if (!comprobante.success || comprobante.data.subtotal !== parametros.data.p_pedido.subtotal
+      || comprobante.data.costo_entrega !== cotizacion.costoEntrega || comprobante.data.descuento !== 0
+      || comprobante.data.total !== cotizacion.totalEstimado) return { ok: false, mensaje: "No fue posible verificar el comprobante. El pedido podría haberse creado; reintenta sin modificar el borrador para recuperar el mismo resultado." };
     return { ok: true, pedido: comprobante.data, destino: ROUTES.adminOrder(comprobante.data.pedido_id) };
   } catch {
     return { ok: false, mensaje: "Se interrumpió la confirmación. El pedido podría haberse creado; reintenta con el mismo borrador para recuperar el resultado sin duplicarlo." };

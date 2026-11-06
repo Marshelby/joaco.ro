@@ -10,7 +10,6 @@ const groupBackgrounds: Readonly<Record<string, string>> = {
   [ROUTES.adminCustomers]: "bg-sky-500/10",
   [ROUTES.adminOrders]: "bg-sky-500/10",
   [ROUTES.adminMessages]: "bg-sky-500/10",
-  [ROUTES.adminPossibleOrders]: "bg-sky-500/10",
 };
 
 export function AdminNavigation({ compact = false, mensajesNoLeidos = 0 }: { compact?: boolean; mensajesNoLeidos?: number }) {

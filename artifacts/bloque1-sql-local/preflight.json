@@ -1,0 +1,42 @@
+{
+  "fecha_utc": "2026-11-06T22:45:59.380026+00:00",
+  "resultados": [
+    {
+      "comando": [
+        "docker",
+        "version"
+      ],
+      "codigo": 1,
+      "stdout": "Client: Docker Engine - Community\n Version:           29.9.2\n API version:       1.56\n Go version:        go1.26.10\n Git commit:        a82e528\n Built:             Tue Oct 20 18:45:12 2026\n OS/Arch:           linux/amd64\n Context:           default\n",
+      "stderr": "permission denied while trying to connect to the docker API at unix:///var/run/docker.sock\n"
+    },
+    {
+      "comando": [
+        "docker",
+        "ps",
+        "--all",
+        "--format",
+        "{{.Names}}\t{{.Status}}"
+      ],
+      "codigo": 1,
+      "stdout": "",
+      "stderr": "permission denied while trying to connect to the docker API at unix:///var/run/docker.sock\n"
+    },
+    {
+      "comando": [
+        "supabase",
+        "--version"
+      ],
+      "codigo": 127,
+      "stderr": "[Errno 2] No such file or directory: 'supabase'"
+    }
+  ],
+  "herramientas": {
+    "docker": "/usr/bin/docker",
+    "supabase": null,
+    "psql": null,
+    "postgres": null,
+    "initdb": null
+  },
+  "cli_temporal_existe": false
+}

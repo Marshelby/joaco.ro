@@ -1,3 +1,5 @@
+import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
+import { OrderIdentity } from "@/components/admin/order-identity";
 import { CheckCircle2, ChevronDown } from "lucide-react";
 
 import { OrderOperationalAction } from "@/components/admin/order-operational-action";
@@ -9,38 +11,47 @@ import { CustomerQuickViewDialog } from "@/components/admin/customer-quick-view-
 import { DeliveryContactActions } from "@/components/admin/delivery-contact-actions";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
-import { formatearCantidadPreparacion, type PedidoEntregaAdmin } from "@/lib/admin/pedidos";
+import { type PedidoEntregaAdmin } from "@/lib/admin/pedidos";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
-export function DeliveryOrderCard({ pedido, nombreEmisor }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null }) {
+function valoresRevision(valores: Record<string, unknown>) {
+  const cantidad = valores.cantidad_preparada;
+  const importe = valores.importe_linea_operativo;
+  if ("estado" in valores) return `Estado: ${String(valores.estado)}`;
+  return `${valores.confirmado_explicito ? "LISTO" : "PENDIENTE"} · Cantidad preparada: ${cantidad == null ? "sin confirmación" : String(cantidad)} · Importe operativo: ${typeof importe === "number" ? formatCLP(importe) : "sin confirmación"}`;
+}
+
+export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean }) {
+  const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
   const listoParaDespacho = pedido.estado === "listo_despacho";
-  const nombreCliente = pedido.destinatarioEntrega ?? pedido.nombreClienteSnapshot;
   const telefonoEntrega = pedido.telefonoContactoEntregaSnapshot ?? pedido.telefonoClienteSnapshot;
 
   return (
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,1.35fr)_minmax(8rem,0.8fr)_auto_auto] sm:items-center sm:gap-5">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(10rem,1fr)_auto_auto] md:items-center md:gap-6">
         <div className="min-w-0">
-          <h3 className="font-semibold tracking-tight text-foreground">{pedido.numeroPedido}</h3>
-          <div className="mt-1 truncate text-sm text-muted-foreground">{pedido.clienteId ? <CustomerQuickViewDialog clienteId={pedido.clienteId} nombre={nombreCliente} /> : nombreCliente}</div>
-          {pedido.zonaEntrega ? <p className="mt-1 text-sm text-muted-foreground">{pedido.zonaEntrega}</p> : null}
+          <OrderIdentity pedido={pedido} customerAction={pedido.clienteId ? <CustomerQuickViewDialog clienteId={pedido.clienteId} nombre={pedido.nombreClienteSnapshot} /> : undefined} />
+          {pedido.destinatarioEntrega ? <p className="mt-3 break-words text-sm leading-6 text-muted-foreground">Destinatario: {pedido.destinatarioEntrega}</p> : null}
+          {pedido.zonaEntrega ? <p className="mt-1 text-sm text-muted-foreground">Zona: {pedido.zonaEntrega}</p> : null}
         </div>
         <dl className="grid grid-cols-2 gap-3 text-sm sm:block">
           <div><dt className="text-muted-foreground">Creado</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div>
-          <div className="sm:mt-2"><dt className="text-muted-foreground">Total</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div>
+          <div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div>
         </dl>
         <div className="flex flex-wrap gap-2"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></div>
         <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink>
       </div>
 
-      {telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
+      {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
       {requierePreparacion || pendienteDeConfirmacion || listoParaDespacho ? (
         <div className="mt-4 border-t border-border pt-3">
-          {pedido.estado === "confirmado" ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} /> : null}
-          {pedido.estado === "preparando" ? <FinalizePreparationAction pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} lineasConFaltantes={pedido.items.filter((item) => item.tieneFaltante).length} /> : null}
+          <p className="mb-3 text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
+          {pedido.estado === "confirmado" ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
+          {pedido.estado === "preparando" && permisoPreparacion.permitida ? <FinalizePreparationAction key={pedido.versionPreparacion} pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} version={pedido.versionPreparacion} pendientes={pedido.items.filter((item) => !item.confirmadoExplicito).length} lineasConFaltantes={pedido.items.filter((item) => item.tieneFaltante).length} /> : null}
+          {pedido.estado === "preparando" ? <p className="mt-2 text-sm text-muted-foreground">{pedido.items.filter((item) => !item.confirmadoExplicito).length} productos pendientes de confirmación explícita.</p> : null}
           {pendienteDeConfirmacion ? <p className="text-sm text-muted-foreground">Pendiente de confirmación</p> : null}
           {listoParaDespacho ? (
             <p className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary/10 px-3 text-sm font-semibold text-primary">
@@ -51,6 +62,9 @@ export function DeliveryOrderCard({ pedido, nombreEmisor }: { pedido: PedidoEntr
         </div>
       ) : null}
 
+      {operativa ? <div className="mt-3 space-y-1 text-sm"><p>{pedido.items.filter((item) => item.confirmadoExplicito).length} de {pedido.items.length} productos confirmados</p><progress className="h-2 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={pedido.items.filter((item) => item.confirmadoExplicito).length} /></div> : null}
+      {pedido.importeOperativoPreparacion !== null ? <p className="mt-3 text-sm">Importe operativo provisional: {pedido.importeOperativoPreparacion !== pedido.total ? <><s>{formatCLP(pedido.total)}</s>{" → "}</> : null}{formatCLP(pedido.importeOperativoPreparacion)}</p> : null}
+      {pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Actor: {revision.actor_id}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
       <details className="group mt-4 border-t border-border pt-3">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
           <span className="group-open:hidden">Ver productos</span>
@@ -61,17 +75,10 @@ export function DeliveryOrderCard({ pedido, nombreEmisor }: { pedido: PedidoEntr
           <h4 className="text-sm font-semibold text-foreground">Productos</h4>
           {pedido.items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : (
             <ul className="mt-2 divide-y divide-border">
-              {pedido.items.map((item) => pedido.estado === "preparando" ? (
-                <PreparationItemControl key={`${item.id}-${item.cantidadPreparada ?? "completo"}-${item.motivoFaltante ?? ""}`} item={item} />
-              ) : item.tieneFaltante && pedido.preparacionEstado === "incompleta" ? (
-                <li key={item.id} className="min-w-0 py-3 text-sm"><p className="font-medium text-foreground">{item.nombreProducto}</p><div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-3"><p>Solicitado: {formatearCantidadPreparacion(item)}</p><p>Preparado: {formatearCantidadPreparacion({ ...item, cantidad: item.cantidadPreparada ?? item.cantidad })}</p><p>Faltan: {formatearCantidadPreparacion({ ...item, cantidad: item.cantidadFaltante })}</p></div>{item.motivoFaltante ? <p className="mt-1 text-muted-foreground">Motivo: {item.motivoFaltante}</p> : null}</li>
+              {pedido.items.map((item) => pedido.estado === "preparando" && permisoPreparacion.permitida ? (
+                <PreparationItemControl key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} />
               ) : (
-                <li key={item.id} className="flex min-w-0 items-start justify-between gap-4 py-3">
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-medium text-foreground">{item.nombreProducto}</p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold text-foreground">{formatearCantidadPreparacion(item)}</p>
-                </li>
+                <PreparationItemControl key={item.id} item={item} version={pedido.versionPreparacion} soloLectura />
               ))}
             </ul>
           )}

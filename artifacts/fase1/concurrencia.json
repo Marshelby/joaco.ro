@@ -1,0 +1,32 @@
+[
+  {
+    "caso": "convertir-convertir",
+    "resultado": "PASÓ",
+    "espera_segundos": 2.63
+  },
+  {
+    "caso": "convertir-rollback",
+    "resultado": "PASÓ",
+    "espera_segundos": 1.13
+  },
+  {
+    "caso": "editar-editar",
+    "resultado": "PASÓ",
+    "espera_segundos": 2.59
+  },
+  {
+    "caso": "editar-convertir",
+    "resultado": "PASÓ",
+    "espera_segundos": 2.79
+  },
+  {
+    "caso": "descartar-convertir",
+    "resultado": "PASÓ",
+    "espera_segundos": 2.78
+  },
+  {
+    "caso": "precio-editar",
+    "resultado": "PASÓ",
+    "espera_segundos": 2.83
+  }
+]

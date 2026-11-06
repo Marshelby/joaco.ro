@@ -1,0 +1,7 @@
+{
+  "supabase/tests/posibles_pedidos.sql": "568e7f2b607a5eed38e985c723604c99840c962555749f30bc37b35cff928796",
+  "supabase/tests/posibles_pedidos_ampliados.sql": "67bdf391946f9250fef0b7ddea61f6a3f884b2e1d22434af6b2bbedaa1629295",
+  "supabase/tests/posibles_pedidos_roles.sql": "027557b87bd06c4a28cf9ac7488a1644ca3382972989aa9b8507956de96476c4",
+  "scripts/validar-fase1-local.py": "26b66a03ce026ae7717fc0f9d8cb43cf323074c41a2c5c9b6bdaab669e4f822c",
+  "scripts/validar-fase1-adicional.py": "75385b6c66a5097ff240b9969c142c882c5097bfe31acc64ac28873395db7e5a"
+}

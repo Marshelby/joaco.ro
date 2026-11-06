@@ -1,3 +1,4 @@
+import { OrderIdentity } from "@/components/admin/order-identity";
 import { OrderViews } from "@/components/admin/order-views";
 import { PossibleOrdersList } from "@/components/admin/possible-orders-list";
 import type { Metadata } from "next";
@@ -76,9 +77,12 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
           <ul className="space-y-3" aria-label="Pedidos">
             {pedidos.map((pedido) => (
               <li key={pedido.id} className="rounded-xl border border-border bg-card p-4 sm:p-5">
-                <div className="grid gap-4 sm:grid-cols-[minmax(0,1.35fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_auto] sm:items-center sm:gap-5">
-                  <div className="min-w-0"><h3 className="font-semibold tracking-tight text-foreground">{pedido.numeroPedido}</h3><p className="mt-1 truncate text-sm text-muted-foreground">{pedido.nombreClienteSnapshot}</p><p className="mt-1 text-sm font-medium text-foreground">Canal: {obtenerEtiquetaCanalPedido(pedido.canalOrigen)}</p>{pedido.nombreUbicacionSnapshot ? <p className="mt-1 break-words text-sm text-muted-foreground">Ubicación: {pedido.nombreUbicacionSnapshot}</p> : pedido.canalOrigen === "manual" ? <p className="mt-1 text-sm text-muted-foreground">Ubicación no registrada</p> : null}</div>
-                  <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(12rem,1fr)_auto_auto] md:items-center md:gap-6">
+                  <div className="min-w-0">
+                    <OrderIdentity pedido={pedido} />
+                    <p className="mt-3 text-xs leading-5 text-muted-foreground">Canal: {obtenerEtiquetaCanalPedido(pedido.canalOrigen)}</p>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
                   <div><span className="text-sm text-muted-foreground sm:sr-only">Estado</span><div className="mt-1 sm:mt-0"><OrderStatusBadge estado={pedido.estado} /></div></div>
                   <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
                 </div>

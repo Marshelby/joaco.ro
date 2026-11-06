@@ -108,9 +108,9 @@ function mapSaldo(cliente: ClienteFila, saldo?: SaldoFila): ClienteAdminListado 
   };
 }
 
-export async function obtenerClientesAdmin(busqueda = "", pagina = 1) {
+export async function obtenerClientesAdmin(busqueda = "", pagina = 1, limitePaginas = 100000) {
   const termino = busqueda.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120);
-  const paginaActual = Number.isSafeInteger(pagina) && pagina > 0 ? Math.min(pagina, 100000) : 1;
+  const paginaActual = Number.isSafeInteger(pagina) && pagina > 0 ? Math.min(pagina, limitePaginas) : 1;
   const porPagina = 50;
   const supabase = await crearClienteSupabaseServidor();
   let consulta = supabase.from("clientes").select("id,nombre,telefono,email,activo", { count: "exact" });

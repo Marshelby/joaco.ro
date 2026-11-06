@@ -7,7 +7,7 @@ import { DeliveryContactActions } from "@/components/admin/delivery-contact-acti
 import { OrderOperationalAction } from "@/components/admin/order-operational-action";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { CatalogImage } from "@/components/media/catalog-image";
-import { PageHeader } from "@/components/shared/page-header";
+import { OrderIdentity } from "@/components/admin/order-identity";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatearCantidadPedido, obtenerEtiquetaCanalPedido, obtenerPedidoAdmin } from "@/lib/admin/pedidos";
@@ -16,6 +16,7 @@ import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
 import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
 import { obtenerIdentidadActual } from "@/lib/account/identity";
+import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = { title: "Detalle de pedido" };
@@ -25,6 +26,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
 
+  const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
   const mapsUrl = getGoogleMapsLocationUrl(pedido.latitudEntrega, pedido.longitudEntrega);
   const pagoPrevisto = formatearMetodosPagoPrevistos(pedido.metodosPagoPrevistos) ?? "No registrado";
@@ -33,12 +35,21 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-8">
-      <PageHeader title={pedido.numeroPedido} description={`Creado el ${formatDateTimeCL(pedido.fechaCreacion)} · Canal ${obtenerEtiquetaCanalPedido(pedido.canalOrigen)}`} actions={<ActionLink href={ROUTES.adminOrders} variant="secondary">Volver a pedidos</ActionLink>} />
+      <header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-3">
+          <OrderIdentity pedido={pedido} heading="h1" />
+          <p className="text-sm leading-6 text-muted-foreground">Creado el {formatDateTimeCL(pedido.fechaCreacion)} · Canal {obtenerEtiquetaCanalPedido(pedido.canalOrigen)}</p>
+        </div>
+        <ActionLink href={ROUTES.adminOrders} variant="secondary" className="shrink-0">Volver a pedidos</ActionLink>
+      </header>
       <div className="flex flex-wrap items-start gap-3">
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
-        {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} /> : null}
+        {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}
       </div>
+
+      <p className="text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
+      {pedido.estado === "preparando" && pedido.fechaEntrega ? <ActionLink href={`/admin/pedidos/entregas/${pedido.fechaEntrega}`} variant="secondary">Ver preparación en la jornada</ActionLink> : null}
 
       <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="text-lg font-semibold tracking-tight text-foreground">Estado</h2>
@@ -46,7 +57,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       </section>
 
       <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Cliente</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Cliente titular</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
           <div><dt className="text-muted-foreground">Nombre</dt><dd className="mt-1 font-medium text-foreground">{pedido.nombreClienteSnapshot}</dd></div>
           {pedido.telefonoClienteSnapshot ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1 text-foreground">{pedido.telefonoClienteSnapshot}</dd></div> : null}
@@ -58,11 +69,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="text-lg font-semibold tracking-tight text-foreground">Entrega</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <div><dt className="text-muted-foreground">Ubicación comercial (nombre congelado)</dt><dd className="mt-1 font-medium text-foreground">{pedido.nombreUbicacionSnapshot ?? "No registrada en este pedido"}</dd></div>
           <div><dt className="text-muted-foreground">Fecha de entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div>
           {pedido.destinatarioEntrega ? <div><dt className="text-muted-foreground">Destinatario</dt><dd className="mt-1 font-medium text-foreground">{pedido.destinatarioEntrega}</dd></div> : null}
           {telefonoEntrega ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></dd></div> : null}
-          <div className="sm:col-span-2"><dt className="text-muted-foreground">Dirección</dt><dd className="mt-1 leading-6 text-foreground">{direccion || "No registrada"}</dd></div>
+          <div className="sm:col-span-2"><dt className="text-muted-foreground">Dirección de entrega</dt><dd className="mt-1 leading-6 text-foreground">{direccion || "No registrada"}</dd></div>
           {pedido.zonaEntrega ? <div><dt className="text-muted-foreground">Zona</dt><dd className="mt-1 text-foreground">{pedido.zonaEntrega}</dd></div> : null}
           {pedido.referenciaDireccionSnapshot ? <div className="sm:col-span-2"><dt className="text-muted-foreground">Referencia</dt><dd className="mt-1 leading-6 text-muted-foreground">{pedido.referenciaDireccionSnapshot}</dd></div> : null}
         </dl>

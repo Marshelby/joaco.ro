@@ -41,7 +41,9 @@ export function OrderOperationalAction({
   estado,
   contexto = "general",
   preparacionEstado = null,
+  preparacionPermitida,
 }: {
+  preparacionPermitida: boolean;
   pedidoId: string;
   estado: EstadoPedidoAdmin;
   contexto?: ContextoAccionOperativa;
@@ -49,7 +51,7 @@ export function OrderOperationalAction({
 }) {
   const router = useRouter();
   const esAccionDePreparacion = estado === "confirmado" || (estado === "preparando" && contexto !== "preparacion" && preparacionEstado !== "pendiente");
-  const configuracion = estado in acciones && (contexto === "general" || esAccionDePreparacion)
+  const configuracion = estado !== "listo_despacho" && estado !== "preparando" && estado in acciones && (contexto === "general" || esAccionDePreparacion)
     ? acciones[estado as EstadoOperativo]
     : null;
   const [resultado, accion, pendiente] = useActionState(
@@ -67,7 +69,7 @@ export function OrderOperationalAction({
   return (
     <form action={accion} className="space-y-2">
       <input type="hidden" name="pedidoId" value={pedidoId} />
-      <Button type="submit" className="w-full sm:w-auto" disabled={pendiente}>{pendiente ? configuracion.pendiente : contexto === "preparacion" && estado === "preparando" ? "Marcar listo" : configuracion.etiqueta}</Button>
+      <Button type="submit" className="w-full sm:w-auto" disabled={pendiente || ((estado === "confirmado" || estado === "preparando") && !preparacionPermitida)}>{pendiente ? configuracion.pendiente : contexto === "preparacion" && estado === "preparando" ? "Marcar listo" : configuracion.etiqueta}</Button>
       <p aria-live="polite" className={resultado.error ? "text-sm text-destructive" : "text-sm text-primary"}>{resultado.error ?? (resultado.actualizado ? configuracion.exito : "")}</p>
     </form>
   );

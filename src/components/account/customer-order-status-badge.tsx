@@ -7,7 +7,7 @@ const estados: Record<EstadoPedidoCuenta, { etiqueta: string; className: string 
   programado: { etiqueta: "Programado", className: "bg-primary/10 text-primary" },
   preparando: { etiqueta: "Preparando", className: "bg-accent/15 text-foreground" },
   listo_despacho: { etiqueta: "Listo para despacho", className: "bg-primary/10 text-primary" },
-  en_reparto: { etiqueta: "En reparto", className: "bg-primary/10 text-primary" },
+  en_reparto: { etiqueta: "En ruta", className: "bg-primary/10 text-primary" },
   entregado: { etiqueta: "Entregado", className: "bg-secondary text-secondary-foreground" },
   entrega_fallida: { etiqueta: "Entrega fallida", className: "bg-destructive/10 text-destructive" },
   cancelado: { etiqueta: "Cancelado", className: "bg-muted text-muted-foreground" },

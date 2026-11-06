@@ -1,0 +1,12 @@
+[
+  {
+    "caso": "doble registro simultáneo",
+    "resultado": "PASÓ",
+    "espera": 3.6783480330000202
+  },
+  {
+    "caso": "corte real tras lock catálogo",
+    "resultado": "PASÓ",
+    "espera": 7.012538959999802
+  }
+]

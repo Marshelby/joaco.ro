@@ -7,10 +7,16 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 export type EstadoAceptacionPedido = { error?: string; aceptado?: boolean };
 export type EstadoCancelacionPedido = { error?: string; cancelado?: boolean };
 export type EstadoTransicionPedido = { error?: string; actualizado?: boolean };
-export type EstadoPreparacionItem = { error?: string; guardado?: boolean; completo?: boolean };
+export type EstadoPreparacionItem = { error?: string; guardado?: boolean };
 export type EstadoFinalizacionPreparacion = { error?: string; finalizado?: boolean };
 
 const mensajesRpc: Record<string, string> = {
+  VERSION_OPERATIVA_CONFLICTO: "Otro cambio actualizó este pedido. Recarga y revisa los valores antes de continuar.",
+  CLAVE_IDEMPOTENCIA_EN_USO: "La solicitud cambió. Cierra el control y vuelve a abrirlo.",
+  PRODUCTOS_PENDIENTES: "Confirma explícitamente todos los productos antes de finalizar.",
+  IMPORTE_MANUAL_REQUERIDO: "Si cambia la cantidad, ingresa un nuevo importe total manual para la línea.",
+  IMPORTE_ORIGINAL_REQUERIDO: "Sin cambio de cantidad se conserva el importe autorizado original.",
+  PREPARACION_FECHA_NO_HABILITADA: "Preparación bloqueada: la fecha efectiva de entrega debe coincidir con hoy en America/Santiago. Si está vencida o no tiene fecha, requiere un flujo específico de reprogramación aún no disponible.",
   NO_AUTORIZADO: "No tienes permisos para aceptar pedidos.",
   PEDIDO_NO_ENCONTRADO: "El pedido ya no existe.",
   ESTADO_PEDIDO_INVALIDO: "Este pedido ya no puede aceptarse desde su estado actual.",
@@ -44,6 +50,7 @@ async function actualizarEstadoPedido(
 
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/rutas");
   revalidatePath(`/admin/pedidos/${pedidoId}`);
   if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
   revalidatePath("/admin/clientes");
@@ -60,9 +67,10 @@ export async function finalizarPreparacionPedidoAction(_: EstadoFinalizacionPrep
   const { data: sesion } = await supabase.auth.getUser();
   if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
   const { data: pedido } = await supabase.from("pedidos").select("cliente_id,fecha_entrega").eq("id", pedidoId).maybeSingle();
-  const { error } = await supabase.rpc("finalizar_preparacion_pedido_administrativo", { p_pedido_id: pedidoId });
+  const { error } = await supabase.rpc("cerrar_preparacion_explicita", { p_pedido_id: pedidoId, p_version_esperada: Number(datos.get("version")), p_clave: String(datos.get("clave") ?? "") });
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible finalizar la preparación." };
-  revalidatePath("/admin"); revalidatePath("/admin/pedidos"); revalidatePath(`/admin/pedidos/${pedidoId}`);
+  revalidatePath("/admin"); revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/rutas"); revalidatePath(`/admin/pedidos/${pedidoId}`);
   if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
   revalidatePath("/admin/clientes"); if (pedido?.cliente_id) revalidatePath(`/admin/clientes/${pedido.cliente_id}`);
   revalidatePath("/mi-cuenta/pedidos"); revalidatePath(`/mi-cuenta/pedidos/${pedidoId}`); revalidatePath(`/pedido/confirmacion/${pedidoId}`);
@@ -82,6 +90,7 @@ export async function aceptarPedidoAdmin(_: EstadoAceptacionPedido, datos: FormD
 
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/rutas");
   revalidatePath(`/admin/pedidos/${pedidoId}`);
   return { aceptado: true };
 }
@@ -100,6 +109,7 @@ export async function cancelarPedidoAdmin(_: EstadoCancelacionPedido, datos: For
   revalidatePath("/admin");
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/rutas");
   revalidatePath(`/admin/pedidos/${pedidoId}`);
   return { cancelado: true };
 }
@@ -122,12 +132,14 @@ export async function marcarPedidoEntregado(_: EstadoTransicionPedido, datos: Fo
 
 export async function guardarPreparacionItemPedido(_: EstadoPreparacionItem, datos: FormData): Promise<EstadoPreparacionItem> {
   const itemPedidoId = String(datos.get("itemPedidoId") ?? "").trim();
-  const volverACompleto = datos.get("volverACompleto") === "true";
+  const importeTexto = String(datos.get("importe") ?? "").trim();
+  const importe = importeTexto === "" ? null : Number(importeTexto);
+  if (importe !== null && (!Number.isSafeInteger(importe) || importe < 0)) return { error: "Ingresa un importe entero en CLP, cero o mayor." };
   const cantidadTexto = String(datos.get("cantidadPreparada") ?? "").trim();
   const cantidadPreparadaFormulario = Number(cantidadTexto);
   const motivo = String(datos.get("motivo") ?? "").trim();
   if (!itemPedidoId) return { error: "No fue posible identificar el producto." };
-  if (!volverACompleto && !Number.isFinite(cantidadPreparadaFormulario)) return { error: "Ingresa una cantidad preparada válida." };
+  if (!cantidadTexto || !Number.isFinite(cantidadPreparadaFormulario) || cantidadPreparadaFormulario < 0) return { error: "Ingresa una cantidad preparada válida." };
 
   const supabase = await crearClienteSupabaseServidor();
   const { data: sesion } = await supabase.auth.getUser();
@@ -137,19 +149,23 @@ export async function guardarPreparacionItemPedido(_: EstadoPreparacionItem, dat
   const { data: pedido } = item
     ? await supabase.from("pedidos").select("cliente_id,fecha_entrega").eq("id", item.pedido_id).maybeSingle()
     : { data: null };
-  const { data, error } = await supabase.rpc("guardar_preparacion_item_pedido_administrativo", {
+  const { data, error } = await supabase.rpc("confirmar_producto_preparado", {
     p_item_pedido_id: itemPedidoId,
-    p_cantidad_preparada: volverACompleto && item ? Number(item.cantidad) : cantidadPreparadaFormulario,
-    p_motivo: motivo || null,
+    p_cantidad: cantidadPreparadaFormulario,
+    p_importe: importe,
+    p_version_esperada: Number(datos.get("version")),
+    p_clave: String(datos.get("clave") ?? ""),
+    p_motivo: motivo || "Confirmación explícita de producto",
   });
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar la preparación." };
 
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/rutas");
   if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
   if (item?.pedido_id) revalidatePath(`/admin/pedidos/${item.pedido_id}`);
   if (pedido?.cliente_id) revalidatePath(`/admin/clientes/${pedido.cliente_id}`);
 
-  const resultado = Array.isArray(data) ? data[0] : data;
-  return { guardado: true, completo: resultado?.tiene_faltante === false };
+  void data;
+  return { guardado: true };
 }

@@ -1,0 +1,31 @@
+{
+  "advertencia": "Comparación textual; no acredita sintaxis, dependencias ni comportamiento PostgreSQL.",
+  "migraciones_locales": 74,
+  "predecesoras": 69,
+  "pendientes": [
+    "20261106010000_preparar_regimen_contable_entrega.sql",
+    "20261106030000_seguridad_auditoria_operativa.sql",
+    "20261106040000_restringir_fecha_preparacion.sql",
+    "20261106050000_preparacion_explicita_productos.sql",
+    "20261106060000_carga_camioneta_salida.sql"
+  ],
+  "versiones_duplicadas": false,
+  "comparaciones_creacion": [
+    {
+      "funcion": "public.crear_pedido_desde_carrito",
+      "predecesora": "20261101030000_separar_ambitos_direcciones_cliente.sql",
+      "igual_sin_regimen_y_espacios_comentarios": true
+    },
+    {
+      "funcion": "public.convertir_posible_pedido_administrativo",
+      "predecesora": "20261022012000_crear_rpcs_posibles_pedidos.sql",
+      "igual_sin_regimen_y_espacios_comentarios": true,
+      "nota": "Diferencia inicial explicada por CREATE OR REPLACE frente a CREATE; diff guardado. Sin otros cambios de cuerpo tras omitir régimen y espacios."
+    },
+    {
+      "funcion": "public.crear_pedido_administrativo",
+      "predecesora": "20261105030000_totales_linea_pedido_administrativo.sql",
+      "igual_sin_regimen_y_espacios_comentarios": true
+    }
+  ]
+}

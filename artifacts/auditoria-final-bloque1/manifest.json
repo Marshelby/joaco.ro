@@ -1,0 +1,27 @@
+[
+  {
+    "archivo": "supabase/migrations/20261106010000_preparar_regimen_contable_entrega.sql",
+    "sha256": "ce8a0eb2c0b0b7c966243ca70c193d2943aa220113c3dfe0389d3d2ea1e507b6",
+    "bytes": 33900
+  },
+  {
+    "archivo": "supabase/migrations/20261106030000_seguridad_auditoria_operativa.sql",
+    "sha256": "48bbb2077a807cba95777636a80286d067fec7b9395b4d77ef7d4b782dd24d6d",
+    "bytes": 8532
+  },
+  {
+    "archivo": "supabase/migrations/20261106040000_restringir_fecha_preparacion.sql",
+    "sha256": "b5883ca5e8a3d0860e28604d7baaa8c77826d0d3d42a27ddc22211f7055d5f92",
+    "bytes": 13150
+  },
+  {
+    "archivo": "supabase/migrations/20261106050000_preparacion_explicita_productos.sql",
+    "sha256": "c3a64f2132078215f49a8c2c34ecef3b7580908a943227608e5424d1d19c6e34",
+    "bytes": 10214
+  },
+  {
+    "archivo": "supabase/migrations/20261106060000_carga_camioneta_salida.sql",
+    "sha256": "2ce463f71af59878258e6e3ed19c8c62ba3783e136552e34b63484aa99ce5219",
+    "bytes": 14988
+  }
+]

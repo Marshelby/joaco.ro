@@ -1,0 +1,44 @@
+--- anterior
+
++++ pendiente
+
+@@ -1,6 +1,8 @@
+
+ create
++or
++replace
+ function
+ public.convertir_posible_pedido_administrativo(
+ p_id
+ uuid,
+ p_version_esperada
+@@ -354,11 +356,12 @@
+
+ end
+ if;
+ insert
+ into
+ public.pedidos
+-(id,
++(
++id,
+ cliente_id,
+ canal_origen,
+ estado,
+ nombre_cliente_snapshot,
+ telefono_cliente_snapshot,
+@@ -380,11 +383,12 @@
+
+ observacion_general,
+ fecha_entrega,
+ clave_idempotencia,
+ metodos_pago_previstos)
+ values
+-(v_pedido_id,
++(
++v_pedido_id,
+ v_cliente.id,
+ 'whatsapp',
+ 'recibido',
+ v_cliente.nombre,
+ v_cliente.telefono,

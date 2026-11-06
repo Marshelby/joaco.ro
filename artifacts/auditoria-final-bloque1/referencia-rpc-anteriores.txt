@@ -1,0 +1,940 @@
+REFERENCIA LOCAL. NO EJECUTAR: comparar con pg_get_functiondef remoto, incluida firma, retorno, defaults, cuerpo, owner, ACL y proconfig.
+
+-- validar_aplicacion_pago / 20260817113000_finalizar_preparacion_pedidos.sql
+create or replace function public.validar_aplicacion_pago()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  pago_actual public.pagos%rowtype;
+  pedido_actual public.pedidos%rowtype;
+  aplicado_pago bigint;
+  aplicado_pedido bigint;
+  total_exigible bigint;
+begin
+  select * into pago_actual from public.pagos where id = new.pago_id for update;
+  if not found then raise exception 'Pago inexistente'; end if;
+  if pago_actual.estado = 'anulado' then raise exception 'No se puede aplicar un pago anulado'; end if;
+
+  select * into pedido_actual from public.pedidos where id = new.pedido_id for update;
+  if not found then raise exception 'Pedido inexistente'; end if;
+  if pedido_actual.cliente_id is null or pedido_actual.cliente_id <> pago_actual.cliente_id then raise exception 'El pago y el pedido deben pertenecer al mismo cliente'; end if;
+  if pedido_actual.estado = 'cancelado' then raise exception 'No se puede aplicar un pago a un pedido cancelado'; end if;
+
+  select coalesce(sum(a.monto_aplicado), 0) into aplicado_pago
+  from public.aplicaciones_pago a
+  join public.pagos p on p.id = a.pago_id
+  where a.pago_id = new.pago_id and a.activa and p.estado <> 'anulado' and a.id is distinct from new.id;
+  if aplicado_pago + new.monto_aplicado > pago_actual.monto then raise exception 'La aplicación supera el monto disponible del pago'; end if;
+
+  select coalesce(sum(a.monto_aplicado), 0) into aplicado_pedido
+  from public.aplicaciones_pago a
+  join public.pagos p on p.id = a.pago_id
+  where a.pedido_id = new.pedido_id and a.activa and p.estado <> 'anulado' and a.id is distinct from new.id;
+  total_exigible := coalesce(pedido_actual.total_final, pedido_actual.total);
+  if aplicado_pedido + new.monto_aplicado > total_exigible then raise exception 'La aplicación supera el saldo pendiente del pedido'; end if;
+  return new;
+end;
+$$;
+
+-- crear_pedido_desde_carrito / 20261101030000_separar_ambitos_direcciones_cliente.sql
+create or replace function public.crear_pedido_desde_carrito(
+  p_cliente_id uuid,
+  p_direccion_cliente_id uuid,
+  p_items jsonb,
+  p_observacion text,
+  p_clave_idempotencia uuid,
+  p_fecha_entrega date,
+  p_metodos_pago_previstos text[]
+)
+returns table (
+  pedido_id uuid,
+  numero_pedido text,
+  estado public.estado_pedido,
+  subtotal bigint,
+  costo_entrega bigint,
+  descuento bigint,
+  total bigint
+)
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+declare
+  v_es_admin boolean;
+  v_cliente public.clientes%rowtype;
+  v_direccion public.direcciones_cliente%rowtype;
+  v_pedido public.pedidos%rowtype;
+  v_pedido_existente public.pedidos%rowtype;
+  v_presentacion record;
+  v_item jsonb;
+  v_presentacion_id uuid;
+  v_cantidad numeric;
+  v_texto_presentacion_id text;
+  v_presentaciones uuid[] := array[]::uuid[];
+  v_subtotal bigint;
+  v_costo_entrega bigint;
+  v_observacion_normalizada text;
+  v_zona_entrega_snapshot text;
+  v_hoy_local date;
+  v_modo_cantidad_snapshot text;
+  v_metodos_pago_previstos text[];
+begin
+  if auth.uid() is null then raise exception 'NO_AUTORIZADO'; end if;
+  if p_clave_idempotencia is null then raise exception 'CLAVE_IDEMPOTENCIA_REQUERIDA'; end if;
+  if p_metodos_pago_previstos is null or cardinality(p_metodos_pago_previstos) = 0 then
+    raise exception 'METODOS_PAGO_PREVISTOS_REQUERIDOS';
+  end if;
+  if array_position(p_metodos_pago_previstos, null) is not null
+    or not (p_metodos_pago_previstos <@ array['efectivo', 'transferencia', 'tarjeta']::text[])
+    or cardinality(p_metodos_pago_previstos) <>
+      (case when 'efectivo' = any(p_metodos_pago_previstos) then 1 else 0 end
+      + case when 'transferencia' = any(p_metodos_pago_previstos) then 1 else 0 end
+      + case when 'tarjeta' = any(p_metodos_pago_previstos) then 1 else 0 end) then
+    raise exception 'METODOS_PAGO_PREVISTOS_INVALIDOS';
+  end if;
+  select array_agg(metodo order by posicion)
+  into v_metodos_pago_previstos
+  from unnest(array['efectivo', 'transferencia', 'tarjeta']::text[]) with ordinality as metodos(metodo, posicion)
+  where metodo = any(p_metodos_pago_previstos);
+
+  v_es_admin := coalesce(public.es_admin(), false);
+  select * into v_cliente from public.clientes c where c.id = p_cliente_id and c.activo = true for share;
+  if not found then raise exception 'CLIENTE_INVALIDO'; end if;
+  if not v_es_admin and v_cliente.usuario_id is distinct from auth.uid() then raise exception 'NO_AUTORIZADO'; end if;
+
+  select * into v_pedido_existente from public.pedidos p where p.clave_idempotencia = p_clave_idempotencia for update;
+  if found then
+    if v_pedido_existente.cliente_id is distinct from p_cliente_id then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;
+    return query select v_pedido_existente.id, v_pedido_existente.numero_pedido, v_pedido_existente.estado, v_pedido_existente.subtotal, v_pedido_existente.costo_entrega, v_pedido_existente.descuento, v_pedido_existente.total;
+    return;
+  end if;
+
+  if p_fecha_entrega is null then raise exception 'FECHA_ENTREGA_REQUERIDA'; end if;
+  v_hoy_local := (now() at time zone 'America/Santiago')::date;
+  if p_fecha_entrega < v_hoy_local or p_fecha_entrega > v_hoy_local + 14 then raise exception 'FECHA_ENTREGA_INVALIDA'; end if;
+  if not public.fecha_entrega_disponible(p_fecha_entrega) then raise exception 'FECHA_ENTREGA_NO_DISPONIBLE'; end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then raise exception 'ITEMS_REQUERIDOS'; end if;
+  if p_direccion_cliente_id is null then raise exception 'DIRECCION_REQUERIDA'; end if;
+
+  select * into v_direccion from public.direcciones_cliente d where d.id = p_direccion_cliente_id and d.cliente_id = p_cliente_id and d.activa = true and d.ambito = 'personal' for share;
+  if not found then raise exception 'DIRECCION_INVALIDA'; end if;
+  if v_direccion.latitud is null or v_direccion.longitud is null then raise exception 'DIRECCION_SIN_UBICACION'; end if;
+  select z.nombre into v_zona_entrega_snapshot from public.zonas_entrega z where z.id = v_direccion.zona_entrega_id and z.activa = true for share;
+  if v_zona_entrega_snapshot is null then raise exception 'DIRECCION_SIN_ZONA_VALIDA'; end if;
+
+  v_observacion_normalizada := nullif(btrim(coalesce(p_observacion, '')), '');
+  insert into public.pedidos (
+    cliente_id, canal_origen, estado, nombre_cliente_snapshot, telefono_cliente_snapshot, email_cliente_snapshot,
+    direccion_cliente_id, direccion_snapshot, comuna_snapshot, region_snapshot, referencia_direccion_snapshot,
+    destinatario_entrega_snapshot, telefono_contacto_entrega_snapshot, zona_entrega_snapshot, latitud_entrega_snapshot, longitud_entrega_snapshot,
+    subtotal, costo_entrega, descuento, total, observacion_general, fecha_entrega, clave_idempotencia, metodos_pago_previstos
+  ) values (
+    p_cliente_id, 'web', 'recibido', v_cliente.nombre, v_cliente.telefono, v_cliente.email,
+    p_direccion_cliente_id, v_direccion.direccion, v_direccion.comuna, v_direccion.region, v_direccion.referencia,
+    coalesce(v_direccion.destinatario, v_direccion.nombre), v_direccion.telefono_contacto, v_zona_entrega_snapshot, v_direccion.latitud, v_direccion.longitud,
+    0, 0, 0, 0, v_observacion_normalizada, p_fecha_entrega, p_clave_idempotencia, v_metodos_pago_previstos
+  ) on conflict (clave_idempotencia) where clave_idempotencia is not null do nothing returning * into v_pedido;
+
+  if v_pedido.id is null then
+    select * into v_pedido_existente from public.pedidos p where p.clave_idempotencia = p_clave_idempotencia for update;
+    if not found or v_pedido_existente.cliente_id is distinct from p_cliente_id then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;
+    return query select v_pedido_existente.id, v_pedido_existente.numero_pedido, v_pedido_existente.estado, v_pedido_existente.subtotal, v_pedido_existente.costo_entrega, v_pedido_existente.descuento, v_pedido_existente.total;
+    return;
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    if jsonb_typeof(v_item) <> 'object' then raise exception 'ITEM_INVALIDO'; end if;
+    v_texto_presentacion_id := nullif(btrim(v_item ->> 'presentacion_id'), '');
+    if v_texto_presentacion_id is null or v_texto_presentacion_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'PRESENTACION_INVALIDA'; end if;
+    if v_item -> 'cantidad' is null or jsonb_typeof(v_item -> 'cantidad') <> 'number' then raise exception 'CANTIDAD_INVALIDA'; end if;
+    v_presentacion_id := v_texto_presentacion_id::uuid;
+    v_cantidad := (v_item ->> 'cantidad')::numeric;
+    if v_presentacion_id = any(v_presentaciones) then raise exception 'PRESENTACION_DUPLICADA'; end if;
+    v_presentaciones := array_append(v_presentaciones, v_presentacion_id);
+    select pp.id, pp.producto_id, pp.nombre as nombre_presentacion, pp.cantidad as cantidad_presentacion, pp.unidad, pp.precio_neto, pp.precio_final, pr.nombre as nombre_producto
+    into v_presentacion from public.presentaciones_producto pp join public.productos pr on pr.id = pp.producto_id
+    where pp.id = v_presentacion_id and pp.activa = true and pp.es_principal = true and pr.activo = true and pr.disponible = true for share of pp, pr;
+    if not found then raise exception 'PRESENTACION_NO_DISPONIBLE'; end if;
+    if not public.es_cantidad_pedido_valida(v_presentacion.unidad, v_presentacion.cantidad_presentacion, v_presentacion.nombre_presentacion, v_cantidad) then raise exception 'CANTIDAD_INVALIDA'; end if;
+    v_modo_cantidad_snapshot := case when public.es_presentacion_kg_fraccionable(v_presentacion.unidad, v_presentacion.cantidad_presentacion, v_presentacion.nombre_presentacion) then 'kg_fraccionable' when lower(coalesce(v_presentacion.nombre_presentacion, '')) ~ '(saco|malla|caja|paquete|docena)' then 'presentacion_cerrada' else 'unidad' end;
+    insert into public.items_pedido (pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_neto_unitario_snapshot,precio_final_unitario_snapshot,total_linea,observacion_cliente,modo_cantidad_snapshot)
+    values (v_pedido.id,v_presentacion.producto_id,v_presentacion.id,v_presentacion.nombre_producto,v_presentacion.nombre_presentacion,v_presentacion.unidad,v_cantidad,v_presentacion.precio_neto,v_presentacion.precio_final,round(v_cantidad * v_presentacion.precio_final)::bigint,null,v_modo_cantidad_snapshot);
+  end loop;
+
+  select coalesce(sum(i.total_linea), 0)::bigint into v_subtotal from public.items_pedido i where i.pedido_id = v_pedido.id;
+  v_costo_entrega := case when v_subtotal < 25000 then 2000 else 0 end;
+  update public.pedidos set subtotal = v_subtotal, costo_entrega = v_costo_entrega, descuento = 0, total = v_subtotal + v_costo_entrega where id = v_pedido.id returning * into v_pedido;
+  return query select v_pedido.id, v_pedido.numero_pedido, v_pedido.estado, v_pedido.subtotal, v_pedido.costo_entrega, v_pedido.descuento, v_pedido.total;
+end;
+$$;
+
+-- registrar_pago_cliente_administrativo / 20260812130000_anulacion_segura_pagos_y_cancelacion_pedidos.sql
+create or replace function public.registrar_pago_cliente_administrativo(
+  p_cliente_id uuid,
+  p_monto bigint,
+  p_metodo_pago text,
+  p_referencia text,
+  p_observacion text,
+  p_clave_idempotencia uuid
+)
+returns table (pago_id uuid, monto bigint, monto_aplicado bigint, monto_disponible bigint)
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_pago public.pagos%rowtype;
+  v_pedido record;
+  v_metodo text := lower(btrim(p_metodo_pago));
+  v_restante bigint;
+  v_aplicacion bigint;
+  v_monto_aplicado bigint;
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+  if p_clave_idempotencia is null then raise exception 'CLAVE_IDEMPOTENCIA_REQUERIDA'; end if;
+  if p_monto is null or p_monto <= 0 then raise exception 'MONTO_INVALIDO'; end if;
+  if v_metodo not in ('efectivo', 'transferencia', 'otro', 'tarjeta', 'pago_web') then raise exception 'METODO_PAGO_INVALIDO'; end if;
+  perform 1 from public.clientes c where c.id = p_cliente_id and c.activo = true for update;
+  if not found then raise exception 'CLIENTE_INVALIDO'; end if;
+  select * into v_pago from public.pagos p where p.clave_idempotencia = p_clave_idempotencia for update;
+  if found then
+    if v_pago.cliente_id is distinct from p_cliente_id then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;
+    select coalesce(sum(a.monto_aplicado), 0)::bigint into v_monto_aplicado from public.aplicaciones_pago a where a.pago_id = v_pago.id and a.activa;
+    return query select v_pago.id, v_pago.monto, v_monto_aplicado, v_pago.monto - v_monto_aplicado;
+    return;
+  end if;
+  insert into public.pagos (cliente_id, monto, metodo_pago, estado, referencia, observacion, registrado_por, fecha_pago, clave_idempotencia)
+  values (p_cliente_id, p_monto, v_metodo::public.metodo_pago, 'confirmado', nullif(btrim(p_referencia), ''), nullif(btrim(p_observacion), ''), auth.uid(), now(), p_clave_idempotencia)
+  on conflict (clave_idempotencia) where clave_idempotencia is not null do nothing
+  returning * into v_pago;
+  if v_pago.id is null then
+    select * into v_pago from public.pagos p where p.clave_idempotencia = p_clave_idempotencia for update;
+    if not found or v_pago.cliente_id is distinct from p_cliente_id then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;
+    select coalesce(sum(a.monto_aplicado), 0)::bigint into v_monto_aplicado from public.aplicaciones_pago a where a.pago_id = v_pago.id and a.activa;
+    return query select v_pago.id, v_pago.monto, v_monto_aplicado, v_pago.monto - v_monto_aplicado;
+    return;
+  end if;
+  perform 1 from public.pedidos p where p.cliente_id = p_cliente_id and p.estado <> 'cancelado' order by p.fecha_creacion, p.id for update;
+  v_restante := p_monto;
+  for v_pedido in select p.id, s.saldo_pendiente from public.pedidos p join public.v_saldos_pedidos s on s.pedido_id = p.id where p.cliente_id = p_cliente_id and p.estado <> 'cancelado' and s.saldo_pendiente > 0 order by p.fecha_creacion, p.id loop
+    exit when v_restante = 0;
+    v_aplicacion := least(v_restante, v_pedido.saldo_pendiente);
+    insert into public.aplicaciones_pago (pago_id, pedido_id, monto_aplicado) values (v_pago.id, v_pedido.id, v_aplicacion);
+    v_restante := v_restante - v_aplicacion;
+  end loop;
+  v_monto_aplicado := p_monto - v_restante;
+  return query select v_pago.id, p_monto, v_monto_aplicado, v_restante;
+end;
+$$;
+
+-- anular_pago_administrativo / 20260812130000_anulacion_segura_pagos_y_cancelacion_pedidos.sql
+create or replace function public.anular_pago_administrativo(p_pago_id uuid, p_motivo text)
+returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_pago public.pagos%rowtype;
+  v_motivo text := nullif(btrim(p_motivo), '');
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+  if v_motivo is null then raise exception 'MOTIVO_REQUERIDO'; end if;
+  select * into v_pago from public.pagos p where p.id = p_pago_id for update;
+  if not found then raise exception 'PAGO_NO_ENCONTRADO'; end if;
+  if v_pago.estado = 'anulado' then return v_pago.id; end if;
+  if v_pago.estado <> 'confirmado' then raise exception 'ESTADO_PAGO_INVALIDO'; end if;
+  perform 1 from public.aplicaciones_pago a where a.pago_id = v_pago.id and a.activa for update;
+  update public.aplicaciones_pago set activa = false, fecha_anulacion = now(), anulada_por = auth.uid(), motivo_anulacion = v_motivo where pago_id = v_pago.id and activa;
+  update public.pagos set estado = 'anulado', fecha_anulacion = now(), anulado_por = auth.uid(), motivo_anulacion = v_motivo where id = v_pago.id;
+  return v_pago.id;
+end;
+$$;
+
+-- cancelar_pedido_administrativo / 20260812130000_anulacion_segura_pagos_y_cancelacion_pedidos.sql
+create or replace function public.cancelar_pedido_administrativo(p_pedido_id uuid, p_motivo text)
+returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_pedido public.pedidos%rowtype;
+  v_motivo text := nullif(btrim(p_motivo), '');
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+  if v_motivo is null then raise exception 'MOTIVO_REQUERIDO'; end if;
+  select * into v_pedido from public.pedidos p where p.id = p_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+  if v_pedido.estado = 'cancelado' then return v_pedido.id; end if;
+  if v_pedido.estado not in ('recibido', 'en_revision', 'confirmado', 'programado', 'preparando') then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+  perform 1 from public.aplicaciones_pago a where a.pedido_id = v_pedido.id and a.activa for update;
+  update public.aplicaciones_pago set activa = false, fecha_anulacion = now(), anulada_por = auth.uid(), motivo_anulacion = v_motivo where pedido_id = v_pedido.id and activa;
+  update public.pedidos set estado = 'cancelado' where id = v_pedido.id;
+  update public.historial_estados_pedido set observacion = v_motivo where id = (select h.id from public.historial_estados_pedido h where h.pedido_id = v_pedido.id and h.estado_nuevo = 'cancelado' order by h.fecha_creacion desc, h.id desc limit 1);
+  return v_pedido.id;
+end;
+$$;
+
+-- marcar_pedido_preparando_administrativo / 20260817110000_registrar_preparacion_items_pedido.sql
+create or replace function public.marcar_pedido_preparando_administrativo(
+  p_pedido_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido public.pedidos%rowtype;
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+
+  select * into v_pedido from public.pedidos p where p.id = p_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+  if v_pedido.estado = 'preparando' then return v_pedido.id; end if;
+  if v_pedido.estado <> 'confirmado' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+
+  update public.pedidos
+  set estado = 'preparando',
+      preparacion_estado = coalesce(preparacion_estado, 'pendiente')
+  where id = v_pedido.id;
+  return v_pedido.id;
+end;
+$$;
+
+-- marcar_pedido_listo_despacho_administrativo / 20260817110000_registrar_preparacion_items_pedido.sql
+create or replace function public.marcar_pedido_listo_despacho_administrativo(
+  p_pedido_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido public.pedidos%rowtype;
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+
+  select * into v_pedido from public.pedidos p where p.id = p_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+  if v_pedido.estado = 'listo_despacho' then return v_pedido.id; end if;
+  if v_pedido.estado <> 'preparando' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+  if v_pedido.preparacion_estado = 'pendiente' then raise exception 'PREPARACION_PENDIENTE_DE_FINALIZACION'; end if;
+
+  update public.pedidos set estado = 'listo_despacho' where id = v_pedido.id;
+  return v_pedido.id;
+end;
+$$;
+
+-- marcar_pedido_en_reparto_administrativo / 20260814100000_crear_ciclo_operativo_pedidos.sql
+create function public.marcar_pedido_en_reparto_administrativo(
+  p_pedido_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido public.pedidos%rowtype;
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+
+  select * into v_pedido from public.pedidos p where p.id = p_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+  if v_pedido.estado = 'en_reparto' then return v_pedido.id; end if;
+  if v_pedido.estado <> 'listo_despacho' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+
+  update public.pedidos set estado = 'en_reparto' where id = v_pedido.id;
+  return v_pedido.id;
+end;
+$$;
+
+-- marcar_pedido_entregado_administrativo / 20260814100000_crear_ciclo_operativo_pedidos.sql
+create function public.marcar_pedido_entregado_administrativo(
+  p_pedido_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido public.pedidos%rowtype;
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+
+  select * into v_pedido from public.pedidos p where p.id = p_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+  if v_pedido.estado = 'entregado' then return v_pedido.id; end if;
+  if v_pedido.estado <> 'en_reparto' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+
+  update public.pedidos set estado = 'entregado' where id = v_pedido.id;
+  return v_pedido.id;
+end;
+$$;
+
+-- cancelar_pedido_cliente / 20260816190243_corregir_cancelacion_pedido_cliente.sql
+create or replace function public.cancelar_pedido_cliente(
+  p_pedido_id uuid,
+  p_motivo text default null
+)
+returns table (
+  pedido_id uuid,
+  numero_pedido text,
+  estado public.estado_pedido,
+  cliente_id uuid,
+  fecha_entrega date
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cliente_id uuid;
+  v_pedido public.pedidos%rowtype;
+  v_motivo text := nullif(btrim(p_motivo), '');
+  v_observacion text;
+begin
+  if auth.uid() is null or coalesce(public.es_admin(), false) then
+    raise exception 'NO_AUTORIZADO';
+  end if;
+
+  select c.id into v_cliente_id
+  from public.clientes c
+  where c.usuario_id = auth.uid() and c.activo = true;
+
+  if not found then raise exception 'NO_AUTORIZADO'; end if;
+  if v_motivo is not null and char_length(v_motivo) > 400 then
+    raise exception 'MOTIVO_DEMASIADO_LARGO';
+  end if;
+
+  select * into v_pedido
+  from public.pedidos p
+  where p.id = p_pedido_id
+  for update;
+
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+  if v_pedido.cliente_id is distinct from v_cliente_id then raise exception 'NO_AUTORIZADO'; end if;
+
+  if v_pedido.estado = 'cancelado' then
+    return query select v_pedido.id, v_pedido.numero_pedido, v_pedido.estado, v_pedido.cliente_id, v_pedido.fecha_entrega;
+    return;
+  end if;
+  if v_pedido.estado <> 'recibido' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+
+  v_observacion := 'Cancelado por el cliente' || case when v_motivo is null then '' else ': ' || v_motivo end;
+
+  perform 1 from public.aplicaciones_pago a
+  where a.pedido_id = v_pedido.id and a.activa
+  for update;
+
+  update public.aplicaciones_pago a
+  set activa = false, fecha_anulacion = now(), anulada_por = auth.uid(), motivo_anulacion = v_observacion
+  where a.pedido_id = v_pedido.id and a.activa;
+
+  update public.pedidos set estado = 'cancelado'
+  where id = v_pedido.id
+  returning * into v_pedido;
+
+  update public.historial_estados_pedido h
+  set observacion = v_observacion
+  where h.id = (
+    select ultimo.id from public.historial_estados_pedido ultimo
+    where ultimo.pedido_id = v_pedido.id and ultimo.estado_nuevo = 'cancelado'
+    order by ultimo.fecha_creacion desc, ultimo.id desc
+    limit 1
+  );
+
+  return query select v_pedido.id, v_pedido.numero_pedido, v_pedido.estado, v_pedido.cliente_id, v_pedido.fecha_entrega;
+end;
+$$;
+
+-- guardar_preparacion_item_pedido_administrativo / 20260817111500_corregir_upsert_preparacion_item.sql
+create or replace function public.guardar_preparacion_item_pedido_administrativo(
+  p_item_pedido_id uuid,
+  p_cantidad_preparada numeric,
+  p_motivo text default null
+)
+returns table (
+  pedido_id uuid,
+  item_pedido_id uuid,
+  cantidad_preparada numeric,
+  tiene_faltante boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido_id uuid;
+  v_pedido public.pedidos%rowtype;
+  v_item public.items_pedido%rowtype;
+  v_modo text;
+  v_motivo text := nullif(btrim(coalesce(p_motivo, '')), '');
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+  if p_item_pedido_id is null then raise exception 'ITEM_PEDIDO_NO_ENCONTRADO'; end if;
+  if p_cantidad_preparada is null then raise exception 'CANTIDAD_PREPARADA_REQUERIDA'; end if;
+  if p_cantidad_preparada < 0 then raise exception 'CANTIDAD_PREPARADA_INVALIDA'; end if;
+  if v_motivo is not null and char_length(v_motivo) > 400 then raise exception 'MOTIVO_DEMASIADO_LARGO'; end if;
+
+  select i.pedido_id into v_pedido_id from public.items_pedido i where i.id = p_item_pedido_id;
+  if not found then raise exception 'ITEM_PEDIDO_NO_ENCONTRADO'; end if;
+
+  select * into v_pedido from public.pedidos p where p.id = v_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+
+  select * into v_item from public.items_pedido i where i.id = p_item_pedido_id for update;
+  if not found or v_item.pedido_id is distinct from v_pedido.id then raise exception 'ITEM_PEDIDO_NO_CORRESPONDE_AL_PEDIDO'; end if;
+  if v_pedido.estado <> 'preparando' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+  if p_cantidad_preparada > v_item.cantidad then raise exception 'CANTIDAD_PREPARADA_SUPERA_SOLICITADA'; end if;
+
+  v_modo := coalesce(
+    v_item.modo_cantidad_snapshot,
+    case
+      when upper(btrim(v_item.unidad_snapshot)) = 'KG' and lower(coalesce(v_item.nombre_presentacion_snapshot, '')) !~ '(saco|malla|caja|paquete|docena)' then 'kg_fraccionable'
+      when lower(coalesce(v_item.nombre_presentacion_snapshot, '')) ~ '(saco|malla|caja|paquete|docena)' then 'presentacion_cerrada'
+      else 'unidad'
+    end
+  );
+  if v_modo in ('presentacion_cerrada', 'unidad') and p_cantidad_preparada <> trunc(p_cantidad_preparada) then raise exception 'CANTIDAD_PREPARADA_DEBE_SER_ENTERA'; end if;
+
+  update public.pedidos set preparacion_estado = 'pendiente' where id = v_pedido.id and preparacion_estado is null;
+
+  if p_cantidad_preparada = v_item.cantidad then
+    delete from public.preparacion_items_pedido where preparacion_items_pedido.item_pedido_id = v_item.id;
+    return query select v_pedido.id, v_item.id, v_item.cantidad, false;
+    return;
+  end if;
+
+  insert into public.preparacion_items_pedido (pedido_id, item_pedido_id, cantidad_preparada, motivo_faltante, registrado_por)
+  values (v_pedido.id, v_item.id, p_cantidad_preparada, v_motivo, auth.uid())
+  on conflict on constraint preparacion_items_pedido_item_pedido_id_key do update
+  set cantidad_preparada = excluded.cantidad_preparada,
+      motivo_faltante = excluded.motivo_faltante,
+      registrado_por = auth.uid();
+
+  return query select v_pedido.id, v_item.id, p_cantidad_preparada, true;
+end;
+$$;
+
+-- finalizar_preparacion_pedido_administrativo / 20261105030000_totales_linea_pedido_administrativo.sql
+create or replace function public.finalizar_preparacion_pedido_administrativo(p_pedido_id uuid)
+returns table (
+  pedido_id uuid,
+  estado public.estado_pedido,
+  preparacion_estado text,
+  subtotal_final bigint,
+  total_final bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pedido public.pedidos%rowtype;
+  v_item public.items_pedido%rowtype;
+  v_preparada numeric;
+  v_modo text;
+  v_subtotal bigint := 0;
+  v_total bigint;
+  v_completa boolean := true;
+  v_aplicado bigint := 0;
+  v_exceso bigint := 0;
+  v_aplicacion public.aplicaciones_pago%rowtype;
+  v_conservar bigint;
+  v_lineas_faltantes integer := 0;
+  v_observacion text;
+begin
+  if not coalesce(public.es_admin(), false) then raise exception 'NO_AUTORIZADO'; end if;
+  select * into v_pedido from public.pedidos p where p.id = p_pedido_id for update;
+  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;
+
+  if v_pedido.estado = 'listo_despacho'
+    and v_pedido.preparacion_estado in ('completa', 'incompleta')
+    and v_pedido.preparacion_finalizada_en is not null
+    and v_pedido.subtotal_final is not null
+    and v_pedido.total_final is not null then
+    return query select v_pedido.id, v_pedido.estado, v_pedido.preparacion_estado, v_pedido.subtotal_final, v_pedido.total_final;
+    return;
+  end if;
+  if v_pedido.estado <> 'preparando' then raise exception 'ESTADO_PEDIDO_INVALIDO'; end if;
+
+  perform 1 from public.items_pedido i where i.pedido_id = v_pedido.id order by i.id for update;
+  perform 1 from public.preparacion_items_pedido pi where pi.pedido_id = v_pedido.id order by pi.item_pedido_id for update;
+
+  for v_item in select * from public.items_pedido i where i.pedido_id = v_pedido.id order by i.id loop
+    select pi.cantidad_preparada into v_preparada from public.preparacion_items_pedido pi where pi.item_pedido_id = v_item.id;
+    v_preparada := coalesce(v_preparada, v_item.cantidad);
+    if v_preparada < 0 or v_preparada > v_item.cantidad then raise exception 'CANTIDAD_PREPARADA_INVALIDA'; end if;
+    v_modo := coalesce(v_item.modo_cantidad_snapshot, case
+      when upper(btrim(v_item.unidad_snapshot)) = 'KG' and lower(coalesce(v_item.nombre_presentacion_snapshot, '')) !~ '(saco|malla|caja|paquete|docena)' then 'kg_fraccionable'
+      when lower(coalesce(v_item.nombre_presentacion_snapshot, '')) ~ '(saco|malla|caja|paquete|docena)' then 'presentacion_cerrada'
+      else 'unidad' end);
+    if v_modo in ('presentacion_cerrada', 'unidad') and v_preparada <> trunc(v_preparada) then raise exception 'CANTIDAD_PREPARADA_DEBE_SER_ENTERA'; end if;
+    if v_item.total_final_administrativo is not null then
+      -- No existe política autorizada para prorratear un total arbitrario.
+      -- Fallar antes de modificar totales o aplicaciones de pago.
+      if v_preparada <> v_item.cantidad then
+        raise exception 'TOTAL_ADMINISTRATIVO_REQUIERE_PREPARACION_COMPLETA';
+      end if;
+      v_subtotal := v_subtotal + v_item.total_linea;
+    else
+      v_subtotal := v_subtotal + round(v_preparada * v_item.precio_final_unitario_snapshot)::bigint;
+    end if;
+    if v_preparada < v_item.cantidad then v_completa := false; v_lineas_faltantes := v_lineas_faltantes + 1; end if;
+  end loop;
+
+  v_total := v_subtotal + v_pedido.costo_entrega - v_pedido.descuento;
+  if v_total < 0 then raise exception 'TOTAL_FINAL_INVALIDO'; end if;
+  if v_completa and (v_subtotal <> v_pedido.subtotal or v_total <> v_pedido.total) then raise exception 'PREPARACION_COMPLETA_INCONSISTENTE'; end if;
+
+  -- El nuevo límite debe estar visible para el trigger al recrear aplicaciones activas.
+  update public.pedidos set subtotal_final = v_subtotal, total_final = v_total where id = v_pedido.id;
+
+  perform 1 from public.aplicaciones_pago a where a.pedido_id = v_pedido.id and a.activa order by a.fecha_creacion desc, a.id desc for update;
+  perform 1 from public.pagos p where p.id in (select a.pago_id from public.aplicaciones_pago a where a.pedido_id = v_pedido.id and a.activa) order by p.id for update;
+  select coalesce(sum(a.monto_aplicado), 0)::bigint into v_aplicado from public.aplicaciones_pago a where a.pedido_id = v_pedido.id and a.activa;
+  v_exceso := greatest(v_aplicado - v_total, 0);
+
+  for v_aplicacion in select * from public.aplicaciones_pago a where a.pedido_id = v_pedido.id and a.activa order by a.fecha_creacion desc, a.id desc loop
+    exit when v_exceso = 0;
+    v_conservar := greatest(v_aplicacion.monto_aplicado - v_exceso, 0);
+    update public.aplicaciones_pago set activa = false, fecha_anulacion = now(), anulada_por = auth.uid(), motivo_anulacion = 'Reajuste por preparación incompleta' where id = v_aplicacion.id;
+    if v_conservar > 0 then
+      insert into public.aplicaciones_pago (pago_id, pedido_id, monto_aplicado) values (v_aplicacion.pago_id, v_pedido.id, v_conservar);
+    end if;
+    v_exceso := greatest(v_exceso - v_aplicacion.monto_aplicado, 0);
+  end loop;
+
+  select coalesce(sum(a.monto_aplicado), 0)::bigint into v_aplicado from public.aplicaciones_pago a where a.pedido_id = v_pedido.id and a.activa;
+  if v_aplicado > v_total then raise exception 'APLICACIONES_SUPERAN_TOTAL_FINAL'; end if;
+
+  update public.pedidos
+  set preparacion_estado = case when v_completa then 'completa' else 'incompleta' end,
+      preparacion_finalizada_en = now(), preparacion_finalizada_por = auth.uid(), estado = 'listo_despacho'
+  where id = v_pedido.id;
+  v_observacion := case when v_completa then 'Preparación finalizada completa' else format('Preparación finalizada incompleta: %s líneas con faltantes', v_lineas_faltantes) end;
+  update public.historial_estados_pedido set observacion = v_observacion
+  where id = (select h.id from public.historial_estados_pedido h where h.pedido_id = v_pedido.id and h.estado_nuevo = 'listo_despacho' order by h.fecha_creacion desc, h.id desc limit 1);
+  return query select v_pedido.id, 'listo_despacho'::public.estado_pedido, case when v_completa then 'completa' else 'incompleta' end, v_subtotal, v_total;
+end;
+$$;
+
+-- convertir_posible_pedido_administrativo / 20261022012000_crear_rpcs_posibles_pedidos.sql
+create function public.convertir_posible_pedido_administrativo(
+  p_id uuid, p_version_esperada bigint, p_clave_operacion uuid,
+  p_direccion_id uuid, p_fecha_efectiva date, p_metodos_pago text[]
+)
+returns jsonb language plpgsql security definer set search_path = pg_catalog as $$
+declare
+  v_p public.posibles_pedidos%rowtype; v_cliente public.clientes%rowtype;
+  v_direccion public.direcciones_cliente%rowtype; v_zona public.zonas_entrega%rowtype;
+  v_i public.items_posible_pedido%rowtype; v_actual jsonb; v_t record;
+  v_huella bytea; v_reintento jsonb; v_metodos text[]; v_pedido_id uuid := gen_random_uuid();
+  v_item_id uuid; v_cierre timestamptz;
+begin
+  v_p := public.pp_bloquear_admin(p_id, p_version_esperada, p_clave_operacion);
+  -- Recuperación segura incluso con otra clave/versión: no hay segundo pedido.
+  if v_p.estado = 'convertido' then return public.pp_resultado_admin(p_id); end if;
+  if p_metodos_pago is null or cardinality(p_metodos_pago) not between 1 and 3
+    or array_ndims(p_metodos_pago) <> 1 or array_position(p_metodos_pago, null) is not null
+    or not (p_metodos_pago <@ array['efectivo','transferencia','tarjeta']::text[])
+    or (select count(distinct m) from unnest(p_metodos_pago) m) <> cardinality(p_metodos_pago) then
+    raise exception 'METODOS_PAGO_INVALIDOS';
+  end if;
+  select array_agg(m order by n) into v_metodos
+    from unnest(array['efectivo','transferencia','tarjeta']::text[]) with ordinality x(m,n) where m = any(p_metodos_pago);
+  v_huella := public.pp_huella(jsonb_build_object('version', p_version_esperada, 'direccion_id', p_direccion_id,
+    'fecha', p_fecha_efectiva, 'metodos', v_metodos));
+  v_reintento := public.pp_reintento_admin(p_id, p_clave_operacion, 'conversion', v_huella);
+  if v_reintento is not null then return v_reintento; end if;
+  perform public.pp_exigir_abierto(v_p, p_version_esperada);
+  select c.* into v_cliente from public.clientes c where c.id = v_p.cliente_id and c.activo for share;
+  if not found then raise exception 'CLIENTE_INVALIDO'; end if;
+  select d.* into v_direccion from public.direcciones_cliente d where d.id = p_direccion_id
+    and d.cliente_id = v_cliente.id and d.activa for share;
+  if not found then raise exception 'DIRECCION_INVALIDA'; end if;
+  if v_direccion.latitud is null or v_direccion.longitud is null
+    or not (v_direccion.latitud between -90 and 90 and v_direccion.longitud between -180 and 180) then
+    raise exception 'DIRECCION_SIN_UBICACION'; end if;
+  select z.* into v_zona from public.zonas_entrega z where z.id = v_direccion.zona_entrega_id and z.activa for share;
+  if not found then raise exception 'ZONA_INVALIDA'; end if;
+  select * into v_t from public.pp_totales(p_id);
+  -- Se valida con catálogo, pero NO se usan sus precios para el pedido.
+  for v_i in select i.* from public.items_posible_pedido i where i.posible_pedido_id = p_id and i.activo order by i.id for update loop
+    v_actual := public.pp_capturar_presentacion(v_i.presentacion_producto_id, v_i.cantidad, false);
+    if row((v_actual ->> 'producto_id')::uuid, v_actual ->> 'nombre_producto',
+        v_actual ->> 'nombre_presentacion', v_actual ->> 'unidad', (v_actual ->> 'cantidad_presentacion')::numeric, v_actual ->> 'modo')
+      is distinct from row(v_i.producto_id, v_i.nombre_producto_snapshot, v_i.nombre_presentacion_snapshot,
+        v_i.unidad_snapshot, v_i.cantidad_presentacion_snapshot, v_i.modo_cantidad_snapshot) then
+      raise exception 'PRESENTACION_MODIFICADA_REQUIERE_REVISION';
+    end if;
+  end loop;
+  -- Evaluar después de esperas por locks; nunca permitir fecha vencida.
+  perform 1 from public.dias_entrega d order by d.dia_semana for share;
+  if p_fecha_efectiva is null or not isfinite(p_fecha_efectiva)
+    or not public.fecha_entrega_disponible(p_fecha_efectiva, clock_timestamp()) then raise exception 'FECHA_ENTREGA_NO_DISPONIBLE'; end if;
+  insert into public.pedidos (id, cliente_id, canal_origen, estado, nombre_cliente_snapshot,
+    telefono_cliente_snapshot, email_cliente_snapshot, direccion_cliente_id,
+    direccion_snapshot, comuna_snapshot, region_snapshot, referencia_direccion_snapshot,
+    destinatario_entrega_snapshot, telefono_contacto_entrega_snapshot, zona_entrega_snapshot,
+    latitud_entrega_snapshot, longitud_entrega_snapshot, subtotal, costo_entrega, descuento,
+    total, observacion_general, fecha_entrega, clave_idempotencia, metodos_pago_previstos)
+  values (v_pedido_id, v_cliente.id, 'whatsapp', 'recibido', v_cliente.nombre,
+    v_cliente.telefono, v_cliente.email, v_direccion.id,
+    v_direccion.direccion, v_direccion.comuna, v_direccion.region, v_direccion.referencia,
+    coalesce(v_direccion.destinatario, v_direccion.nombre), v_direccion.telefono_contacto, v_zona.nombre,
+    v_direccion.latitud, v_direccion.longitud, v_t.subtotal, v_t.despacho, 0,
+    v_t.total, v_p.observaciones, p_fecha_efectiva, gen_random_uuid(), v_metodos);
+  -- La cabecera debe estar convertida antes de crear los vínculos (trigger).
+  v_cierre := clock_timestamp();
+  update public.posibles_pedidos set estado = 'convertido', pedido_oficial_id = v_pedido_id,
+    fecha_conversion = v_cierre, fecha_cierre = v_cierre, version = version + 1,
+    subtotal_estimado = v_t.subtotal, costo_entrega_estimado = v_t.despacho, total_estimado = v_t.total where id = p_id;
+  for v_i in select i.* from public.items_posible_pedido i where i.posible_pedido_id = p_id and i.activo order by i.orden loop
+    insert into public.items_pedido (pedido_id, producto_id, presentacion_producto_id,
+      nombre_producto_snapshot, nombre_presentacion_snapshot, unidad_snapshot, cantidad,
+      precio_neto_unitario_snapshot, precio_final_unitario_snapshot, total_linea, modo_cantidad_snapshot)
+    values (v_pedido_id, v_i.producto_id, v_i.presentacion_producto_id,
+      v_i.nombre_producto_snapshot, v_i.nombre_presentacion_snapshot, v_i.unidad_snapshot, v_i.cantidad,
+      coalesce(v_i.precio_neto_autorizado, v_i.precio_neto_original_snapshot),
+      coalesce(v_i.precio_venta_autorizado, v_i.precio_venta_original_snapshot), v_i.subtotal, v_i.modo_cantidad_snapshot)
+    returning id into v_item_id;
+    insert into public.vinculos_items_posible_pedido values (v_i.id, v_item_id);
+  end loop;
+  return public.pp_evento(p_id, p_clave_operacion, 'conversion', v_huella, null,
+    jsonb_build_object('pedido_id', v_pedido_id, 'direccion_id', p_direccion_id,
+      'fecha_efectiva', p_fecha_efectiva, 'metodos_pago', v_metodos));
+end;
+$$;
+
+-- crear_pedido_administrativo / 20261105030000_totales_linea_pedido_administrativo.sql
+create or replace function public.crear_pedido_administrativo(
+  p_clave_idempotencia uuid,
+  p_pedido jsonb
+)
+returns jsonb language plpgsql security definer
+set search_path = pg_catalog set timezone = 'UTC' as $$
+declare
+  v_actor uuid := auth.uid();
+  v_operacion public.creaciones_pedidos_administrativas%rowtype;
+  v_cliente public.clientes%rowtype;
+  v_direccion public.direcciones_cliente%rowtype;
+  v_producto public.productos%rowtype;
+  v_presentacion public.presentaciones_producto%rowtype;
+  v_pedido public.pedidos%rowtype;
+  v_linea jsonb; v_k text; v_tipo text;
+  v_cliente_id uuid; v_ubicacion_id uuid; v_producto_id uuid; v_presentacion_id uuid;
+  v_ids uuid[] := array[]::uuid[];
+  v_fecha date; v_momento timestamptz; v_hoy date;
+  v_cantidad numeric; v_referencia numeric; v_precio numeric; v_total_linea numeric; v_total_original numeric;
+  v_subtotal numeric := 0; v_despacho bigint;
+  v_motivo text; v_modo text; v_zona text; v_nombre_ubicacion text;
+  v_item_id uuid; v_huella bytea; v_resultado jsonb;
+  v_metodos text[];
+  v_capturas jsonb := '[]'::jsonb;
+begin
+  if v_actor is null or not coalesce(public.es_admin(), false) then
+    raise exception 'NO_AUTORIZADO' using errcode = '42501';
+  end if;
+  if p_clave_idempotencia is null then raise exception 'CLAVE_IDEMPOTENCIA_REQUERIDA'; end if;
+  if jsonb_typeof(p_pedido) is distinct from 'object' then raise exception 'PEDIDO_INVALIDO'; end if;
+  if octet_length(p_pedido::text) > 262144 then raise exception 'LIMITE_SOLICITUD'; end if;
+
+  -- Huella SHA-256 más comparación del documento completo (sin depender de
+  -- colisiones). jsonb ignora orden de claves; el orden de líneas forma parte
+  -- del contrato. No normalizar motivos ni eliminar campos antes de comparar.
+  v_huella := sha256(convert_to(p_pedido::text, 'UTF8'));
+  perform pg_advisory_xact_lock(hashtextextended(
+    'crear_pedido_administrativo:' || p_clave_idempotencia::text, 0));
+  select o.* into v_operacion from public.creaciones_pedidos_administrativas o
+    where o.clave_idempotencia = p_clave_idempotencia;
+  if found then
+    if v_operacion.administrador_id is distinct from v_actor
+      or v_operacion.huella <> v_huella or v_operacion.solicitud is distinct from p_pedido then
+      raise exception 'CLAVE_IDEMPOTENCIA_EN_USO' using errcode = '23505';
+    end if;
+    -- Comprobante original, aun después de cancelar/preparar o vencer la fecha.
+    return v_operacion.resultado;
+  end if;
+
+  if (p_pedido - array['clienteId','ubicacionId','lineas','subtotal','fechaEntrega','metodosPagoPrevistos']) <> '{}'::jsonb
+    or not (p_pedido ?& array['clienteId','ubicacionId','lineas','subtotal','fechaEntrega','metodosPagoPrevistos']) then
+    raise exception 'CAMPOS_PEDIDO_INVALIDOS';
+  end if;
+  if jsonb_typeof(p_pedido -> 'clienteId') is distinct from 'string'
+    or jsonb_typeof(p_pedido -> 'ubicacionId') is distinct from 'string'
+    or jsonb_typeof(p_pedido -> 'fechaEntrega') is distinct from 'string'
+    or jsonb_typeof(p_pedido -> 'subtotal') is distinct from 'number'
+    or jsonb_typeof(p_pedido -> 'lineas') is distinct from 'array'
+    or jsonb_typeof(p_pedido -> 'metodosPagoPrevistos') is distinct from 'array' then
+    raise exception 'TIPOS_PEDIDO_INVALIDOS';
+  end if;
+  if (p_pedido ->> 'clienteId') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    or (p_pedido ->> 'ubicacionId') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    or (p_pedido ->> 'fechaEntrega') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+    raise exception 'REFERENCIAS_PEDIDO_INVALIDAS';
+  end if;
+  v_cliente_id := (p_pedido ->> 'clienteId')::uuid;
+  v_ubicacion_id := (p_pedido ->> 'ubicacionId')::uuid;
+  v_fecha := (p_pedido ->> 'fechaEntrega')::date;
+  if jsonb_array_length(p_pedido -> 'lineas') not between 1 and 100 then raise exception 'LIMITE_LINEAS'; end if;
+  if jsonb_array_length(p_pedido -> 'metodosPagoPrevistos') not between 1 and 3
+    or exists (select 1 from jsonb_array_elements(p_pedido -> 'metodosPagoPrevistos') m
+      where jsonb_typeof(m) <> 'string') then raise exception 'METODOS_PAGO_PREVISTOS_INVALIDOS'; end if;
+  select array_agg(m order by m) into v_metodos
+    from jsonb_array_elements_text(p_pedido -> 'metodosPagoPrevistos') m;
+  if not (v_metodos <@ array['efectivo','transferencia','tarjeta']::text[])
+    or (select count(distinct m) from unnest(v_metodos) m) <> cardinality(v_metodos) then
+    raise exception 'METODOS_PAGO_PREVISTOS_INVALIDOS';
+  end if;
+  select array_agg(m order by n) into v_metodos from
+    unnest(array['efectivo','transferencia','tarjeta']::text[]) with ordinality x(m,n)
+    where m = any(v_metodos);
+
+  -- Orden compatible con gestión comercial: cliente -> dirección -> zona.
+  select c.* into v_cliente from public.clientes c where c.id = v_cliente_id for share;
+  if not found or not v_cliente.activo then raise exception 'CLIENTE_INVALIDO'; end if;
+  select d.* into v_direccion from public.direcciones_cliente d
+    where d.id = v_ubicacion_id and d.cliente_id = v_cliente_id and d.ambito = 'comercial' for share;
+  if not found or not v_direccion.activa then raise exception 'UBICACION_COMERCIAL_INVALIDA'; end if;
+  if v_direccion.latitud is null or v_direccion.longitud is null
+    or not (v_direccion.latitud between -90 and 90 and v_direccion.longitud between -180 and 180) then
+    raise exception 'UBICACION_SIN_COORDENADAS';
+  end if;
+  -- También admite ubicaciones comerciales históricas sin nombre_ubicacion.
+  v_nombre_ubicacion := coalesce(nullif(btrim(v_direccion.nombre_ubicacion), ''),
+    nullif(btrim(v_direccion.nombre), ''), nullif(btrim(v_direccion.direccion), ''));
+  if v_nombre_ubicacion is null then raise exception 'NOMBRE_UBICACION_REQUERIDO'; end if;
+  if v_direccion.zona_entrega_id is not null then
+    select z.nombre into v_zona from public.zonas_entrega z
+      where z.id = v_direccion.zona_entrega_id and z.activa for share;
+    if not found then raise exception 'ZONA_INVALIDA'; end if;
+  end if;
+
+  -- Orden determinista de productos antes de presentaciones, como el editor.
+  -- Los UUID se validan/castean aquí y se vuelve a comprobar toda la relación
+  -- bajo locks antes de capturar precios. No se exige es_principal en admin.
+  perform pr.id from public.productos pr where pr.id in
+    (select (l ->> 'productoId')::uuid from jsonb_array_elements(p_pedido -> 'lineas') l)
+    order by pr.id for share;
+  for v_linea in select value from jsonb_array_elements(p_pedido -> 'lineas')
+    order by value ->> 'presentacionId' loop
+    if jsonb_typeof(v_linea) is distinct from 'object'
+      or (v_linea - array['productoId','presentacionId','cantidad','precioReferencia','totalFinal','motivoAjuste','totalOriginal']) <> '{}'::jsonb
+      or not (v_linea ?& array['productoId','presentacionId','cantidad','precioReferencia','totalFinal','motivoAjuste','totalOriginal']) then
+      raise exception 'CAMPOS_LINEA_INVALIDOS';
+    end if;
+    for v_k, v_tipo in select key, jsonb_typeof(value) from jsonb_each(v_linea) loop
+      if (v_k in ('productoId','presentacionId') and v_tipo <> 'string')
+        or (v_k in ('cantidad','precioReferencia','totalFinal','totalOriginal') and v_tipo <> 'number')
+        or (v_k = 'motivoAjuste' and v_tipo not in ('string','null')) then
+        raise exception 'TIPOS_LINEA_INVALIDOS';
+      end if;
+    end loop;
+    v_producto_id := (v_linea ->> 'productoId')::uuid;
+    v_presentacion_id := (v_linea ->> 'presentacionId')::uuid;
+    if v_producto_id is null or v_presentacion_id is null then raise exception 'REFERENCIAS_LINEA_INVALIDAS'; end if;
+    if v_presentacion_id = any(v_ids) then raise exception 'PRESENTACION_DUPLICADA'; end if;
+    v_ids := array_append(v_ids, v_presentacion_id);
+    v_cantidad := (v_linea ->> 'cantidad')::numeric;
+    v_referencia := (v_linea ->> 'precioReferencia')::numeric;
+    v_precio := (v_linea ->> 'totalFinal')::numeric;
+    v_motivo := nullif(btrim(v_linea ->> 'motivoAjuste'), '');
+    -- Barreras técnicas, no límites de stock. Inferiores a numeric(12,3),
+    -- bigint y Number.MAX_SAFE_INTEGER; calcular en numeric antes de castear.
+    if not (v_cantidad > 0 and v_cantidad <= 100000)
+      or not (v_referencia > 0 and v_referencia <= 9000000000000 and v_referencia = trunc(v_referencia))
+      or not (v_precio >= 0 and v_precio <= 9000000000000 and v_precio = trunc(v_precio))
+      or length(coalesce(v_linea ->> 'motivoAjuste','')) > 1000 then raise exception 'CANTIDAD_O_PRECIO_INVALIDO'; end if;
+    select pr.* into v_producto from public.productos pr where pr.id = v_producto_id for share;
+    if not found or not v_producto.activo or not v_producto.disponible then raise exception 'PRODUCTO_NO_DISPONIBLE'; end if;
+    select pp.* into v_presentacion from public.presentaciones_producto pp where pp.id = v_presentacion_id for share;
+    if not found or not v_presentacion.activa or v_presentacion.producto_id <> v_producto.id then
+      raise exception 'PRESENTACION_NO_DISPONIBLE';
+    end if;
+    perform 1 from public.categorias c where c.id = v_producto.categoria_id and c.activa for share;
+    if not found then raise exception 'CATEGORIA_NO_DISPONIBLE'; end if;
+    if v_presentacion.precio_final <> v_referencia then raise exception 'PRECIO_REFERENCIA_DESACTUALIZADO' using errcode = '40001'; end if;
+    if not public.es_cantidad_pedido_valida(v_presentacion.unidad, v_presentacion.cantidad,
+      v_presentacion.nombre, v_cantidad) then raise exception 'CANTIDAD_INVALIDA'; end if;
+    -- El único redondeo es el original de catálogo, igual al checkout.
+    -- El total solicitado se conserva exactamente; nunca se divide por cantidad.
+    v_total_original := round(v_cantidad * v_referencia);
+    v_total_linea := v_precio;
+    if v_total_original > 9000000000000 then raise exception 'LIMITE_IMPORTE'; end if;
+    if (v_linea ->> 'totalOriginal')::numeric <> v_total_original then raise exception 'TOTAL_ORIGINAL_INCORRECTO'; end if;
+    if v_total_linea <> v_total_original and v_motivo is null then raise exception 'MOTIVO_PRECIO_REQUERIDO'; end if;
+    if v_total_linea = v_total_original and v_linea -> 'motivoAjuste' <> 'null'::jsonb then raise exception 'MOTIVO_SIN_AJUSTE'; end if;
+    if v_total_linea > 9000000000000 then raise exception 'LIMITE_IMPORTE'; end if;
+    v_subtotal := v_subtotal + v_total_linea;
+    if v_subtotal > 9000000000000 then raise exception 'LIMITE_IMPORTE'; end if;
+    v_modo := case when public.es_presentacion_kg_fraccionable(v_presentacion.unidad,
+      v_presentacion.cantidad, v_presentacion.nombre) then 'kg_fraccionable'
+      when lower(v_presentacion.nombre) ~ '(saco|malla|caja|paquete|docena)' then 'presentacion_cerrada' else 'unidad' end;
+    v_capturas := v_capturas || jsonb_build_array(jsonb_build_object(
+      'producto', v_producto.id, 'presentacion', v_presentacion.id,
+      'nombre_producto', v_producto.nombre, 'nombre_presentacion', v_presentacion.nombre,
+      'unidad', v_presentacion.unidad, 'cantidad', v_cantidad, 'modo', v_modo,
+      -- Neto de catálogo como referencia histórica; no inventar una tasa fiscal
+      -- ni neto autorizado que PedidoBorrador no contiene.
+      'neto', v_presentacion.precio_neto, 'referencia', v_referencia,
+      'original', v_total_original, 'total', v_total_linea, 'motivo', v_motivo));
+  end loop;
+  if (p_pedido ->> 'subtotal')::numeric <> v_subtotal then raise exception 'SUBTOTAL_INCORRECTO'; end if;
+  v_despacho := case when v_subtotal < 25000 then 2000 else 0 end;
+
+  -- Revalidar el corte DESPUÉS de las esperas por locks. Configuración bloqueada
+  -- hasta el commit; fecha local, horizonte 14 días y corte exclusivo vigentes.
+  perform d.id from public.dias_entrega d order by d.dia_semana for share;
+  v_momento := clock_timestamp();
+  v_hoy := (v_momento at time zone 'America/Santiago')::date;
+  if not isfinite(v_fecha) or v_fecha < v_hoy or v_fecha > v_hoy + 14
+    or not public.fecha_entrega_disponible(v_fecha, v_momento) then
+    raise exception 'FECHA_ENTREGA_NO_DISPONIBLE';
+  end if;
+
+  insert into public.pedidos (cliente_id, canal_origen, estado,
+    nombre_cliente_snapshot, telefono_cliente_snapshot, email_cliente_snapshot,
+    direccion_cliente_id, nombre_ubicacion_snapshot, direccion_snapshot, comuna_snapshot,
+    region_snapshot, referencia_direccion_snapshot, destinatario_entrega_snapshot,
+    telefono_contacto_entrega_snapshot, zona_entrega_snapshot, latitud_entrega_snapshot,
+    longitud_entrega_snapshot, subtotal, costo_entrega, descuento, total,
+    fecha_entrega, metodos_pago_previstos)
+  values (v_cliente.id, 'manual', 'recibido', v_cliente.nombre, v_cliente.telefono, v_cliente.email,
+    v_direccion.id, v_nombre_ubicacion, coalesce(v_direccion.direccion, v_nombre_ubicacion),
+    v_direccion.comuna, v_direccion.region, v_direccion.referencia,
+    coalesce(v_direccion.destinatario, v_direccion.nombre, v_cliente.nombre),
+    coalesce(v_direccion.telefono_contacto, v_cliente.telefono), v_zona,
+    v_direccion.latitud, v_direccion.longitud, v_subtotal::bigint, v_despacho, 0,
+    v_subtotal::bigint + v_despacho, v_fecha, v_metodos) returning * into v_pedido;
+  for v_linea in select value from jsonb_array_elements(v_capturas) loop
+    insert into public.items_pedido (pedido_id, producto_id, presentacion_producto_id,
+      nombre_producto_snapshot, nombre_presentacion_snapshot, unidad_snapshot, cantidad,
+      precio_neto_unitario_snapshot, precio_final_unitario_snapshot, total_linea, modo_cantidad_snapshot, total_final_administrativo)
+    values (v_pedido.id, (v_linea ->> 'producto')::uuid, (v_linea ->> 'presentacion')::uuid,
+      v_linea ->> 'nombre_producto', v_linea ->> 'nombre_presentacion', v_linea ->> 'unidad',
+      (v_linea ->> 'cantidad')::numeric, (v_linea ->> 'neto')::bigint,
+      (v_linea ->> 'referencia')::bigint, (v_linea ->> 'total')::bigint, v_linea ->> 'modo',
+      case when (v_linea ->> 'total')::bigint <> (v_linea ->> 'original')::bigint
+        then (v_linea ->> 'total')::bigint end)
+    returning id into v_item_id;
+    if (v_linea ->> 'total')::bigint <> (v_linea ->> 'original')::bigint then
+      insert into public.auditoria_precios_pedido_administrativo
+        (item_pedido_id, precio_referencia, precio_aplicado, total_original, total_aplicado, motivo, administrador_id)
+      values (v_item_id, (v_linea ->> 'referencia')::bigint,
+        null, (v_linea ->> 'original')::bigint, (v_linea ->> 'total')::bigint, v_linea ->> 'motivo', v_actor);
+    end if;
+  end loop;
+  -- Las vistas vigentes generan el único cargo desde pedidos; no insertar
+  -- ajustes, pagos ni aplicaciones. Los triggers existentes generan historial.
+  v_resultado := jsonb_build_object('pedido_id', v_pedido.id, 'numero_pedido', v_pedido.numero_pedido,
+    'estado', v_pedido.estado, 'subtotal', v_pedido.subtotal, 'costo_entrega', v_pedido.costo_entrega,
+    'descuento', v_pedido.descuento, 'total', v_pedido.total);
+  insert into public.creaciones_pedidos_administrativas
+    (clave_idempotencia, administrador_id, pedido_id, huella, solicitud, resultado)
+  values (p_clave_idempotencia, v_actor, v_pedido.id, v_huella, p_pedido, v_resultado);
+  return v_resultado;
+end;
+$$;

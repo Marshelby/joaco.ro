@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { JornadaCargaControl } from "@/components/admin/jornada-carga-control";
+import { leerCargaJornada } from "@/lib/admin/cargas";
 import { notFound } from "next/navigation";
 
+import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
 import { DeliveryProductsSummary } from "@/components/admin/delivery-products-summary";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -24,7 +27,8 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
   const { fecha } = await params;
   if (!esFechaReal(fecha)) notFound();
 
-  const [entrega, identidad] = await Promise.all([obtenerDetalleEntregaAdmin(fecha), obtenerIdentidadActual()]);
+  const [entrega, identidad, carga] = await Promise.all([obtenerDetalleEntregaAdmin(fecha), obtenerIdentidadActual(), leerCargaJornada(fecha)]);
+  const permisoPreparacion = obtenerPermisoTemporalPreparacion(fecha);
   const tituloFecha = formatFechaEntregaLarga(fecha).toLocaleLowerCase("es-CL");
   const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
 
@@ -35,6 +39,10 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
         description="Jornada derivada de los pedidos programados para esta fecha."
         actions={<ActionLink href="/admin/pedidos?filtro=entregas" variant="secondary">Volver a próximas entregas</ActionLink>}
       />
+
+      <p className="text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
+
+      <JornadaCargaControl key={`${fecha}-${carga.version}`} fecha={fecha} carga={carga} habilitada={permisoPreparacion.permitida} />
 
       {entrega.pedidos.length === 0 ? (
         <EmptyState title="No hay pedidos para esta fecha" description="Cuando se programen pedidos para esta jornada, aparecerán aquí." />

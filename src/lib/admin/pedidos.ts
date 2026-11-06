@@ -50,12 +50,20 @@ export type ItemPreparacionPedidoAdmin = {
   cantidad: number;
   modoCantidadSnapshot: ModoCantidadSnapshot | null;
   cantidadPreparada: number | null;
+  confirmadoExplicito: boolean;
+  importeOriginal: number;
+  importeOperativo: number | null;
   cantidadFaltante: number;
   motivoFaltante: string | null;
   tieneFaltante: boolean;
 };
 
+export type RevisionPreparacion = { version: number; actor_id: string; fecha: string; item_pedido_id: string | null; motivo: string; valores_anteriores: Record<string, unknown>; valores_nuevos: Record<string, unknown> };
+
 export type PedidoEntregaAdmin = PedidoAdminListado & {
+  versionPreparacion: number;
+  historialPreparacion: RevisionPreparacion[];
+  importeOperativoPreparacion: number | null;
   clienteId: string | null;
   destinatarioEntrega: string | null;
   telefonoContactoEntregaSnapshot: string | null;
@@ -158,9 +166,12 @@ type ItemPedidoEntregaFila = {
   unidad_snapshot: string;
   cantidad: number | string;
   modo_cantidad_snapshot: ModoCantidadSnapshot | null;
+  total_linea: number | string;
 };
 
 type PreparacionItemFila = {
+  confirmado_explicito: boolean;
+  importe_linea_operativo: number | string | null;
   item_pedido_id: string;
   cantidad_preparada: number | string;
   motivo_faltante: string | null;
@@ -209,7 +220,7 @@ function mapPedidoListado(fila: PedidoListadoFila): PedidoAdminListado {
   };
 }
 
-function obtenerFechaLocalActual() {
+export function obtenerFechaLocalActual() {
   const partes = new Intl.DateTimeFormat("en-CA", {
     timeZone: DELIVERY_TIME_ZONE,
     year: "numeric",
@@ -247,16 +258,38 @@ export function consolidarItemsEntrega(items: readonly ItemParaConsolidarEntrega
   );
 }
 
-// La columna nueva puede no estar desplegada todavía; no reconstruir snapshots
-// desde direcciones actuales ni ocultar errores de permisos o conectividad.
+// Cada página usa un orden total estable. Avanzar por filas recibidas también
+// tolera un max_rows del API inferior al tamaño solicitado; sólo termina al vacío.
+async function leerCompleto<T>(pagina: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
+  const data: T[] = [];
+  for (;;) {
+    const respuesta = await pagina(data.length, data.length + 199);
+    if (respuesta.error) throw respuesta.error;
+    if (!respuesta.data?.length) return { data, error: null };
+    data.push(...respuesta.data);
+  }
+}
+
+// Acotar IN evita URLs enormes; cada lote se pagina aunque tenga muchas líneas.
+async function leerPorIds<T>(ids: string[], pagina: (ids: string[], desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
+  const data: T[] = [];
+  for (let inicio = 0; inicio < ids.length; inicio += 100) {
+    const lote = ids.slice(inicio, inicio + 100);
+    const resultado = await leerCompleto((desde, hasta) => pagina(lote, desde, hasta));
+    data.push(...resultado.data);
+  }
+  return { data, error: null };
+}
+
+// La columna puede no estar desplegada: sólo ese error admite fallback.
+// No reconstruir snapshots desde direcciones actuales.
 async function obtenerUbicacionesSnapshot(supabase: Awaited<ReturnType<typeof crearClienteSupabaseServidor>>, ids: string[]) {
   const ubicaciones = new Map<string, string | null>();
   if (ids.length === 0) return ubicaciones;
-  const { data, error } = await supabase.from("pedidos").select("id,nombre_ubicacion_snapshot").in("id", ids);
-  if (error) {
-    if (["42703", "PGRST204"].includes(error.code) && error.message.includes("nombre_ubicacion_snapshot")) return ubicaciones;
+  const { data } = await leerPorIds(ids, (lote, desde, hasta) => supabase.from("pedidos").select("id,nombre_ubicacion_snapshot").in("id", lote).order("id").range(desde, hasta)).catch((error: { code: string; message: string }) => {
+    if (["42703", "PGRST204"].includes(error.code) && error.message.includes("nombre_ubicacion_snapshot")) return { data: [], error: null };
     throw error;
-  }
+  });
   for (const fila of data ?? []) ubicaciones.set(fila.id, fila.nombre_ubicacion_snapshot);
   return ubicaciones;
 }
@@ -266,15 +299,15 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
   const { data: admin, error: errorAdmin } = await supabase.rpc("es_admin");
   if (errorAdmin) throw errorAdmin;
   if (admin !== true) throw new Error("NO_AUTORIZADO");
-  const { data, error } = await supabase.from("auditoria_precios_pedido_administrativo")
+  const { data } = await leerPorIds(itemIds, (lote, desde, hasta) => supabase.from("auditoria_precios_pedido_administrativo")
     .select("*")
-    .in("item_pedido_id", itemIds)
+    .in("item_pedido_id", lote)
     .order("fecha_autorizacion", { ascending: false })
-    .order("item_pedido_id");
-  if (error) {
-    if (["42P01", "PGRST205"].includes(error.code)) return null;
-    throw error;
-  }
+    .order("item_pedido_id").range(desde, hasta)).catch((error: { code: string }) => {
+      if (["42P01", "PGRST205"].includes(error.code)) return { data: null, error: null };
+      throw error;
+    });
+  if (data === null) return null;
   return (data ?? []).map((fila) => ({
     itemPedidoId: fila.item_pedido_id,
     precioReferencia: Number(fila.precio_referencia),
@@ -289,14 +322,13 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
 
 export async function obtenerPedidosAdmin(soloRecibidos: boolean) {
   const supabase = await crearClienteSupabaseServidor();
-  let consulta = supabase
-    .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,canal_origen,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
-    .order("fecha_creacion", { ascending: false });
-
-  if (soloRecibidos) consulta = consulta.eq("estado", "recibido");
-
-  const { data, error } = await consulta;
+  const { data, error } = await leerCompleto((desde, hasta) => {
+    let consulta = supabase.from("pedidos")
+      .select("id,numero_pedido,nombre_cliente_snapshot,canal_origen,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
+      .order("fecha_creacion", { ascending: false }).order("id");
+    if (soloRecibidos) consulta = consulta.eq("estado", "recibido");
+    return consulta.range(desde, hasta);
+  });
   if (error) throw error;
   const filas = (data ?? []) as PedidoListadoFila[];
   const ubicaciones = await obtenerUbicacionesSnapshot(supabase, filas.map((fila) => fila.id));
@@ -312,13 +344,13 @@ export async function obtenerCantidadPedidosRecibidos() {
 
 export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdmin[]> {
   const supabase = await crearClienteSupabaseServidor();
-  const { data, error } = await supabase
+  const { data, error } = await leerCompleto((desde, hasta) => supabase
     .from("pedidos")
     .select("id,fecha_entrega,total,total_final,preparacion_estado,cliente_id,estado")
     .not("fecha_entrega", "is", null)
     .gte("fecha_entrega", obtenerFechaLocalActual())
     .neq("estado", "cancelado")
-    .order("fecha_entrega", { ascending: true });
+    .order("fecha_entrega", { ascending: true }).order("id").range(desde, hasta));
 
   if (error) throw error;
 
@@ -354,10 +386,10 @@ export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdm
   const itemsPorFecha = new Map<string, ItemPedidoEntregaFila[]>();
   const idsPedidos = [...fechaPorPedido.keys()];
   if (idsPedidos.length > 0) {
-    const { data: items, error: errorItems } = await supabase
+    const { data: items, error: errorItems } = await leerPorIds(idsPedidos, (lote, desde, hasta) => supabase
       .from("items_pedido")
       .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad")
-      .in("pedido_id", idsPedidos);
+      .in("pedido_id", lote).order("id").range(desde, hasta));
     if (errorItems) throw errorItems;
 
     for (const item of (items ?? []) as ItemPedidoEntregaFila[]) {
@@ -378,44 +410,55 @@ export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdm
 
 export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<DetalleEntregaAdmin> {
   const supabase = await crearClienteSupabaseServidor();
-  const { data, error } = await supabase
+  const { data, error } = await leerCompleto((desde, hasta) => supabase
     .from("pedidos")
     .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot")
     .eq("fecha_entrega", fecha)
     .neq("estado", "cancelado")
-    .order("fecha_creacion", { ascending: true });
+    .order("fecha_creacion", { ascending: true }).order("id").range(desde, hasta));
 
   if (error) throw error;
 
   const filas = ((data ?? []) as PedidoEntregaFila[]).filter((pedido) => esEstadoIncluidoEnEntrega(pedido.estado));
+  const ubicaciones = await obtenerUbicacionesSnapshot(supabase, filas.map((pedido) => pedido.id));
   const pedidos: PedidoEntregaAdmin[] = filas.map((pedido) => ({
-    ...mapPedidoListado(pedido),
+    ...mapPedidoListado({ ...pedido, nombre_ubicacion_snapshot: ubicaciones.get(pedido.id) }),
     clienteId: pedido.cliente_id,
     destinatarioEntrega: pedido.destinatario_entrega_snapshot,
     telefonoContactoEntregaSnapshot: pedido.telefono_contacto_entrega_snapshot,
     telefonoClienteSnapshot: pedido.telefono_cliente_snapshot,
     zonaEntrega: pedido.zona_entrega_snapshot,
+    versionPreparacion: 0,
+    historialPreparacion: [],
+    importeOperativoPreparacion: null,
     items: [],
+  }));
+  await Promise.all(pedidos.map(async (pedido) => {
+    const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
+    if (errorMeta) throw errorMeta;
+    pedido.versionPreparacion = Number(meta.version);
+    pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
+    pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
   }));
   const idsPedidos = pedidos.map((pedido) => pedido.id);
 
   let resumenProductos: readonly ResumenProductoEntrega[] = [];
   if (idsPedidos.length > 0) {
-    const { data: items, error: errorItems } = await supabase
+    const { data: items, error: errorItems } = await leerPorIds(idsPedidos, (lote, desde, hasta) => supabase
       .from("items_pedido")
-      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot")
-      .in("pedido_id", idsPedidos)
+      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot,total_linea")
+      .in("pedido_id", lote)
       .order("fecha_creacion", { ascending: true })
-      .order("id", { ascending: true });
+      .order("id", { ascending: true }).range(desde, hasta));
     if (errorItems) throw errorItems;
 
     const filasItems = (items ?? []) as ItemPedidoEntregaFila[];
     const preparacionPorItem = new Map<string, PreparacionItemFila>();
     if (filasItems.length > 0) {
-      const { data: preparaciones, error: errorPreparaciones } = await supabase
+      const { data: preparaciones, error: errorPreparaciones } = await leerPorIds(filasItems.map((item) => item.id), (lote, desde, hasta) => supabase
         .from("preparacion_items_pedido")
-        .select("item_pedido_id,cantidad_preparada,motivo_faltante")
-        .in("item_pedido_id", filasItems.map((item) => item.id));
+        .select("item_pedido_id,cantidad_preparada,motivo_faltante,confirmado_explicito,importe_linea_operativo")
+        .in("item_pedido_id", lote).order("item_pedido_id").range(desde, hasta));
       if (errorPreparaciones) throw errorPreparaciones;
       for (const preparacion of (preparaciones ?? []) as PreparacionItemFila[]) {
         preparacionPorItem.set(preparacion.item_pedido_id, preparacion);
@@ -435,6 +478,9 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
         cantidad: Number(item.cantidad),
         modoCantidadSnapshot: item.modo_cantidad_snapshot,
         cantidadPreparada,
+        confirmadoExplicito: preparacion?.confirmado_explicito ?? false,
+        importeOriginal: Number(item.total_linea),
+        importeOperativo: preparacion?.confirmado_explicito && preparacion.importe_linea_operativo !== null ? Number(preparacion.importe_linea_operativo) : null,
         cantidadFaltante: Number(item.cantidad) - (cantidadPreparada ?? Number(item.cantidad)),
         motivoFaltante: preparacion?.motivo_faltante ?? null,
         tieneFaltante: cantidadPreparada !== null && cantidadPreparada < Number(item.cantidad),
@@ -466,14 +512,17 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen))")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general")
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
 
-  const fila = data as unknown as PedidoDetalleFila;
+  const { data: items } = await leerCompleto((desde, hasta) => supabase.from("items_pedido")
+    .select("id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen)")
+    .eq("pedido_id", id).order("id").range(desde, hasta));
+  const fila = { ...data, items_pedido: items } as unknown as PedidoDetalleFila;
   const [ubicaciones, historialPrecios] = await Promise.all([
     obtenerUbicacionesSnapshot(supabase, [fila.id]),
     obtenerHistorialPreciosAdministrativos(supabase, (fila.items_pedido ?? []).map((item) => item.id)),
@@ -548,4 +597,18 @@ export function obtenerEtiquetaCanalPedido(canal: string | null) {
   if (canal === "web") return "Web";
   if (canal === "whatsapp") return "WhatsApp";
   return canal || "No registrado";
+}
+
+// Conteo acotado para el selector: sólo lecturas, sin cargar líneas ni abrir jornadas.
+export async function obtenerConteoPedidosPorFecha(desde: string, hasta: string) {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data, error } = await leerCompleto((desdeFila, hastaFila) => supabase.from("pedidos")
+    .select("id,fecha_entrega").gte("fecha_entrega", desde).lte("fecha_entrega", hasta)
+    .neq("estado", "cancelado").order("id").range(desdeFila, hastaFila));
+  if (error) throw error;
+  const conteo: Record<string, number> = {};
+  for (const pedido of data ?? []) {
+    if (pedido.fecha_entrega) conteo[pedido.fecha_entrega] = (conteo[pedido.fecha_entrega] ?? 0) + 1;
+  }
+  return conteo;
 }

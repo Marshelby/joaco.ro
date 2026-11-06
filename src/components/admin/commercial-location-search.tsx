@@ -48,7 +48,7 @@ export function CommercialLocationSearch({ provider = administrativeProvider, on
     const abort = new AbortController();
     controller.current = abort;
     const term = query.trim();
-    const timer = provider && term.length >= 3 && term.length <= 200 ? setTimeout(async () => {
+    const timer = term.length >= 3 && term.length <= 200 ? setTimeout(async () => {
       if (abort.signal.aborted || current !== request.current) return;
       try {
         const found = await provider(term, { signal: abort.signal });

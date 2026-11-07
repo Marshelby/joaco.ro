@@ -35,7 +35,7 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
   const [aviso, setAviso] = useState<string | null>(null);
   const [arrastrada, setArrastrada] = useState<string | null>(null);
   const bloqueo = useRef(false);
-  const arrastre = useRef<{ id: string; y: number; x: number; frame: number } | null>(null);
+  const arrastre = useRef<{ id: string; pointerId: number; y: number; x: number; frame: number } | null>(null);
   const paradas = useMemo(() => {
     const porId = new Map(originales.map((p) => [p.id, p]));
     return orden.flatMap((id, indice) => {
@@ -178,7 +178,22 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
           Paradas ({paradas.length})<ChevronDown className={`size-4 shrink-0 transition-transform ${panelAbierto ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
         <div id="listado-paradas-ruta" hidden={!panelAbierto} className="min-h-0 flex-1 overflow-hidden">
-          <ol ref={listado} className="relative max-h-[36dvh] space-y-2 overflow-y-auto overscroll-contain p-2 lg:h-full lg:max-h-none">
+          <ol ref={listado} className="relative max-h-[36dvh] space-y-2 overflow-y-auto overscroll-contain p-2 lg:h-full lg:max-h-none"
+            onPointerMove={(evento) => {
+              if (arrastre.current?.pointerId === evento.pointerId) {
+                arrastre.current.x = evento.clientX;
+                arrastre.current.y = evento.clientY;
+              }
+            }}
+            onPointerUp={(evento) => {
+              if (arrastre.current?.pointerId === evento.pointerId) terminarArrastre(false);
+            }}
+            onPointerCancel={(evento) => {
+              if (arrastre.current?.pointerId === evento.pointerId) terminarArrastre(true);
+            }}
+            onLostPointerCapture={(evento) => {
+              if (arrastre.current?.pointerId === evento.pointerId) terminarArrastre(true);
+            }}>
             {paradas.map((parada) => {
               const activa = seleccionada === parada.id;
               return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
@@ -186,22 +201,14 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
                 <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={!lista || guardando}
                   className={`min-h-12 min-w-11 shrink-0 touch-none select-none rounded-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 ${arrastrada === parada.id ? "cursor-grabbing bg-muted" : "cursor-grab"}`}
                   onPointerDown={(evento) => {
-                    if (bloqueo.current || !lista || evento.button !== 0 || arrastre.current) return;
+                    if (bloqueo.current || !lista || !evento.isPrimary || evento.button !== 0 || arrastre.current || !listado.current) return;
                     evento.preventDefault();
-                    evento.currentTarget.setPointerCapture(evento.pointerId);
+                    // La captura debe permanecer en un nodo que no se mueve al ordenar.
+                    listado.current.setPointerCapture(evento.pointerId);
                     setArrastrada(parada.id);
-                    arrastre.current = { id: parada.id, x: evento.clientX, y: evento.clientY, frame: 0 };
+                    arrastre.current = { id: parada.id, pointerId: evento.pointerId, x: evento.clientX, y: evento.clientY, frame: 0 };
                     seguirArrastre();
                   }}
-                  onPointerMove={(evento) => {
-                    if (arrastre.current?.id === parada.id) {
-                      arrastre.current.x = evento.clientX;
-                      arrastre.current.y = evento.clientY;
-                    }
-                  }}
-                  onPointerUp={() => terminarArrastre(false)}
-                  onPointerCancel={() => terminarArrastre(true)}
-                  onLostPointerCapture={() => terminarArrastre(true)}
                   onKeyDown={(evento) => {
                     if (bloqueo.current || arrastre.current || !["ArrowUp", "ArrowDown"].includes(evento.key)) return;
                     evento.preventDefault();

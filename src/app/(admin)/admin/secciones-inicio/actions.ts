@@ -57,6 +57,7 @@ export async function agregarProductoSeccionInicio(
   if (error) return { error: mensajeError(error.message) };
 
   revalidatePath("/admin/secciones-inicio");
+  revalidatePath("/admin/gestor-publico");
   revalidatePath("/");
   return { exito: "Producto agregado." };
 }
@@ -75,6 +76,7 @@ export async function quitarProductoSeccionInicio(
   if (error) return { error: mensajeError(error.message) };
 
   revalidatePath("/admin/secciones-inicio");
+  revalidatePath("/admin/gestor-publico");
   revalidatePath("/");
   return { exito: "Producto quitado." };
 }
@@ -98,6 +100,7 @@ export async function moverProductoSeccionInicio(
   if (data !== true) return { error: "El producto ya está en ese extremo de la sección." };
 
   revalidatePath("/admin/secciones-inicio");
+  revalidatePath("/admin/gestor-publico");
   revalidatePath("/");
   return { exito: "Orden actualizado." };
 }

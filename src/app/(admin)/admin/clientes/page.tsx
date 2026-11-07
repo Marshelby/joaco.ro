@@ -1,3 +1,4 @@
+import { CustomerMessagesAccess } from "@/components/admin/customer-messages-access";
 import { CustomerSearch } from "@/components/admin/customer-search";
 import { CustomerCommercialForm } from "@/components/admin/customer-commercial-form";
 import { zonasComerciales } from "@/lib/admin/cliente-comercial";
@@ -22,7 +23,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Clientes" description="Revisa la cuenta corriente y los pedidos históricos de cada cliente." />
+      <PageHeader title="Clientes" description="Revisa la cuenta corriente y los pedidos históricos de cada cliente." actions={<CustomerMessagesAccess />} />
       <CustomerCommercialForm zonas={zonas} />
       <CustomerSearch busqueda={busqueda} total={total} />
       <div id="resultados-clientes">

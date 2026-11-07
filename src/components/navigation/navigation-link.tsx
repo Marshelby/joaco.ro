@@ -16,9 +16,14 @@ export function NavigationLink({ className, activeClassName, exact = false, href
   const pathname = usePathname();
   const feedback = usePublicNavigationFeedback();
   const target = typeof href === "string" ? href : href.pathname ?? "";
+  const groupedPathname = target === "/admin/gestor-publico" && ["/admin/productos", "/admin/categorias", "/admin/secciones-inicio"].some((route) => pathname === route || pathname.startsWith(`${route}/`))
+    ? target
+    : target === "/admin/clientes" && (pathname === "/admin/mensajes" || pathname.startsWith("/admin/mensajes/"))
+      ? target
+      : pathname;
   const activePathname = target === "/admin/pedidos" && (pathname === "/admin/posibles-pedidos" || pathname.startsWith("/admin/posibles-pedidos/"))
     ? pathname.replace("/admin/posibles-pedidos", "/admin/pedidos")
-    : pathname;
+    : groupedPathname;
   const active = exact ? activePathname === target : activePathname === target || activePathname.startsWith(`${target}/`);
 
   return (

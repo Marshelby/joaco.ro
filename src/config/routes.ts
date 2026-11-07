@@ -16,6 +16,7 @@ export const ROUTES = {
   accountBenefits: "/mi-cuenta/beneficios",
   accountMessages: "/mi-cuenta/mensajes",
   admin: "/admin",
+  adminPublicManager: "/admin/gestor-publico",
   adminProducts: "/admin/productos",
   adminCategories: "/admin/categorias",
   adminHomeSections: "/admin/secciones-inicio",

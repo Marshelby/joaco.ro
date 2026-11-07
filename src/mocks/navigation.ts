@@ -20,11 +20,9 @@ export const CUSTOMER_NAVIGATION = [
 
 export const ADMIN_NAVIGATION = [
   { label: "Dashboard", href: ROUTES.admin, icon: "home" },
-  { label: "Productos", href: ROUTES.adminProducts, icon: "box" },
-  { label: "Categorías", href: ROUTES.adminCategories, icon: "category" },
-  { label: "Secciones Inicio", href: ROUTES.adminHomeSections, icon: "catalog" },
+  { label: "Gestor público", href: ROUTES.adminPublicManager, icon: "catalog" },
   { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
-  { label: "Mensajes", href: ROUTES.adminMessages, icon: "messages" },
+  { label: "Rutas", href: ROUTES.adminRoutes, icon: "routes" },
   { label: "Configuración", href: ROUTES.adminSettings, icon: "settings" },
 ] as const satisfies readonly NavigationItem[];

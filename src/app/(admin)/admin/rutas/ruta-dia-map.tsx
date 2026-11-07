@@ -43,13 +43,13 @@ export function RutaDiaMap({ paradas }: { paradas: ParadaRuta[] }) {
     if (fila && listado.current) listado.current.scrollTop = (fila as HTMLElement).offsetTop - listado.current.offsetTop;
   }, [seleccionada, panelAbierto]);
 
-  return <div className="overflow-hidden rounded-xl border border-border bg-card">
+  return <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
     <h3 className="border-b border-border px-3 py-3 font-semibold">Mapa de la ruta</h3>
     <div className="flex flex-col lg:h-[38rem] lg:flex-row">
-      <div className="relative z-0 h-[max(18rem,42dvh)] min-w-0 flex-1 lg:h-full">
+      <div className="relative z-0 h-[max(20rem,48dvh)] min-h-80 w-full min-w-0 flex-none lg:h-full lg:min-h-0 lg:w-auto lg:flex-1">
         {ubicadas.length > 0 ? <Mapa paradas={ubicadas} seleccionada={seleccionada} onSeleccionar={seleccionar} /> : <p className="p-4 text-sm text-muted-foreground">No hay paradas con ubicación disponible para mostrar en el mapa.</p>}
       </div>
-      <aside className={`flex min-h-0 flex-col border-t border-border lg:border-t-0 lg:border-l ${panelAbierto ? "lg:w-96" : "lg:w-44"}`} aria-label="Paradas de la ruta">
+      <aside className={`flex w-full min-h-0 min-w-0 shrink-0 flex-col border-t border-border lg:border-t-0 lg:border-l ${panelAbierto ? "lg:w-96" : "lg:w-44"}`} aria-label="Paradas de la ruta">
         <button type="button" className="flex min-h-12 w-full items-center justify-between gap-3 p-3 text-sm font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" aria-expanded={panelAbierto} aria-controls="listado-paradas-ruta" onClick={() => setPanelAbierto((abierto) => !abierto)}>
           Paradas ({paradas.length})<ChevronDown className={`size-4 shrink-0 transition-transform ${panelAbierto ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>

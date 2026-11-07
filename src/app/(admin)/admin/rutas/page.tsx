@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { CheckCircle2, ChevronDown } from "lucide-react";
 import { RutaDiaMap } from "./ruta-dia-map";
 import { JornadaModos } from "./jornada-modos";
 import Link from "next/link";
@@ -90,20 +89,9 @@ export default async function AdminRoutesPage({ searchParams }: {
       <RutaDiaMap paradas={entrega.pedidos.map((pedido, indice) => ({
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
         ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
+        entregado: pedido.estado === "entregado",
         ...(coordenadas.get(pedido.id) ?? { latitude: null, longitude: null }),
-      }))} />
-      <p className="text-xs text-muted-foreground">Acciones disponibles próximamente.</p>
-      <ol className="space-y-2">
-        {entrega.pedidos.map((pedido, indice) => {
-          const entregado = pedido.estado === "entregado";
-          return <li key={pedido.id} className={`rounded-xl border ${entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
-            <details className="group">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl p-3 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">{indice + 1}</span>
-                <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold">{pedido.nombreClienteSnapshot}</span><span className="block break-words text-xs opacity-80">{pedido.nombreUbicacionSnapshot || "Sin ubicación comercial registrada"}</span></span>
-                {entregado ? <span className="flex items-center gap-1 text-xs font-semibold"><CheckCircle2 className="size-4" aria-hidden="true" />Entregado</span> : null}
-                <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
-              </summary>
+        detalle: (
               <div className="space-y-3 border-t border-current/10 p-3">
                 <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
                 <details className="rounded-lg border border-border p-3">
@@ -114,10 +102,8 @@ export default async function AdminRoutesPage({ searchParams }: {
                   {["Contactar", "Ubicación", "Entregado", "No entregado"].map((accion) => <Button key={accion} type="button" variant="outline" disabled>{accion}</Button>)}
                 </div>
               </div>
-            </details>
-          </li>;
-        })}
-      </ol>
+        ),
+      }))} />
     </section>} />
   </div>;
 }

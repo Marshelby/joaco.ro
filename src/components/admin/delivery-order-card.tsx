@@ -33,7 +33,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   const Contenedor = compacta ? "details" : "div";
   const ContenedorProductos = compacta ? "div" : "details";
   const ControlProducto = compacta ? PreparationCompactItemControl : PreparationItemControl;
-  const confirmados = pedido.items.filter((item) => item.confirmadoExplicito).length;
+  // El encabezado cuenta únicamente cantidades persistidas, sin depender de la confirmación final.
+  const preparados = pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada >= item.cantidad).length;
 
   return (
     <li className={compacta ? "overflow-hidden rounded-xl border border-border bg-card" : "rounded-xl border border-border bg-card p-4 sm:p-5"}>
@@ -48,8 +49,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           </span>
           <span className="col-start-2 flex flex-wrap gap-1 md:col-start-auto"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></span>
           <span className="col-start-2 space-y-1 text-xs text-muted-foreground md:col-start-auto">
-            <span className="block">{confirmados} / {pedido.items.length} confirmados</span>
-            <progress className="block h-1.5 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={confirmados} />
+            <span className="block">{preparados} / {pedido.items.length} preparados</span>
+            <progress className="block h-1.5 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={preparados} />
           </span>
           <ChevronDown className="col-start-3 row-start-1 size-4 text-muted-foreground transition-transform group-open/preparacion:rotate-180 md:col-start-5" aria-hidden="true" />
         </summary> : null}

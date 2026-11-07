@@ -612,3 +612,17 @@ export async function obtenerConteoPedidosPorFecha(desde: string, hasta: string)
   }
   return conteo;
 }
+
+// Coordenadas históricas del pedido: no sustituir por otra dirección del cliente.
+export async function obtenerCoordenadasRuta(ids: string[]) {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data, error } = await leerPorIds(ids, (lote, desde, hasta) => supabase
+    .from("pedidos")
+    .select("id,latitud_entrega_snapshot,longitud_entrega_snapshot")
+    .in("id", lote).order("id").range(desde, hasta));
+  if (error) throw error;
+  return new Map(data.map((fila) => [fila.id, {
+    latitude: fila.latitud_entrega_snapshot == null ? null : Number(fila.latitud_entrega_snapshot),
+    longitude: fila.longitud_entrega_snapshot == null ? null : Number(fila.longitud_entrega_snapshot),
+  }]));
+}

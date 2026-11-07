@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CheckCircle2, ChevronDown } from "lucide-react";
+import { RutaDiaMap } from "./ruta-dia-map";
 import { JornadaModos } from "./jornada-modos";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,7 +13,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
 import { leerCargaJornada } from "@/lib/admin/cargas";
-import { obtenerConteoPedidosPorFecha, obtenerDetalleEntregaAdmin, obtenerFechaLocalActual } from "@/lib/admin/pedidos";
+import { formatearCantidadConUnidadEntrega, obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha, obtenerDetalleEntregaAdmin, obtenerFechaLocalActual } from "@/lib/admin/pedidos";
 import { formatFechaEntregaCorta, formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { formatCLP } from "@/lib/formatters";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
@@ -43,6 +44,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     obtenerDetalleEntregaAdmin(fecha), leerCargaJornada(fecha),
     obtenerConteoPedidosPorFecha(hoy, dias[6]),
   ]);
+  const coordenadas = await obtenerCoordenadasRuta(entrega.pedidos.map((pedido) => pedido.id));
   const permiso = obtenerPermisoTemporalPreparacion(fecha);
   const productos = entrega.pedidos.flatMap((pedido) => pedido.items);
   const confirmados = productos.filter((item) => item.confirmadoExplicito).length;
@@ -85,12 +87,15 @@ export default async function AdminRoutesPage({ searchParams }: {
     </>}
     <JornadaCargaControl key={`${fecha}-${carga.version}-${JSON.stringify(carga.pedidos)}`} fecha={fecha} carga={carga} habilitada={permiso.permitida} identidades={Object.fromEntries(entrega.pedidos.map((pedido) => [pedido.id, { nombreClienteSnapshot: pedido.nombreClienteSnapshot, nombreUbicacionSnapshot: pedido.nombreUbicacionSnapshot, numeroPedido: pedido.numeroPedido }]))} />
     </>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
+      <RutaDiaMap paradas={entrega.pedidos.map((pedido, indice) => ({
+        id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
+        ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
+        ...(coordenadas.get(pedido.id) ?? { latitude: null, longitude: null }),
+      }))} />
       <p className="text-xs text-muted-foreground">Acciones disponibles próximamente.</p>
       <ol className="space-y-2">
         {entrega.pedidos.map((pedido, indice) => {
           const entregado = pedido.estado === "entregado";
-          const pedidoCarga = carga.pedidos.find((item) => item.id === pedido.id);
-          const cargados = pedidoCarga?.incluido ? pedidoCarga.productos.filter((producto) => producto.confirmado) : [];
           return <li key={pedido.id} className={`rounded-xl border ${entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
             <details className="group">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl p-3 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
@@ -103,7 +108,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                 <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
                 <details className="rounded-lg border border-border p-3">
                   <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Ver productos</summary>
-                  {cargados.length === 0 ? <p className="py-2 text-sm text-muted-foreground">No hay productos cargados confirmados para este pedido.</p> : <ul className="divide-y divide-border">{cargados.map((producto) => <li key={producto.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span className="min-w-0 break-words font-medium">{producto.nombre}</span><span>Cantidad: {producto.cantidad ?? "Sin confirmar"} · Importe: {producto.importe === null ? "Sin confirmar" : formatCLP(producto.importe)}</span></li>)}</ul>}
+                  {pedido.items.length === 0 ? <p className="py-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : <ul className="divide-y divide-border">{pedido.items.map((producto) => <li key={producto.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span className="min-w-0 break-words font-medium">{producto.nombreProducto}{producto.nombrePresentacion ? ` · ${producto.nombrePresentacion}` : ""}</span><span>{new Intl.NumberFormat("es-CL", { maximumFractionDigits: 20 }).format(producto.cantidadPreparada ?? 0)} / {formatearCantidadConUnidadEntrega(producto.cantidad, producto.unidad)}</span></li>)}</ul>}
                 </details>
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido} (próximamente)`}>
                   {["Contactar", "Ubicación", "Entregado", "No entregado"].map((accion) => <Button key={accion} type="button" variant="outline" disabled>{accion}</Button>)}

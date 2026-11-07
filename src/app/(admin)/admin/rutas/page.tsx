@@ -80,7 +80,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     {entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <>
       <section aria-label="Pedidos de la fecha" className="space-y-3">
         <h2 className="text-lg font-semibold">Preparación de pedidos</h2>
-        <ul className="space-y-3">{entrega.pedidos.map((pedido) => <DeliveryOrderCard key={pedido.id} pedido={pedido} operativa />)}</ul>
+        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} operativa numeroPreparacion={indice + 1} />)}</ul>
       </section>
       <details className="rounded-xl border bg-card p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Productos solicitados de la jornada</summary><DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" /></details>
     </>}

@@ -20,7 +20,7 @@ function ControlCarga({ fecha, carga, habilitada, identidades = {} }: Props) {
   const [cambios, setCambios] = useState<Record<string, { incluido: boolean; motivo: string }>>({});
   // Reconciliar por ID en cada render: conserva borradores al reordenar y muestra
   // pedidos nuevos sin seleccionarlos. Nunca envía IDs que dejaron de existir.
-  const seleccion = carga.pedidos.map((p) => ({ id: p.id, incluido: p.incluido ?? false, motivo: p.motivo ?? "", ...cambios[p.id] }));
+  const seleccion = carga.pedidos.map((p) => ({ id: p.id, ...(cambios[p.id] ?? { incluido: p.incluido ?? false, motivo: p.motivo ?? "" }) }));
   const porId = new Map(seleccion.map((p) => [p.id, p]));
   const sucia = carga.pedidos.some((p) => cambios[p.id] !== undefined);
   function cambiar(id: string, cambio: Partial<{ incluido: boolean; motivo: string }>) {

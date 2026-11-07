@@ -16,6 +16,13 @@ export async function guardarAvancePreparacion(datos: FormData): Promise<{ error
   const supabase = await crearClienteSupabaseServidor();
   const { data: sesion } = await supabase.auth.getUser();
   if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
+  const { data: item, error: errorItem } = await supabase.from("items_pedido").select("pedido_id").eq("id", itemId).single();
+  if (errorItem || !item) return { error: "No encontramos el producto." };
+  const { data: pedido } = await supabase.from("pedidos").select("estado").eq("id", item.pedido_id).single();
+  if (pedido?.estado === "confirmado") {
+    const { error } = await supabase.rpc("marcar_pedido_preparando_administrativo", { p_pedido_id: item.pedido_id });
+    if (error) return { error: "No fue posible iniciar la preparación. Revisa la fecha y tus permisos." };
+  }
   // La RPC verifica el permiso administrativo y todas las reglas bajo locks.
   const { error } = await supabase.rpc("guardar_avance_producto_preparado", {
     p_item_pedido_id: itemId, p_cantidad: cantidad,

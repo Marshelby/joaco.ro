@@ -2,12 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { guardarPreparacionItemPedido } from "@/app/(admin)/admin/pedidos/actions";
 import { guardarAvancePreparacion } from "@/app/(admin)/admin/rutas/preparacion-actions";
 import { Button } from "@/components/ui/button";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { resolverModoCantidadPreparacion } from "@/lib/order-preparation";
-import { formatCLP } from "@/lib/formatters";
 import type { ItemPreparacionPedidoAdmin } from "@/lib/admin/pedidos";
 
 export function PreparationCompactItemControl({ item, version, soloLectura = false }: {
@@ -15,10 +13,8 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
 }) {
   const router = useRouter();
   const [cantidad, setCantidad] = useState(String(item.cantidadPreparada ?? 0));
-  const [importe, setImporte] = useState("");
-  const [definitiva, setDefinitiva] = useState(false);
   const [error, setError] = useState("");
-  const [guardado, setGuardado] = useState<"avance" | "definitivo" | null>(null);
+  const [guardado, setGuardado] = useState<"avance" | null>(null);
   const [cantidadGuardada, setCantidadGuardada] = useState(item.cantidadPreparada ?? 0);
   const enviando = useRef(false);
   const solicitud = useRef<{ tipo: string; version: number; clave: string } | null>(null);
@@ -27,14 +23,11 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   const modo = resolverModoCantidadPreparacion(item);
   const paso = modo === "kg_fraccionable" ? 0.001 : 1;
   const valor = Number(cantidad);
-  const cambios = cantidad !== "" && valor !== cantidadGuardada;
-  const distinto = cantidad !== "" && valor !== item.cantidad;
+  const cambios = cantidad === "" || valor !== cantidadGuardada;
   const formato = (n: number) => formatearCantidadPreparacionEntrega(n, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
 
   function editar(siguiente: string) {
     setCantidad(siguiente);
-    setImporte("");
-    setDefinitiva(false);
     setGuardado(null);
     setError("");
     setClave(crypto.randomUUID());
@@ -42,10 +35,10 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   }
 
   return <li className="py-3 text-sm">
-    <form onSubmit={(evento) => {
+    <form data-preparacion-pendiente={cambios || pendiente ? "true" : undefined} onSubmit={(evento) => {
       evento.preventDefault();
-      const tipo = (evento.nativeEvent as SubmitEvent).submitter?.getAttribute("value") ?? "definitivo";
-      if (pendiente || enviando.current || (tipo !== "avance" && !definitiva)) return;
+      const tipo = "avance";
+      if (pendiente || enviando.current) return;
       if (tipo === "avance" && !cambios) return;
       const campo = evento.currentTarget.elements.namedItem("cantidadPreparada") as HTMLInputElement;
       if (!campo.reportValidity()) return;
@@ -59,13 +52,10 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
       enviando.current = true;
       iniciar(async () => {
         try {
-          const resultado = tipo === "avance"
-            ? await guardarAvancePreparacion(datos)
-            : await guardarPreparacionItemPedido({}, datos);
+          const resultado = await guardarAvancePreparacion(datos);
           if (resultado.error) { setError(resultado.error); return; }
           setCantidadGuardada(valor);
-          setGuardado(tipo === "avance" ? "avance" : "definitivo");
-          setDefinitiva(false);
+          setGuardado("avance");
           setError("");
           solicitud.current = null;
           setClave(crypto.randomUUID());
@@ -96,16 +86,9 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
           <p className="text-xs text-muted-foreground">{cantidad !== "" && Number.isFinite(valor) ? formato(valor) : "Ingresa una cantidad"}</p>
         </div>
       </div>
-      {!soloLectura ? <>
-        {cambios ? <Button type="submit" name="accion" value="avance" formNoValidate size="sm" variant="outline" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar avance"}</Button> : null}
-        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={definitiva} disabled={pendiente} onChange={(e) => { setDefinitiva(e.target.checked); setGuardado(null); setClave(crypto.randomUUID()); solicitud.current = null; }} />Confirmar esta cantidad como definitiva (marca el producto LISTO)</label>
-        {definitiva && distinto ? <label className="block text-xs">Importe total definitivo de esta línea (CLP)
-          <input name="importe" type="number" inputMode="numeric" min="0" max="9007199254740991" step="1" required disabled={pendiente} value={importe} onChange={(e) => { setImporte(e.target.value); setClave(crypto.randomUUID()); solicitud.current = null; }} className="ml-2 h-9 w-32 rounded-md border border-input bg-background px-2" />
-          <span className="mt-1 block text-muted-foreground">Ingreso manual obligatorio, también con cantidad cero. Sin prorrateo automático.</span>
-        </label> : definitiva ? <p className="text-xs text-muted-foreground">Se conserva el importe original: {formatCLP(item.importeOriginal)}.</p> : null}
-        {definitiva ? <Button type="submit" name="accion" value="definitivo" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Listo"}</Button> : null}
-      </> : null}
-      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (guardado ? (guardado === "avance" ? "Avance guardado. Pendiente de confirmación final." : "Cantidad definitiva guardada.") : item.confirmadoExplicito ? `LISTO · Guardado: ${formato(item.cantidadPreparada ?? 0)}` : item.cantidadPreparada !== null ? `Avance guardado: ${formato(item.cantidadPreparada)} · Pendiente de confirmación final` : "Pendiente de confirmación final")}</p>
+      <div className="flex items-center gap-2"><progress className="h-2 min-w-0 flex-1 accent-primary" aria-label={`Progreso de ${item.nombreProducto}`} max={100} value={Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0))} /><span className="text-xs">{Number.isFinite(valor) ? valor : 0} / {item.cantidad} · {Math.round(Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0)))}%</span></div>
+      {!soloLectura && cambios ? <div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={pendiente} onClick={() => editar(String(cantidadGuardada))}>Cancelar</Button><Button type="submit" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button></div> : null}
+      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (guardado ? "Avance guardado. Pendiente de confirmación final." : item.confirmadoExplicito ? `LISTO · Guardado: ${formato(item.cantidadPreparada ?? 0)}` : item.cantidadPreparada !== null ? `Avance guardado: ${formato(item.cantidadPreparada)} · Pendiente de confirmación final` : "Pendiente de confirmación final")}</p>
     </form>
   </li>;
 }

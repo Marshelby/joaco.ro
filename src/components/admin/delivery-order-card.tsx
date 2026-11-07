@@ -60,17 +60,17 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
               {pedido.destinatarioEntrega ? <p className="mt-3 break-words text-sm leading-6 text-muted-foreground">Destinatario: {pedido.destinatarioEntrega}</p> : null}
               {pedido.zonaEntrega ? <p className="mt-1 text-sm text-muted-foreground">Zona: {pedido.zonaEntrega}</p> : null}
             </div>
-            <dl className="grid grid-cols-2 gap-3 text-sm sm:block">
+            {!compacta ? <><dl className="grid grid-cols-2 gap-3 text-sm sm:block">
               <div><dt className="text-muted-foreground">Creado</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div>
               <div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div>
             </dl>
             <div className="flex flex-wrap gap-2"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></div>
-            <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink>
+            <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink></> : null}
           </div>
 
           {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
-          {requierePreparacion || pendienteDeConfirmacion || listoParaDespacho ? (
+          {!compacta && (requierePreparacion || pendienteDeConfirmacion || listoParaDespacho) ? (
             <div className="mt-4 border-t border-border pt-3">
               <p className="mb-3 text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
               {pedido.estado === "confirmado" ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
@@ -87,8 +87,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           ) : null}
 
           {operativa && !compacta ? <div className="mt-3 space-y-1 text-sm"><p>{pedido.items.filter((item) => item.confirmadoExplicito).length} de {pedido.items.length} productos confirmados</p><progress className="h-2 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={pedido.items.filter((item) => item.confirmadoExplicito).length} /></div> : null}
-          {compacta || pedido.importeOperativoPreparacion !== null ? <p className="mt-3 text-sm">Importe operativo provisional: {pedido.importeOperativoPreparacion !== null && pedido.importeOperativoPreparacion !== pedido.total ? <><s>{formatCLP(pedido.total)}</s>{" → "}</> : null}{formatCLP(pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total)}</p> : null}
-          {pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Actor: {revision.actor_id}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
+          {!compacta && pedido.importeOperativoPreparacion !== null ? <p className="mt-3 text-sm">Importe operativo provisional: {pedido.importeOperativoPreparacion !== null && pedido.importeOperativoPreparacion !== pedido.total ? <><s>{formatCLP(pedido.total)}</s>{" → "}</> : null}{formatCLP(pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total)}</p> : null}
+          {!compacta && pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Actor: {revision.actor_id}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
           <ContenedorProductos className="group mt-4 border-t border-border pt-3">
             {!compacta ? <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
               <span className="group-open:hidden">Ver productos</span>
@@ -99,7 +99,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
               <h4 className="text-sm font-semibold text-foreground">Productos</h4>
               {pedido.items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : (
                 <ul className="mt-2 divide-y divide-border">
-                  {pedido.items.map((item) => pedido.estado === "preparando" && permisoPreparacion.permitida ? (
+                  {pedido.items.map((item) => (pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida ? (
                     <ControlProducto key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} />
                   ) : (
                     <ControlProducto key={item.id} item={item} version={pedido.versionPreparacion} soloLectura />

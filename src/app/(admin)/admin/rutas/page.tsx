@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 
 import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
 import { DeliveryProductsSummary } from "@/components/admin/delivery-products-summary";
+import { JornadaPreparacionControl } from "@/components/admin/jornada-preparacion-control";
 import { JornadaCargaControl } from "@/components/admin/jornada-carga-control";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
@@ -84,7 +85,8 @@ export default async function AdminRoutesPage({ searchParams }: {
       </section>
       <details className="rounded-xl border bg-card p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Productos solicitados de la jornada</summary><DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" /></details>
     </>}
-    <JornadaCargaControl key={`${fecha}-${carga.version}-${JSON.stringify(carga.pedidos)}`} fecha={fecha} carga={carga} habilitada={permiso.permitida} identidades={Object.fromEntries(entrega.pedidos.map((pedido) => [pedido.id, { nombreClienteSnapshot: pedido.nombreClienteSnapshot, nombreUbicacionSnapshot: pedido.nombreUbicacionSnapshot, numeroPedido: pedido.numeroPedido }]))} />
+    <JornadaPreparacionControl key={fecha} pedidos={entrega.pedidos} habilitada={permiso.permitida} />
+    <JornadaCargaControl key={`${fecha}-${carga.version}-${JSON.stringify(carga.pedidos)}`} fecha={fecha} carga={carga} habilitada={permiso.permitida && entrega.pedidos.every(p => p.estado === "listo_despacho" || p.estado === "en_reparto" || p.estado === "entregado" || p.estado === "cancelado")} identidades={Object.fromEntries(entrega.pedidos.map((pedido) => [pedido.id, { nombreClienteSnapshot: pedido.nombreClienteSnapshot, nombreUbicacionSnapshot: pedido.nombreUbicacionSnapshot, numeroPedido: pedido.numeroPedido }]))} />
     </>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
       <RutaDiaMap fecha={fecha} paradas={entrega.pedidos.map((pedido, indice) => ({
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,

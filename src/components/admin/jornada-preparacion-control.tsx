@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 type Paso = { tipo: "inicio" | "producto" | "cierre"; datos: FormData };
 
-export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: PedidoEntregaAdmin[]; habilitada: boolean }) {
+export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: readonly PedidoEntregaAdmin[]; habilitada: boolean }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [mensaje, setMensaje] = useState("");

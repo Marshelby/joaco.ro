@@ -86,7 +86,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     </>}
     <JornadaCargaControl key={`${fecha}-${carga.version}-${JSON.stringify(carga.pedidos)}`} fecha={fecha} carga={carga} habilitada={permiso.permitida} identidades={Object.fromEntries(entrega.pedidos.map((pedido) => [pedido.id, { nombreClienteSnapshot: pedido.nombreClienteSnapshot, nombreUbicacionSnapshot: pedido.nombreUbicacionSnapshot, numeroPedido: pedido.numeroPedido }]))} />
     </>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
-      <RutaDiaMap paradas={entrega.pedidos.map((pedido, indice) => ({
+      <RutaDiaMap fecha={fecha} paradas={entrega.pedidos.map((pedido, indice) => ({
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
         ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
         entregado: pedido.estado === "entregado",
@@ -99,7 +99,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                   {pedido.items.length === 0 ? <p className="py-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : <ul className="divide-y divide-border">{pedido.items.map((producto) => <li key={producto.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span className="min-w-0 break-words font-medium">{producto.nombreProducto}{producto.nombrePresentacion ? ` · ${producto.nombrePresentacion}` : ""}</span><span>{new Intl.NumberFormat("es-CL", { maximumFractionDigits: 20 }).format(producto.cantidadPreparada ?? 0)} / {formatearCantidadConUnidadEntrega(producto.cantidad, producto.unidad)}</span></li>)}</ul>}
                 </details>
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido} (próximamente)`}>
-                  {["Contactar", "Ubicación", "Entregado", "No entregado"].map((accion) => <Button key={accion} type="button" variant="outline" disabled>{accion}</Button>)}
+                  {["Contactar", "Entregado", "No entregado"].map((accion) => <Button key={accion} type="button" variant="outline" disabled>{accion}</Button>)}
                 </div>
               </div>
         ),

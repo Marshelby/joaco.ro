@@ -83,11 +83,11 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
             <input id={`cargada-${item.id}`} name="cantidadPreparada" type="number" inputMode={modo === "kg_fraccionable" ? "decimal" : "numeric"} min="0" max="999999999.999" step={paso} required readOnly={soloLectura} disabled={pendiente} value={cantidad} onChange={(e) => editar(e.target.value)} className="h-9 w-24 rounded-md border border-input bg-background px-2 text-center" />
             {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Sumar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor + paso > 999999999.999} onClick={() => editar(String(Math.round((valor + paso) * 1000) / 1000))}>+</Button> : null}
           </div>
+          {!soloLectura && cambios ? <div className="flex items-center gap-1"><Button type="button" size="sm" variant="outline" disabled={pendiente} onClick={() => editar(String(cantidadGuardada))}>Cancelar</Button><Button type="submit" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button></div> : null}
           <p className="text-xs text-muted-foreground">{cantidad !== "" && Number.isFinite(valor) ? formato(valor) : "Ingresa una cantidad"}</p>
         </div>
       </div>
       <div className="flex items-center gap-2"><progress className="h-2 min-w-0 flex-1 accent-primary" aria-label={`Progreso de ${item.nombreProducto}`} max={100} value={Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0))} /><span className="text-xs">{Number.isFinite(valor) ? valor : 0} / {item.cantidad} · {Math.round(Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0)))}%</span></div>
-      {!soloLectura && cambios ? <div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={pendiente} onClick={() => editar(String(cantidadGuardada))}>Cancelar</Button><Button type="submit" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button></div> : null}
       <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (guardado ? "Avance guardado. Pendiente de confirmación final." : item.confirmadoExplicito ? `LISTO · Guardado: ${formato(item.cantidadPreparada ?? 0)}` : item.cantidadPreparada !== null ? `Avance guardado: ${formato(item.cantidadPreparada)} · Pendiente de confirmación final` : "Pendiente de confirmación final")}</p>
     </form>
   </li>;

@@ -6,6 +6,7 @@ import { marcarPedidoPreparando, guardarPreparacionItemPedido, finalizarPreparac
 import type { PedidoEntregaAdmin } from "@/lib/admin/pedidos";
 import { resolverModoCantidadPreparacion } from "@/lib/order-preparation";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
+import { formatCLP } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 
 type Paso = { tipo: "inicio" | "producto" | "cierre"; datos: FormData };
@@ -132,6 +133,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
                 {distinta ? <div className="col-span-2 grid gap-1 rounded-lg bg-muted/40 px-3 py-2 sm:col-span-3 sm:grid-cols-[minmax(0,1fr)_8rem] sm:items-center sm:gap-x-3">
                   <label htmlFor={`revision-importe-${item.id}`} className="text-xs font-medium">Importe total manual (CLP)<span id={`ayuda-importe-${item.id}`} className="mt-0.5 block font-normal text-muted-foreground">Total que se cobrará por este producto</span></label>
                   <input id={`revision-importe-${item.id}`} aria-describedby={`ayuda-importe-${item.id}`} name={`importe-${item.id}`} type="number" inputMode="numeric" required min="0" max="9007199254740991" step="1" value={importes[item.id] ?? importeSugerido} onChange={e => setImportes(v => ({ ...v, [item.id]: e.target.value }))} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm tabular-nums" />
+                  <p className="text-xs text-muted-foreground sm:col-span-2">Precio original acordado: {formatCLP(item.importeOriginal)}</p>
                 </div> : null}
               </div>;
             })}</div>

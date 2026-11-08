@@ -1,10 +1,14 @@
 -- Aplicar manualmente después de 20261108120000_fijar_corte_pedidos_mismo_dia.sql.
 -- Reutiliza dias_entrega.hora_corte: no crea almacenamiento adicional.
 -- Las funciones existentes de disponibilidad y validación ya leen esta columna.
+-- El formulario depende de esta RPC, ausente en las migraciones existentes.
+-- Se puede reaplicar: no restablece la hora ni los días configurados.
 begin;
 
 alter table public.dias_entrega
   drop constraint if exists dias_entrega_hora_corte_fija_check;
+alter table public.dias_entrega
+  drop constraint if exists dias_entrega_hora_corte_minutos_check;
 alter table public.dias_entrega
   add constraint dias_entrega_hora_corte_minutos_check
   check (hora_corte < time '24:00' and extract(second from hora_corte) = 0);
@@ -74,4 +78,6 @@ revoke all on function public.guardar_dia_entrega_administrativo(smallint, boole
 grant execute on function public.guardar_dia_entrega_administrativo(smallint, boolean, time, smallint) to authenticated;
 
 -- Se conservan RLS y la prohibición de escrituras directas de clientes.
+-- Actualizar la caché de PostgREST para que la RPC quede disponible por API.
+notify pgrst, 'reload schema';
 commit;

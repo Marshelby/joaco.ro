@@ -55,7 +55,15 @@ export async function guardarHoraCorteAdministrativa(
   const { data: sesion } = await supabase.auth.getUser();
   if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
   const { error } = await supabase.rpc("guardar_hora_corte_administrativa", { p_hora_corte: hora });
-  if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar la hora límite." };
+  if (error) {
+    if (
+      error.code === "PGRST202" || error.code === "42883" ||
+      (error.code === "23514" && error.message.includes("dias_entrega_hora_corte_fija_check"))
+    ) {
+      return { error: "Falta actualizar la configuración de hora límite en Supabase. Aplica manualmente supabase/manual/configurar_hora_limite_entrega.sql." };
+    }
+    return { error: mensajesRpc[error.message] ?? "No fue posible guardar la hora límite." };
+  }
   revalidatePath("/admin/configuracion");
   revalidatePath("/checkout");
   return { exito: "Hora límite actualizada para todos los días de entrega." };

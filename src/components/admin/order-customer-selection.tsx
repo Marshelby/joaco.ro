@@ -7,6 +7,7 @@ import { buscarClientesPedido, cargarClientePedido } from "@/app/(admin)/admin/p
 import { describirSaldoCuenta } from "@/lib/account-balance";
 import { formatCLP } from "@/lib/formatters";
 import { buttonVariants } from "@/components/ui/button";
+import { MapPin } from "lucide-react";
 
 type Seleccion = Awaited<ReturnType<typeof cargarClientePedido>>;
 type Resultados = Awaited<ReturnType<typeof buscarClientesPedido>>;
@@ -25,6 +26,8 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
   const [error, setError] = useState("");
   const carga = useRef(0);
   const consulta = useRef(0);
+  const apartadoEntrega = useRef<HTMLDivElement>(null);
+  const desplazarEntrega = useRef(false);
   const ubicacion = seleccion?.ubicaciones.find((item) => item.id === ubicacionId);
   const saldo = seleccion ? describirSaldoCuenta(seleccion.saldoActual) : null;
 
@@ -36,12 +39,22 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
   useOrderStep(0, Boolean(seleccion && ubicacionValida && !cargando), cargando ? "Espera a que termine la carga del cliente." : !seleccion ? "Selecciona un cliente activo para continuar." : "Selecciona una ubicación comercial activa con nombre o dirección y coordenadas válidas para continuar.");
 
   function limpiar() {
+    desplazarEntrega.current = false;
     carga.current += 1;
     setSeleccion(null);
     setUbicacionId("");
     setCargando(false);
     setError("");
   }
+
+  useEffect(() => {
+    if (!seleccion || !desplazarEntrega.current) return;
+    const frame = requestAnimationFrame(() => {
+      desplazarEntrega.current = false;
+      apartadoEntrega.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [seleccion]);
 
   useEffect(() => {
     const version = ++consulta.current;
@@ -78,6 +91,7 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
     try {
       const respuesta = await cargarClientePedido(id);
       if (version !== carga.current) return;
+      desplazarEntrega.current = true;
       setSeleccion(respuesta);
       setUbicacionId(respuesta.ubicaciones.length === 1 ? respuesta.ubicaciones[0].id : "");
     } catch {
@@ -88,7 +102,7 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
   }
 
   return <><section hidden={activo !== 0} id="cliente" aria-labelledby="cliente-titulo" className="scroll-mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
-    <h2 id="cliente-titulo" className="text-xl font-semibold">1. Cliente y ubicación comercial</h2>
+    <h2 id="cliente-titulo" className="text-xl font-semibold">1. Cliente y ubicación de entrega</h2>
     <p className="mt-2 text-sm text-muted-foreground">Busca por nombre, teléfono o correo, incluidos clientes sin acceso a la plataforma.</p>
     <label className="mt-4 block text-sm font-medium" htmlFor="buscar-cliente">Buscar cliente</label>
     <input id="buscar-cliente" type="search" className={campo} value={busqueda} maxLength={120}
@@ -133,21 +147,30 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
         <p className="mt-2">Cuenta corriente: {saldo?.texto} · {formatCLP(saldo?.monto ?? 0)}</p>
         <button type="button" onClick={limpiar} className="mt-2 underline">Cambiar cliente</button>
       </div>
-      {seleccion.ubicaciones.length === 0 ? <p role="status" className="text-sm">Debes registrar una ubicación comercial activa en la ficha del cliente antes de crear un pedido con despacho.</p> : <>
-        <label className="block text-sm font-medium">Ubicación comercial
-          <select name="ubicacion_comercial_id" className={campo} value={ubicacionId} onChange={(event) => setUbicacionId(event.target.value)}>
-            <option value="">Selecciona una ubicación comercial</option>
+      <div ref={apartadoEntrega} role="region" aria-labelledby="ubicacion-entrega-titulo" className="scroll-mt-8 space-y-4 rounded-xl border-2 border-primary/30 bg-primary/5 p-4 shadow-sm sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><MapPin className="size-6" aria-hidden="true" /></span>
+          <div className="min-w-0">
+            <h3 id="ubicacion-entrega-titulo" className="text-lg font-semibold text-foreground sm:text-xl">Ubicación de entrega</h3>
+            <p id="ubicacion-entrega-ayuda" className="mt-1 text-sm text-muted-foreground">Confirma que la dirección de entrega sea correcta antes de continuar.</p>
+          </div>
+        </div>
+      {seleccion.ubicaciones.length === 0 ? <p role="status" className="text-sm">Debes registrar una ubicación de entrega activa en la ficha del cliente antes de crear un pedido con despacho.</p> : <>
+        <label className="block text-sm font-semibold">Selecciona la ubicación de entrega
+          <select name="ubicacion_comercial_id" aria-describedby="ubicacion-entrega-ayuda" className={`${campo} min-h-12 border-primary/50 bg-background shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`} value={ubicacionId} onChange={(event) => setUbicacionId(event.target.value)}>
+            <option value="">Selecciona una ubicación de entrega</option>
             {seleccion.ubicaciones.map((item) => <option key={item.id} value={item.id}>{item.nombre_ubicacion ?? item.nombre ?? "Ubicación sin nombre"}{item.es_principal ? " · Principal" : ""}</option>)}
           </select>
         </label>
         {seleccion.ubicaciones.length > 1 && !ubicacion ? <p className="text-sm text-muted-foreground">Elige explícitamente una ubicación para continuar.</p> : null}
-        {ubicacion ? <div className="text-sm text-muted-foreground">
+        {ubicacion ? <div className="space-y-1 rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground">
           <p>{ubicacion.nombre_ubicacion ?? ubicacion.nombre ?? "Ubicación sin nombre"}{ubicacion.es_principal ? " · Principal" : ""}</p>
           <p>{[ubicacion.direccion, ubicacion.comuna, ubicacion.region].filter(Boolean).join(" · ")}</p>
           {ubicacion.latitud !== null && ubicacion.longitud !== null ? <p>Coordenadas: {ubicacion.latitud}, {ubicacion.longitud}</p> : null}
           {ubicacion.referencia ? <p>Referencia: {ubicacion.referencia}</p> : null}
         </div> : null}
       </>}
+      </div>
       <input type="hidden" name="cliente_id" value={seleccion.cliente.id} />
     </div> : null}
 

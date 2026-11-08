@@ -132,7 +132,7 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
   return <>
     <section hidden={activo !== 3} id="entrega" aria-labelledby="entrega-titulo" className="scroll-mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
       <h2 tabIndex={-1} id="entrega-titulo" className="text-xl font-semibold">4. Fecha de entrega y métodos de pago</h2>
-      <p className="mt-2 text-sm text-muted-foreground">Fechas habilitadas según la anticipación y el corte vigente en America/Santiago. Selecciona una fecha y al menos un método previsto de pago.</p>
+      <p className="mt-2 text-sm text-muted-foreground">La entrega para el mismo día habilitado se puede solicitar únicamente antes de las 16:00, hora America/Santiago. Selecciona una fecha y al menos un método previsto de pago.</p>
       {!precios ? <p role="status" className="mt-3 text-sm">Completa las etapas anteriores con precios y motivos válidos.</p> : null}
       {cargando ? <p role="status" className="mt-3 text-sm">Verificando disponibilidad…</p> : null}
       {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}

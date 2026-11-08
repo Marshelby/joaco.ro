@@ -44,10 +44,6 @@ function diaSemanaIso(fecha: string): DiaSemanaEntrega {
   return (dia === 0 ? 7 : dia) as DiaSemanaEntrega;
 }
 
-function nombreDia(dia: DiaSemanaEntrega) {
-  return ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][dia - 1];
-}
-
 function etiquetaFecha(fecha: string, options: Intl.DateTimeFormatOptions) {
   const texto = new Intl.DateTimeFormat("es-CL", { ...options, timeZone: DELIVERY_TIME_ZONE }).format(new Date(`${fecha}T12:00:00.000Z`));
   return texto.charAt(0).toLocaleUpperCase("es-CL") + texto.slice(1).replace(",", "");
@@ -68,12 +64,11 @@ export function generarFechasEntregaDisponibles(diasActivos: readonly DiaEntrega
       const fechaCorte = sumarDias(fecha, -configuracion.diasAnticipacionCorte);
       if (!esPosteriorACorte(fechaActual, horaActual, fechaCorte, configuracion.horaCorte)) return [];
 
-      const diaAnterior = diaSemanaIso(fechaCorte);
       return [{
         fecha,
         etiqueta: etiquetaFecha(fecha, { weekday: "short", day: "numeric", month: "short" }),
         etiquetaLarga: etiquetaFecha(fecha, { weekday: "long", day: "numeric", month: "long" }),
-        textoCorte: `Pedidos para esta fecha se reciben hasta el ${nombreDia(diaAnterior).toLocaleLowerCase("es-CL")} a las ${configuracion.horaCorte.slice(0, 5)}.`,
+        textoCorte: "Puedes solicitar entrega para esta fecha únicamente antes de las 16:00 del mismo día, hora America/Santiago.",
       }];
     });
 }

@@ -2,9 +2,9 @@
 
 import { useActionState, useState } from "react";
 
-import { guardarDiaEntregaAdministrativo, type EstadoDiaEntrega } from "@/app/(admin)/admin/configuracion/actions";
+import { guardarDiaEntregaAdministrativo, guardarHoraCorteAdministrativa, type EstadoDiaEntrega } from "@/app/(admin)/admin/configuracion/actions";
 import { PendingButton } from "@/components/ui/pending-button";
-import { esDiaSemanaEntrega, nombreDiaSemana } from "@/config/delivery-schedule";
+import { esDiaSemanaEntrega, formatearHoraCorte, nombreDiaSemana } from "@/config/delivery-schedule";
 import type { DiaEntregaAdministrativo } from "@/lib/admin/dias-entrega";
 
 const estadoInicial: EstadoDiaEntrega = {};
@@ -20,7 +20,7 @@ function DeliveryDayRow({ dia }: { dia: DiaEntregaAdministrativo }) {
       <input type="hidden" name="diaSemana" value={diaSemana} />
       <div className="min-w-0 space-y-1">
         <h3 className="font-semibold text-foreground">{nombre}</h3>
-        <p className="text-sm leading-5 text-muted-foreground">La entrega para este mismo día se puede solicitar únicamente antes de las 16:00, hora America/Santiago.</p>
+        <p className="text-sm leading-5 text-muted-foreground">Habilita o deshabilita las entregas de este día.</p>
       </div>
 
       <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-foreground">
@@ -37,13 +37,27 @@ function DeliveryDayRow({ dia }: { dia: DiaEntregaAdministrativo }) {
   );
 }
 
+function DeliveryCutoffSettings({ hora }: { hora: string }) {
+  const [estado, accion, pendiente] = useActionState(guardarHoraCorteAdministrativa, estadoInicial);
+  return (
+    <form action={accion} className="space-y-3 rounded-xl border border-border p-4">
+      <label htmlFor="hora-corte" className="block text-sm font-medium">Hora límite para pedidos con entrega el mismo día</label>
+      <input id="hora-corte" name="horaCorte" type="time" step="60" required defaultValue={formatearHoraCorte(hora)} className="min-h-11 rounded-lg border border-input bg-background px-3 text-foreground" />
+      <p className="text-sm text-muted-foreground">Hora de America/Santiago. Antes del límite se puede elegir hoy si está habilitado; desde esa hora, hoy deja de estar disponible.</p>
+      <PendingButton type="submit" pending={pendiente} pendingLabel="Guardando…">Guardar hora límite</PendingButton>
+      <p aria-live="polite" className={estado.error ? "text-sm text-destructive" : "text-sm text-primary"}>{estado.error ?? estado.exito}</p>
+    </form>
+  );
+}
+
 export function DeliveryDaysSettings({ dias }: { dias: DiaEntregaAdministrativo[] }) {
   return (
     <section className="space-y-5 rounded-xl border border-border bg-card p-4 sm:p-6" aria-labelledby="delivery-days-title">
       <div>
         <h2 id="delivery-days-title" className="text-xl font-semibold tracking-tight text-foreground">Logística de entregas</h2>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Activa los días de reparto. Los clientes pueden solicitar entrega para el mismo día habilitado únicamente antes de las 16:00, hora America/Santiago.</p>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Configura la hora límite y los días de reparto habilitados.</p>
       </div>
+      <DeliveryCutoffSettings hora={dias[0]?.horaCorte ?? "16:00"} />
       <div className="space-y-3">{dias.map((dia) => <DeliveryDayRow key={dia.id} dia={dia} />)}</div>
     </section>
   );

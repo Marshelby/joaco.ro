@@ -1,3 +1,4 @@
+import { AdministrativeCorrection } from "@/components/admin/administrative-correction";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -48,6 +49,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}
       </div>
+
+      {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} /> : null}
 
       <p className="text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
       {pedido.estado === "preparando" && pedido.fechaEntrega ? <ActionLink href={`/admin/pedidos/entregas/${pedido.fechaEntrega}`} variant="secondary">Ver preparación en la jornada</ActionLink> : null}

@@ -25,4 +25,5 @@ export const ADMIN_NAVIGATION = [
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
   { label: "Rutas", href: ROUTES.adminRoutes, icon: "routes" },
   { label: "Configuración", href: ROUTES.adminSettings, icon: "settings" },
+  { label: "Personal Hidro Leufú", href: ROUTES.adminStaff, icon: "account" },
 ] as const satisfies readonly NavigationItem[];

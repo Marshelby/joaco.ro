@@ -107,6 +107,16 @@ export async function obtenerHistorialPedido(id: string) {
     agregar(`aplicacion-anulada-${a.id}`, a.fecha_anulacion, "Anulación de aplicación", a.anulada_por, [`Motivo: ${texto(a.motivo_anulacion)}`]);
   }
   const venta = registro(pedido.venta_definitiva_snapshot);
+  const correcciones = await leer("correcciones_venta_entregada", "id,fecha,actor_id,motivo,anteriores,nuevos,diferencia", "pedido_id", id);
+  for (const c of correcciones) {
+    const anterior = registro(c.anteriores), nuevo = registro(c.nuevos);
+    agregar(`correccion-venta-${c.id}`, c.fecha, "Corrección administrativa de venta entregada", c.actor_id,
+      [`Motivo: ${texto(c.motivo)}`, `Total anterior: ${dinero(anterior.total)}`, `Total corregido: ${dinero(nuevo.total)}`, `Diferencia: ${dinero(c.diferencia)}`,
+        ...lista(nuevo.productos).map(p => {
+          const antes = lista(anterior.productos).find(a => a.item_pedido_id === p.item_pedido_id);
+          return `${nombreItem(p.item_pedido_id)} · Entregado anterior: ${texto(antes?.cantidad_entregada)} · Corregido: ${texto(p.cantidad_entregada)} · Importe anterior: ${dinero(antes?.importe_definitivo)} · Corregido: ${dinero(p.importe_definitivo)}`;
+        })]);
+  }
   agregar("entrega-definitiva", pedido.venta_reconocida_en, "Entrega definitiva confirmada", venta.actor_id,
     [`Subtotal: ${dinero(venta.subtotal)}`, `Despacho: ${dinero(venta.costo_entrega)}`, `Descuento: ${dinero(venta.descuento)}`, `Total definitivo: ${dinero(venta.total)}`,
       ...lista(venta.productos).map((p) => `${texto(p.nombre_producto)}${p.nombre_presentacion ? ` · ${p.nombre_presentacion}` : ""} · Unidad: ${texto(p.unidad)} · Pedido: ${texto(p.cantidad_pedida)} · Preparado: ${texto(p.cantidad_preparada)} · Entregado: ${texto(p.cantidad_entregada)} · Importe definitivo: ${dinero(p.importe_definitivo)}`)]);

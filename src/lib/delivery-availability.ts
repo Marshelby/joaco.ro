@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DELIVERY_TIME_ZONE, HORIZONTE_ENTREGAS_DIAS, type DiaSemanaEntrega } from "@/config/delivery-schedule";
+import { DELIVERY_TIME_ZONE, formatearHoraCorte, HORIZONTE_ENTREGAS_DIAS, type DiaSemanaEntrega } from "@/config/delivery-schedule";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { FechaEntregaDisponible } from "@/types/delivery";
 
@@ -68,7 +68,7 @@ export function generarFechasEntregaDisponibles(diasActivos: readonly DiaEntrega
         fecha,
         etiqueta: etiquetaFecha(fecha, { weekday: "short", day: "numeric", month: "short" }),
         etiquetaLarga: etiquetaFecha(fecha, { weekday: "long", day: "numeric", month: "long" }),
-        textoCorte: "Puedes solicitar entrega para esta fecha únicamente antes de las 16:00 del mismo día, hora America/Santiago.",
+        textoCorte: `Puedes solicitar entrega para esta fecha únicamente antes de las ${formatearHoraCorte(configuracion.horaCorte)} del mismo día, hora America/Santiago.`,
       }];
     });
 }

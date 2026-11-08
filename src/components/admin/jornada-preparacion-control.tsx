@@ -20,6 +20,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
   const ejecutando = useRef(false);
   const [iniciada, setIniciada] = useState(false);
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
+  const [importes, setImportes] = useState<Record<string, string>>({});
   const activos = pedidos.filter(p => p.estado === "confirmado" || p.estado === "preparando");
   const bloqueada = pedidos.some(p => p.estado === "recibido");
   const clientes = new Map<string, { nombre: string; pedidos: PedidoEntregaAdmin[] }>();
@@ -102,6 +103,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
               const valor = Number(cantidad);
               const valida = cantidad !== "" && Number.isFinite(valor) && valor >= 0;
               const distinta = valor !== item.cantidad;
+              const importeSugerido = valida && distinta ? String(valor === 0 ? 0 : item.importeOriginal) : "";
               const falta = valida && valor < item.cantidad;
               const estado = !valida ? "Revisar cantidad" : valor === 0 ? "Sin unidades" : falta ? "Parcial" : valor > item.cantidad ? "Cantidad superior" : "Completo";
               const color = !valida ? "bg-muted text-muted-foreground" : valor === 0 ? "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200" : falta ? "bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200";
@@ -117,11 +119,19 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
                 </div>
                 <div className="text-xs text-muted-foreground">Solicitado<span className="mt-1 block font-semibold tabular-nums text-foreground">{formato(item.cantidad)}</span></div>
                 <label className="text-xs text-muted-foreground" htmlFor={`revision-cantidad-${item.id}`}>Preparado
-                  <input id={`revision-cantidad-${item.id}`} name={`cantidad-${item.id}`} type="number" inputMode={resolverModoCantidadPreparacion(item) === "kg_fraccionable" ? "decimal" : "numeric"} required min="0" max="999999999.999" step={resolverModoCantidadPreparacion(item) === "kg_fraccionable" ? "0.001" : "1"} value={cantidad} onChange={e => setCantidades(v => ({ ...v, [item.id]: e.target.value }))} className={`mt-1 h-9 w-full rounded-md border border-input px-2 text-sm font-semibold tabular-nums ${color}`} />
+                  <input id={`revision-cantidad-${item.id}`} name={`cantidad-${item.id}`} type="number" inputMode={resolverModoCantidadPreparacion(item) === "kg_fraccionable" ? "decimal" : "numeric"} required min="0" max="999999999.999" step={resolverModoCantidadPreparacion(item) === "kg_fraccionable" ? "0.001" : "1"} value={cantidad} onChange={e => {
+                    const nuevaCantidad = e.target.value;
+                    const nuevoValor = Number(nuevaCantidad);
+                    setCantidades(v => ({ ...v, [item.id]: nuevaCantidad }));
+                    if (nuevaCantidad !== "" && Number.isFinite(nuevoValor) && nuevoValor >= 0 && (!valida || nuevoValor !== valor)) {
+                      // Solo un cambio explícito de cantidad renueva la sugerencia.
+                      setImportes(v => ({ ...v, [item.id]: nuevoValor === item.cantidad ? "" : String(nuevoValor === 0 ? 0 : item.importeOriginal) }));
+                    }
+                  }} className={`mt-1 h-9 w-full rounded-md border border-input px-2 text-sm font-semibold tabular-nums ${color}`} />
                 </label>
                 {distinta ? <div className="col-span-2 grid gap-1 rounded-lg bg-muted/40 px-3 py-2 sm:col-span-3 sm:grid-cols-[minmax(0,1fr)_8rem] sm:items-center sm:gap-x-3">
                   <label htmlFor={`revision-importe-${item.id}`} className="text-xs font-medium">Importe total manual (CLP)<span id={`ayuda-importe-${item.id}`} className="mt-0.5 block font-normal text-muted-foreground">Total que se cobrará por este producto</span></label>
-                  <input key={cantidad} id={`revision-importe-${item.id}`} aria-describedby={`ayuda-importe-${item.id}`} name={`importe-${item.id}`} type="number" inputMode="numeric" required min="0" max="9007199254740991" step="1" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm tabular-nums" />
+                  <input id={`revision-importe-${item.id}`} aria-describedby={`ayuda-importe-${item.id}`} name={`importe-${item.id}`} type="number" inputMode="numeric" required min="0" max="9007199254740991" step="1" value={importes[item.id] ?? importeSugerido} onChange={e => setImportes(v => ({ ...v, [item.id]: e.target.value }))} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm tabular-nums" />
                 </div> : null}
               </div>;
             })}</div>

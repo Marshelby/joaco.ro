@@ -70,7 +70,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
             if (resultado.error) { setMensaje(`${resultado.error} Los pasos completados se conservan. Reintenta o recarga para revisar la jornada.`); return; }
             cola.current.shift();
           }
-          setMensaje("Todos los pedidos preparados. Ahora confirma la carga física de la camioneta.");
+          setMensaje("Todos los pedidos preparados. Ya puedes salir a ruta.");
           setAbierto(false);
           setIniciada(false);
           cola.current = null;
@@ -140,7 +140,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
           </div>)}
         </section>)}
       </fieldset>
-      <p className="text-sm font-medium">Confirmar registra explícitamente todos estos productos y cierra la preparación de los pedidos. Después deberás confirmar la carga física antes de salir a ruta.</p>
+      <p className="text-sm font-medium">Confirmar registra explícitamente todos estos productos y cierra la preparación de los pedidos. Después, Salir a ruta registrará la carga y la salida.</p>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap [&_button]:h-auto [&_button]:min-h-9 [&_button]:whitespace-normal"><Button type="button" variant="outline" disabled={pendiente || iniciada} onClick={() => setAbierto(false)}>Cancelar</Button><Button type="submit" disabled={pendiente}>{pendiente ? "Confirmando…" : iniciada ? "Reintentar confirmación" : "Confirmar todos los productos y cerrar preparación"}</Button></div>
     </form> : null}
     <p role="status" className="text-sm">{mensaje}</p>

@@ -7,13 +7,14 @@ import { notFound } from "next/navigation";
 import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
 import { DeliveryProductsSummary } from "@/components/admin/delivery-products-summary";
 import { JornadaPreparacionControl } from "@/components/admin/jornada-preparacion-control";
-import { JornadaCargaControl } from "@/components/admin/jornada-carga-control";
+import { JornadaSalidaControl } from "@/components/admin/jornada-salida-control";
+import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
 import { leerCargaJornada } from "@/lib/admin/cargas";
-import { formatearCantidadConUnidadEntrega, obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha, obtenerDetalleEntregaAdmin, obtenerFechaLocalActual } from "@/lib/admin/pedidos";
+import { obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha, obtenerDetalleEntregaAdmin, obtenerFechaLocalActual } from "@/lib/admin/pedidos";
 import { formatFechaEntregaCorta, formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { formatCLP } from "@/lib/formatters";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
@@ -86,7 +87,7 @@ export default async function AdminRoutesPage({ searchParams }: {
       <details className="rounded-xl border bg-card p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Productos solicitados de la jornada</summary><DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" /></details>
     </>}
     <JornadaPreparacionControl key={fecha} pedidos={entrega.pedidos} habilitada={permiso.permitida} />
-    <JornadaCargaControl key={`${fecha}-${carga.version}-${JSON.stringify(carga.pedidos)}`} fecha={fecha} carga={carga} habilitada={permiso.permitida && entrega.pedidos.every(p => p.estado === "listo_despacho" || p.estado === "en_reparto" || p.estado === "entregado" || p.estado === "cancelado")} identidades={Object.fromEntries(entrega.pedidos.map((pedido) => [pedido.id, { nombreClienteSnapshot: pedido.nombreClienteSnapshot, nombreUbicacionSnapshot: pedido.nombreUbicacionSnapshot, numeroPedido: pedido.numeroPedido }]))} />
+    <JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} />
     </>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
       <RutaDiaMap fecha={fecha} paradas={entrega.pedidos.map((pedido, indice) => ({
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
@@ -98,7 +99,16 @@ export default async function AdminRoutesPage({ searchParams }: {
                 <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
                 <details className="rounded-lg border border-border p-3">
                   <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Ver productos</summary>
-                  {pedido.items.length === 0 ? <p className="py-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : <ul className="divide-y divide-border">{pedido.items.map((producto) => <li key={producto.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span className="min-w-0 break-words font-medium">{producto.nombreProducto}{producto.nombrePresentacion ? ` · ${producto.nombrePresentacion}` : ""}</span><span>{new Intl.NumberFormat("es-CL", { maximumFractionDigits: 20 }).format(producto.cantidadPreparada ?? 0)} / {formatearCantidadConUnidadEntrega(producto.cantidad, producto.unidad)}</span></li>)}</ul>}
+                  {pedido.items.length === 0 ? <p className="py-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : <ul className="divide-y divide-border">{pedido.items.map((producto) => {
+                    const preparado = producto.cantidadPreparada ?? 0;
+                    const estado = preparado === 0 ? "Sin unidades" : preparado < producto.cantidad ? "Parcial" : preparado > producto.cantidad ? "Cantidad superior" : "Completo";
+                    const color = preparado === 0 ? "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200" : preparado < producto.cantidad ? "bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" : preparado > producto.cantidad ? "bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200" : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200";
+                    const formato = (cantidad: number) => formatearCantidadPreparacionEntrega(cantidad, producto.nombrePresentacion, producto.unidad, producto.modoCantidadSnapshot);
+                    return <li key={producto.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-2 text-sm ${color}`}>
+                      <span className={`min-w-0 break-words font-medium ${preparado === 0 ? "line-through" : ""}`}>{producto.nombreProducto}{producto.nombrePresentacion ? ` · ${producto.nombrePresentacion}` : ""}</span>
+                      <span>{estado} · Preparado / solicitado: {formato(preparado)} / {formato(producto.cantidad)}</span>
+                    </li>;
+                  })}</ul>}
                 </details>
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido} (próximamente)`}>
                   {["Contactar", "Entregado", "No entregado"].map((accion) => <Button key={accion} type="button" variant="outline" disabled>{accion}</Button>)}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { RutaDiaMap } from "./ruta-dia-map";
 import { JornadaModos } from "./jornada-modos";
+import { EntregaFallidaDialog } from "./entrega-fallida-dialog";
+import { EntregaVisualDialog } from "./entrega-visual-dialog";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -93,6 +95,7 @@ export default async function AdminRoutesPage({ searchParams }: {
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
         ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
         entregado: pedido.estado === "entregado",
+        fallida: pedido.estado === "entrega_fallida",
         ...(coordenadas.get(pedido.id) ?? { latitude: null, longitude: null }),
         detalle: (
               <div className="space-y-3 border-t border-current/10 p-3">
@@ -110,8 +113,11 @@ export default async function AdminRoutesPage({ searchParams }: {
                     </li>;
                   })}</ul>}
                 </details>
-                <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido} (próximamente)`}>
-                  {["Contactar", "Entregado", "No entregado"].map((accion) => <Button key={accion} type="button" variant="outline" disabled>{accion}</Button>)}
+                <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
+                  <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
+                  <Button type="button" variant="outline" disabled>Contactar</Button>
+                  <EntregaVisualDialog habilitada={pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
+                  <EntregaFallidaDialog habilitada={pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
                 </div>
               </div>
         ),

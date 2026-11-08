@@ -63,7 +63,7 @@ export default function RutaDiaMapLeaflet({ paradas, seleccionada, onSeleccionar
       }} eventHandlers={{ click: () => onSeleccionar(parada.id) }} position={[parada.latitude, parada.longitude]} title={`${parada.numero}. ${parada.cliente} · ${parada.pedido}`} icon={L.divIcon({
         className: "route-stop-pin",
         iconSize: [40, 40], iconAnchor: [20, 20],
-        html: `<span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:2px solid white;border-radius:50%;background:${parada.entregado ? "#15803d" : seleccionada === parada.id ? "#1d4ed8" : "#334155"};color:white;font-size:16px;font-weight:700;box-shadow:0 2px 5px #0006">${parada.numero}${parada.entregado ? "✓" : ""}</span>`,
+        html: `<span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:2px solid white;border-radius:50%;background:${parada.fallida ? "#b91c1c" : parada.entregado ? "#15803d" : seleccionada === parada.id ? "#1d4ed8" : "#334155"};color:white;font-size:16px;font-weight:700;box-shadow:0 2px 5px #0006">${parada.numero}${parada.fallida ? "×" : parada.entregado ? "✓" : ""}</span>`,
       })}><Popup className={styles.popup} minWidth={160} maxWidth={220} autoPan={false}>
         <div className={styles.heading}>
           <span className={styles.number}>{parada.numero}</span>
@@ -76,7 +76,7 @@ export default function RutaDiaMapLeaflet({ paradas, seleccionada, onSeleccionar
           <span className={styles.label}>Ubicación comercial</span>
           <span>{parada.ubicacion || "Sin ubicación comercial registrada"}</span>
         </div>
-        <div className={styles.order}>Pedido {parada.pedido}</div>
+        <div className={styles.order}>Pedido {parada.pedido} · {parada.fallida ? "Entrega fallida" : parada.entregado ? "Entregado" : "Pendiente"}</div>
       </Popup></Marker>)}
     </MapContainer>
   </div>;

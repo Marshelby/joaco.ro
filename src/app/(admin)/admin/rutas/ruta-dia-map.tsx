@@ -16,6 +16,7 @@ export type ParadaRuta = {
   latitude: number | null;
   longitude: number | null;
   entregado: boolean;
+  fallida: boolean;
   detalle: ReactNode;
 };
 
@@ -164,6 +165,7 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
 
   return <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
     <h3 className="border-b border-border px-3 py-3 font-semibold">Mapa de la ruta</h3>
+    <p className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-3 text-xs" aria-live="polite"><span>Entregados: {paradas.filter(p => p.entregado).length}</span><span className="text-destructive">Entrega fallida: {paradas.filter(p => p.fallida).length}</span><span>Pendientes: {paradas.filter(p => !p.entregado && !p.fallida).length}</span></p>
     <div className="space-y-1 px-3 py-2 text-sm" aria-live="polite">
       <p>{guardando ? "Guardando orden…" : lista ? "Arrastra el asa para ordenar las paradas. También puedes usar las flechas del teclado." : "Reordenamiento no disponible hasta recuperar el orden guardado."}</p>
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}
@@ -196,7 +198,7 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
             }}>
             {paradas.map((parada) => {
               const activa = seleccionada === parada.id;
-              return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
+              return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.fallida ? "border-destructive/40 bg-destructive/5 text-destructive" : parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
                 <div className="flex items-center">
                 <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={!lista || guardando}
                   className={`min-h-12 min-w-11 shrink-0 touch-none select-none rounded-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 ${arrastrada === parada.id ? "cursor-grabbing bg-muted" : "cursor-grab"}`}
@@ -216,8 +218,9 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
                     void guardar();
                   }}><GripVertical className="mx-auto size-5" aria-hidden="true" /></button>
                 <button type="button" aria-expanded={activa} aria-controls={`detalle-parada-${parada.id}`} onClick={() => activa ? setSeleccionada(null) : seleccionar(parada.id)} className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-lg p-3 text-left focus-visible:outline-2 focus-visible:outline-ring">
-                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${parada.entregado ? "bg-green-700 text-white" : "bg-muted text-foreground"}`}>{parada.numero}</span>
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${parada.fallida ? "bg-destructive text-white" : parada.entregado ? "bg-green-700 text-white" : "bg-muted text-foreground"}`}>{parada.numero}</span>
                   <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold">{parada.cliente}</span><span className="block break-words text-xs opacity-80">{parada.ubicacion || "Sin ubicación comercial registrada"}</span></span>
+                  {parada.fallida ? <span className="shrink-0 text-xs font-semibold">Entrega fallida</span> : null}
                   {parada.entregado ? <CheckCircle2 className="size-4 shrink-0" aria-label="Entregado" /> : null}
                   <ChevronDown className={`size-4 shrink-0 transition-transform ${activa ? "rotate-180" : ""}`} aria-hidden="true" />
                 </button>

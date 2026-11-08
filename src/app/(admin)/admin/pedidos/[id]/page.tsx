@@ -43,6 +43,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         <ActionLink href={ROUTES.adminOrders} variant="secondary" className="shrink-0">Volver a pedidos</ActionLink>
       </header>
       <div className="flex flex-wrap items-start gap-3">
+        <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
         {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}

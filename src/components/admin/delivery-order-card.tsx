@@ -69,6 +69,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink></> : null}
           </div>
 
+          <div className="mt-3"><ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink></div>
+
           {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
           {!compacta && (requierePreparacion || pendienteDeConfirmacion || listoParaDespacho) ? (

@@ -25,7 +25,11 @@ begin
     raise exception 'HORA_CORTE_INVALIDA';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('configuracion-hora-corte-entrega', 0));
-  update public.dias_entrega set hora_corte = p_hora_corte;
+  if not exists (select 1 from public.dias_entrega) then
+    raise exception 'DIAS_ENTREGA_VACIOS';
+  end if;
+  update public.dias_entrega set hora_corte = p_hora_corte
+  where hora_corte is distinct from p_hora_corte;
 end;
 $$;
 

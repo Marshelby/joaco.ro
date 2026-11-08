@@ -46,6 +46,7 @@ function DeliveryCutoffSettings({ hora }: { hora: string }) {
       <p className="text-sm text-muted-foreground">Hora de America/Santiago. Antes del límite se puede elegir hoy si está habilitado; desde esa hora, hoy deja de estar disponible.</p>
       <PendingButton type="submit" pending={pendiente} pendingLabel="Guardando…">Guardar hora límite</PendingButton>
       <p aria-live="polite" className={estado.error ? "text-sm text-destructive" : "text-sm text-primary"}>{estado.error ?? estado.exito}</p>
+      {estado.diagnostico ? <p className="break-words text-xs text-muted-foreground">{estado.diagnostico}</p> : null}
     </form>
   );
 }

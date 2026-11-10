@@ -1,3 +1,5 @@
+import { ArrowLeft, History } from "lucide-react";
+import { CabeceraProduccion } from "@/components/produccion/identidad";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
@@ -15,10 +17,10 @@ export default async function DetalleActividadPage({ params }: { params: Promise
   const unidad = unidades.find(u => u.id === actual.produccion_actividades.unidad_id);
   const lugar = lugares.find(l => l.id === unidad?.lugar_id);
   return <>
-    <Link href="/admin/produccion/historial" className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">Volver al historial</Link>
-    <div><h1 className="text-3xl font-semibold tracking-tight">Detalle de actividad</h1><p className="mt-2 break-words text-muted-foreground">{lugar?.nombre} · {unidad?.nombre}</p><p className="mt-2 break-all text-xs text-muted-foreground">Actividad: {id}</p></div>
+    <Link href="/admin/produccion/historial" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft size={16} aria-hidden="true" />Volver al historial</Link>
+    <div><CabeceraProduccion etiqueta="Trazabilidad del trabajo" titulo="Detalle de actividad" descripcion={`${lugar?.nombre ?? "Lugar"} · ${unidad?.nombre ?? "Unidad"}`} /><p className="mt-2 break-all text-xs text-muted-foreground">Actividad: {id}</p></div>
     <section className="space-y-4 rounded-xl border bg-card p-4 sm:p-6"><h2 className="text-xl font-semibold">Estado actual · {actual.evento === "anulacion" ? "Anulada, sin efecto" : "Vigente"}</h2><VersionActividadDetalle version={actual} /></section>
     {actual.evento === "anulacion" ? <p className="rounded-xl border border-destructive/40 p-4 text-sm">Esta actividad está anulada definitivamente. Se conserva para auditoría y no se incluye en los registros efectivos.</p> : <CambioActividad key={actual.id} version={actual} clave={crypto.randomUUID()} />}
-    <section className="space-y-4"><h2 className="text-xl font-semibold">Todas las versiones · historial inmutable</h2><p className="text-sm text-muted-foreground">Orden de más reciente a original. Las versiones anteriores se conservan como antecedentes y no se suman como actividades adicionales.</p>{versiones.map((v, i) => <article key={v.id} className="space-y-3 rounded-xl border bg-card p-4 sm:p-6"><p className="text-xs font-semibold text-muted-foreground">{i === 0 ? "Última versión" : "Versión histórica · reemplazada"}</p><VersionActividadDetalle version={v} /><p className="break-all text-xs text-muted-foreground">Versión: {v.id}</p></article>)}</section>
+    <section className="space-y-4"><h2 className="prod-section-heading"><History size={20} aria-hidden="true" />Historial de versiones</h2><p className="text-sm text-muted-foreground">Orden de más reciente a original. Las versiones anteriores se conservan como antecedentes y no se suman como actividades adicionales.</p><div className="prod-timeline space-y-4">{versiones.map((v, i) => <article key={v.id} className="space-y-3 rounded-xl border bg-card p-4 sm:p-6"><p className="text-xs font-semibold text-muted-foreground">{i === 0 ? "Última versión" : "Versión histórica · reemplazada"}</p><VersionActividadDetalle version={v} /><p className="break-all text-xs text-muted-foreground">Versión: {v.id}</p></article>)}</div></section>
   </>;
 }

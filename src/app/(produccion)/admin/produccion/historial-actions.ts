@@ -14,7 +14,7 @@ export async function cambiarActividad(_: EstadoCambio, datos: FormData): Promis
   // Validar contra la versión que se mostró, no contra la última: un reintento
   // exitoso debe llegar a la RPC para recuperar su resultado idempotente.
   const { data: original, error: lectura } = await cliente.from("produccion_actividad_versiones")
-    .select("tipo_unidad,tipo_actividad,evento").eq("actividad_id", v.actividad).eq("numero_version", Number(v.version)).maybeSingle();
+    .select("tipo_unidad,tipo_actividad,evento,cultivo").eq("actividad_id", v.actividad).eq("numero_version", Number(v.version)).maybeSingle();
   if (lectura) return { error: "No fue posible validar la versión. Reintenta sin cambiar los datos.", incierto: true };
   if (!original || original.evento === "anulacion") return { error: "Esta versión no permite cambios. Consulta nuevamente el detalle.", conflicto: true };
   const base = { p_clave_idempotencia: v.clave, p_actividad_id: v.actividad, p_version_esperada: Number(v.version), p_motivo: v.motivo };
@@ -30,7 +30,7 @@ export async function cambiarActividad(_: EstadoCambio, datos: FormData): Promis
     // Evitar convertir compras a otro tipo o generar compras sin importe.
     if ((tipo === "compra_alimento" || original.tipo_actividad === "compra_alimento") && tipo !== original.tipo_actividad) return { error: "Para cambiar el tipo o importe de una compra, anúlala y registra una nueva actividad." };
     if (datos.has("precio") || datos.has("p_precio_total")) return { error: "El importe no puede corregirse. Anula la compra y registra una nueva." };
-    const obligatorias = medidasActividad(unidad, tipo);
+    const obligatorias = medidasActividad(unidad, tipo, original.cultivo ?? "lechuga");
     const permitidas = obligatorias.length ? obligatorias : ["unidad", "kg", "g", "litro", "ml", "ramo"];
     const cantidad = cantidadTexto === "" ? null : Number(cantidadTexto);
     if ((obligatorias.length && cantidad === null) || (cantidad === null ? medida !== "" : !/^\d+(\.\d+)?$/.test(cantidadTexto) || !Number.isFinite(cantidad) || cantidad <= 0 || cantidad >= 1e12 || !permitidas.includes(medida) || (obligatorias.includes("unidad") && !Number.isInteger(cantidad)))) return { error: "Revisa cantidad y unidad de medida; ambas deben estar completas y ser compatibles con la actividad." };

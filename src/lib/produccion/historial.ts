@@ -9,7 +9,7 @@ export async function consultarVersionesProduccion(actividadId?: string) {
   const versiones: VersionActividad[] = [];
   for (let inicio = 0; ; inicio += 500) {
     let consulta = cliente.from("produccion_actividad_versiones")
-      .select("id,actividad_id,tipo_unidad,numero_version,evento,fecha_operativa,tipo_actividad,cantidad,unidad_medida,observaciones,motivo,autor_id,fecha_registro,produccion_actividades!inner(unidad_id)");
+      .select("id,actividad_id,cultivo,tipo_unidad,numero_version,evento,fecha_operativa,tipo_actividad,cantidad,unidad_medida,observaciones,motivo,autor_id,fecha_registro,produccion_actividades!inner(unidad_id)");
     if (actividadId) consulta = consulta.eq("actividad_id", actividadId);
     const { data, error } = await consulta.order("id").range(inicio, inicio + 499);
     if (error) throw new Error("No fue posible consultar el historial de producción. Intenta nuevamente.");

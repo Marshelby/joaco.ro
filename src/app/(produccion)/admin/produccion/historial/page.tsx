@@ -1,3 +1,5 @@
+import { History, SlidersHorizontal } from "lucide-react";
+import { CabeceraProduccion } from "@/components/produccion/identidad";
 import Link from "next/link";
 import { consultarProduccion } from "@/lib/produccion/servidor";
 import { consultarVersionesProduccion } from "@/lib/produccion/historial";
@@ -23,8 +25,9 @@ export default async function HistorialPage({ searchParams }: { searchParams: Pr
   const pagina = Number.isSafeInteger(solicitada) && solicitada > 0 ? Math.min(solicitada, totalPaginas) : 1;
   function enlace(p: number) { const params = new URLSearchParams(); for (const nombre of ["desde", "hasta", "lugar", "unidad", "tipo", "estado"]) if (valor(nombre)) params.set(nombre, valor(nombre)); params.set("pagina", String(p)); return `/admin/produccion/historial?${params}`; }
   return <>
-    <div><h1 className="text-3xl font-semibold tracking-tight">Historial de producción</h1><p className="mt-2 text-muted-foreground">Última versión de cada actividad. Las anuladas se muestran sin efecto y no forman parte del registro diario efectivo.</p></div>
+    <CabeceraProduccion etiqueta="La historia de tu producción" titulo="Historial de actividades" descripcion="Consulta la última versión de cada actividad, revisa sus cambios y accede a sus correcciones. Las anuladas se conservan sin efecto." />
     <form method="get" className="grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <h2 className="prod-section-heading sm:col-span-2 lg:col-span-3"><SlidersHorizontal size={19} aria-hidden="true" />Buscar actividades</h2>
       <label className="text-sm font-medium">Desde<input type="date" name="desde" defaultValue={desde} min="0001-01-01" max="9999-12-31" className={campo} /></label><label className="text-sm font-medium">Hasta<input type="date" name="hasta" defaultValue={hasta} min="0001-01-01" max="9999-12-31" className={campo} /></label>
       <label className="text-sm font-medium">Nave o gallinero<select name="lugar" defaultValue={lugar} className={campo}><option value="">Todos los lugares</option>{lugares.map(l => <option key={l.id} value={l.id}>{l.nombre} · {l.tipo}</option>)}</select></label>
       <label className="text-sm font-medium">Unidad<select name="unidad" defaultValue={unidad} className={campo}><option value="">Todas las unidades</option>{unidades.map(u => <option key={u.id} value={u.id}>{lugares.find(l => l.id === u.lugar_id)?.nombre} · {u.nombre} · {nombresUnidad[u.tipo]}</option>)}</select></label>
@@ -35,6 +38,7 @@ export default async function HistorialPage({ searchParams }: { searchParams: Pr
     </form>
     {error && <p role="alert" className="text-sm text-destructive">Revisa el rango de fechas y los filtros. La unidad debe pertenecer al lugar elegido.</p>}
     {!error && !registros.length && <p className="rounded-xl border border-dashed p-6">No hay actividades para estos filtros.</p>}
+    <div className="flex items-center gap-2 text-sm font-semibold"><History size={18} aria-hidden="true" />Actividades encontradas{!error && <span className="rounded-full bg-muted px-2 py-1 text-xs">{registros.length}</span>}</div>
     <div className="space-y-4">{registros.slice((pagina - 1) * 30, pagina * 30).map(v => { const u = unidadesPorId.get(v.produccion_actividades.unidad_id); return <article key={v.id} className={`space-y-4 rounded-xl border bg-card p-4 sm:p-6 ${v.evento === "anulacion" ? "border-destructive/40" : ""}`}>
       <p className="break-words text-sm font-medium text-primary">{lugares.find(l => l.id === u?.lugar_id)?.nombre} · {u?.nombre}</p>{v.evento !== "anulacion" && <p className="text-xs font-semibold text-primary">Vigente</p>}<VersionActividadDetalle version={v} /><Link href={`/admin/produccion/historial/${v.actividad_id}`} className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">Ver detalle, versiones y correcciones</Link>
     </article>; })}</div>

@@ -19,7 +19,7 @@ export async function consultarProduccion() {
     const filas: T[] = [];
     for (let desde = 0; ; desde += 500) {
       const { data, error } = await cliente.from(tabla).select(columnas).order("id").range(desde, desde + 499);
-      if (error && ["42P01", "PGRST205"].includes(error.code)) throw new Error("Falta aplicar el SQL complementario local de Producción Fase 5: supabase/manual/produccion_fase5_complemento.sql.");
+      if (error && ["42P01", "PGRST205", "42703", "PGRST204"].includes(error.code)) throw new Error("Falta aplicar el SQL complementario local de Producción (Fases 5 y 7): supabase/manual/produccion_fase7_complemento.sql.");
       if (error) throw new Error("No fue posible cargar la configuración de producción. Intenta nuevamente.");
       filas.push(...(data as unknown as T[]));
       if (data.length < 500) return filas;
@@ -27,8 +27,8 @@ export async function consultarProduccion() {
   }
   const [lugares, unidades, configuraciones] = await Promise.all([
     leer<Lugar>("produccion_lugares_actuales", "id,tipo,nombre,observaciones,activo,version"),
-    leer<Unidad>("produccion_unidades_actuales", "id,lugar_id,tipo,nombre,observaciones,activo,version"),
-    leer<Configuracion>("produccion_configuraciones_unidad", "id,unidad_id,vigente_desde,capacidad_lechugas,cantidad_gallinas,observaciones"),
+    leer<Unidad>("produccion_unidades_actuales", "id,lugar_id,tipo,cultivo,nombre,observaciones,activo,version"),
+    leer<Configuracion>("produccion_configuraciones_unidad", "id,unidad_id,cultivo,capacidad,vigente_desde,capacidad_lechugas,cantidad_gallinas,observaciones"),
   ]);
   lugares.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   unidades.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
@@ -45,7 +45,7 @@ export async function consultarActividadesDia(fecha: string) {
   // Resolver la última versión antes de filtrar fecha: una corrección puede mover el día.
   for (let desde = 0; ; desde += 500) {
     const { data, error } = await cliente.from("produccion_actividad_versiones")
-      .select("id,actividad_id,tipo_unidad,numero_version,evento,fecha_operativa,tipo_actividad,cantidad,unidad_medida,observaciones,fecha_registro,produccion_actividades!inner(unidad_id)")
+      .select("id,actividad_id,cultivo,tipo_unidad,numero_version,evento,fecha_operativa,tipo_actividad,cantidad,unidad_medida,observaciones,fecha_registro,produccion_actividades!inner(unidad_id)")
       .order("id").range(desde, desde + 499);
     if (error) throw new Error("No fue posible cargar las actividades del día. Intenta nuevamente.");
     for (const fila of data as unknown as Version[]) {
@@ -59,8 +59,8 @@ export async function consultarActividadesDia(fecha: string) {
   for (let inicio = 0; inicio < compras.length; inicio += 100) {
     const lote = compras.slice(inicio, inicio + 100);
     const { data, error } = await cliente.from("produccion_compra_importes").select("version_id,precio_total").in("version_id", lote.map(v => v.id));
-    // La base original no incluye importes: permitir consultar registros anteriores.
-    if (error && !["42P01", "PGRST205"].includes(error.code)) throw new Error("No fue posible consultar los precios de las compras. Intenta nuevamente.");
+    // Una consulta fallida no equivale a una compra histórica sin importe.
+    if (error) throw new Error("No fue posible consultar los precios de las compras. Intenta nuevamente.");
     for (const importe of data ?? []) {
       const actividad = lote.find(v => v.id === importe.version_id);
       if (actividad) actividad.precio_total = Number(importe.precio_total);

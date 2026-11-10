@@ -1,15 +1,23 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ArrowUpRight, ClipboardPenLine, History, LayoutDashboard, LogOut, Settings2, Sprout } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { NavigationLink } from "@/components/navigation/navigation-link";
 import { administradorProduccion } from "@/lib/produccion/servidor";
 import { cerrarSesion } from "@/app/iniciar-sesion/actions";
+import "./produccion.css";
 export const metadata = { title: "Producción", robots: { index: false, follow: false } };
 export default async function ProduccionLayout({ children }: { children: ReactNode }) {
   await administradorProduccion();
-  return <div className="min-h-full flex-1 bg-muted/20">
-    <header className="border-b bg-background"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6"><div><Logo /><p className="mt-1 text-sm text-muted-foreground">Administración · Producción</p></div><div className="flex flex-wrap items-center gap-3 text-sm"><Link className="min-h-11 rounded-lg border px-3 py-3" href="/admin">Administración comercial</Link><form action={cerrarSesion}><button className="min-h-11 rounded-lg border px-3 py-3">Cerrar sesión</button></form></div></div></header>
-    <nav aria-label="Producción" className="border-b bg-background"><div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-4 py-2 sm:px-6">{[["/admin/produccion", "Registro diario"], ["/admin/produccion/historial", "Historial"], ["/admin/produccion/configuracion", "Configuración"]].map(([href, texto]) => <NavigationLink key={href} href={href} exact={href === "/admin/produccion"} className="min-h-11 rounded-lg px-4 py-3 text-sm font-semibold" activeClassName="bg-primary/10 text-primary">{texto}</NavigationLink>)}</div></nav>
-    <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 outline-none sm:px-6 sm:py-8">{children}</main>
+  return <div className="produccion-shell min-h-full flex-1">
+    <header className="prod-header"><div className="prod-container flex flex-wrap items-center justify-between gap-4 py-4"><div className="flex items-center gap-4"><Logo /><span className="prod-module"><Sprout size={16} aria-hidden="true" /> Producción</span></div><div className="flex items-center gap-2 text-sm"><Link className="prod-header-action" href="/admin">Área comercial<ArrowUpRight size={16} aria-hidden="true" /></Link><form action={cerrarSesion}><button className="prod-header-action" aria-label="Cerrar sesión"><LogOut size={16} aria-hidden="true" /><span className="hidden sm:inline">Cerrar sesión</span></button></form></div></div></header>
+    <nav aria-label="Producción" className="prod-navigation"><div className="prod-container prod-tabs">{[
+      { href: "/admin/produccion/resumen", texto: "Resumen", Icono: LayoutDashboard },
+      { href: "/admin/produccion", texto: "Registro diario", Icono: ClipboardPenLine },
+      { href: "/admin/produccion/historial", texto: "Historial", Icono: History },
+      { href: "/admin/produccion/configuracion", texto: "Configuración", Icono: Settings2 },
+    ].map(({ href, texto, Icono }) => <NavigationLink key={href} href={href} exact={href === "/admin/produccion"} className="prod-tab" activeClassName="prod-tab-active"><Icono size={18} aria-hidden="true" /><span>{texto}</span></NavigationLink>)}</div></nav>
+    <main id="main-content" tabIndex={-1} className="prod-container prod-main space-y-6 outline-none">{children}</main>
+    <footer className="prod-container prod-footer"><Sprout size={15} aria-hidden="true" /> Hidro Leufú <span>·</span> Cuidamos lo que crece.</footer>
   </div>;
 }

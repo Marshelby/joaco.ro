@@ -35,7 +35,7 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   }
 
   return <li className="py-3 text-sm">
-    <form data-preparacion-pendiente={cambios || pendiente ? "true" : undefined} onSubmit={(evento) => {
+    <form data-preparacion-pendiente={!soloLectura && (cambios || pendiente) ? "true" : undefined} onSubmit={(evento) => {
       evento.preventDefault();
       const tipo = "avance";
       if (pendiente || enviando.current) return;

@@ -5,6 +5,8 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { CargaJornada } from "@/lib/admin/cargas";
 
 const errores: Record<string, string> = {
+  PARCIAL_NO_AUTORIZADO: "El parcial requiere cerrar nuevamente su preparación con autorización y cantidades actuales. Reabre la carga si ya estaba confirmada.",
+  SIN_PREPARAR: "Un pedido sin productos preparados debe resolverse por falta de stock o excluirse antes de salir.",
   NO_AUTORIZADO: "Se requiere una sesión administrativa.",
   VERSION_CARGA_CONFLICTO: "La carga cambió. Recarga y revisa la selección antes de continuar.",
   CLAVE_IDEMPOTENCIA_EN_USO: "Esta clave ya corresponde a otra solicitud. Recarga para revisar.",

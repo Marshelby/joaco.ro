@@ -1,0 +1,139 @@
+src/app/(admin)/admin/clientes/comercial-actions.ts:40:       p_cliente: d.cliente, p_direcciones: d.direcciones, p_posible_pedido_id: d.posibleId, p_version_posible_pedido: d.version };
+src/app/(admin)/admin/correcciones-actions.ts:20:       .eq("pedido_id", id).order("version", { ascending: false }).range(filas.length, filas.length + 199);
+src/app/(admin)/admin/correcciones-actions.ts:37:       db.rpc("leer_preparacion_explicita", { p_pedido_id: id }),
+src/app/(admin)/admin/correcciones-actions.ts:39:       db.from("items_pedido").select("id,total_linea,total_final_administrativo").eq("pedido_id", id),
+src/app/(admin)/admin/correcciones-actions.ts:40:       db.from("preparacion_items_pedido").select("item_pedido_id,importe_linea_operativo").eq("pedido_id", id),
+src/app/(admin)/admin/correcciones-actions.ts:41:       db.from("v_saldos_pedidos").select("total_pedido,total_pagado,saldo_pendiente").eq("pedido_id", id).maybeSingle(),
+src/app/(admin)/admin/correcciones-actions.ts:47:       reglas: (items.data ?? []).map(i => ({ ...i, preparacion: preparacion.data?.find(p => p.item_pedido_id === i.id)?.importe_linea_operativo })),
+src/app/(admin)/admin/correcciones-actions.ts:59:       ? await db.rpc("corregir_venta_entregada_administrativo", { p_pedido_id: c.id, p_version_esperada: c.version, p_clave: s.clave, p_items: s.items, p_motivo: s.motivo })
+src/app/(admin)/admin/mensajes/actions.ts:55:     p_pedido_id: null,
+src/app/(admin)/admin/pedidos/actions.ts:48:   const { error } = await supabase.rpc(rpc, { p_pedido_id: pedidoId });
+src/app/(admin)/admin/pedidos/actions.ts:70:   const { error } = await supabase.rpc("cerrar_preparacion_explicita", { p_pedido_id: pedidoId, p_version_esperada: Number(datos.get("version")), p_clave: String(datos.get("clave") ?? "") });
+src/app/(admin)/admin/pedidos/actions.ts:88:   const { error } = await supabase.rpc("aceptar_pedido_administrativo", { p_pedido_id: pedidoId });
+src/app/(admin)/admin/pedidos/actions.ts:106:   const { error } = await supabase.rpc("cancelar_pedido_administrativo", { p_pedido_id: pedidoId, p_motivo: motivo });
+src/app/(admin)/admin/pedidos/actions.ts:148:   const { data: item } = await supabase.from("items_pedido").select("pedido_id,cantidad").eq("id", itemPedidoId).maybeSingle();
+src/app/(admin)/admin/pedidos/actions.ts:150:     ? await supabase.from("pedidos").select("cliente_id,fecha_entrega").eq("id", item.pedido_id).maybeSingle()
+src/app/(admin)/admin/pedidos/actions.ts:153:     p_item_pedido_id: itemPedidoId,
+src/app/(admin)/admin/pedidos/actions.ts:166:   if (item?.pedido_id) revalidatePath(`/admin/pedidos/${item.pedido_id}`);
+src/app/(admin)/admin/pedidos/no-entregados-actions.ts:22:     const { data, error } = await db.rpc("leer_resolucion_no_entregado_admin", { p_pedido_id: id });
+src/app/(admin)/admin/pedidos/no-entregados-actions.ts:38:     const comunes = { p_pedido_id: s.pedido, p_version_esperada: s.version, p_clave: s.clave, p_motivo: s.motivo };
+src/app/(admin)/admin/pedidos/no-entregados-actions.ts:62:     if (r?.pedido_id !== s.pedido || r.estado !== (s.accion === "cancelar" ? "cancelado" : "listo_despacho") ||
+src/app/(admin)/admin/pedidos/nuevo/actions.ts:33:   pedido_id: z.uuid(), numero_pedido: z.string().min(1), estado: z.literal("recibido"),
+src/app/(admin)/admin/pedidos/nuevo/actions.ts:93:     return { ok: true, pedido: comprobante.data, destino: ROUTES.adminOrder(comprobante.data.pedido_id) };
+src/app/(admin)/admin/posibles-pedidos/[id]/page.tsx:32:     <section className="rounded-2xl border bg-card p-5"><h2 className="font-semibold">Versiones de esta solicitud ({versiones.length}/5)</h2><p className="mt-2 text-sm text-muted-foreground">Despliega los datos de cada versión. Selecciona una para revisar sus productos completos y convertirla.</p><div className="mt-3 space-y-3">{versiones.map((v) => <details key={v.id} open={v.id === p.id} className="rounded-xl border p-3"><summary className="cursor-pointer text-sm font-medium">Versión {v.numero_version} · {formatCLP(v.total_estimado)} · {v.estado.replaceAll('_',' ')}</summary><p className="mt-3 text-sm">{v.nombre_solicitante} · +{v.telefono_contacto} · {formatFechaEntregaLarga(v.fecha_entrega_solicitada)}</p><p className="mt-2 whitespace-pre-wrap text-sm">{v.observaciones}</p><ul className="mt-3 space-y-2 text-sm">{lineasVersiones.filter((l) => l.posible_pedido_id === v.id).map((l) => <li key={l.id}>{l.nombre_producto_snapshot} · {l.nombre_presentacion_snapshot} · {l.cantidad} {l.unidad_snapshot} × {formatCLP(l.precio_venta_autorizado ?? l.precio_venta_original_snapshot)} = {formatCLP(l.subtotal)}{!l.activo ? " · Retirada" : ""}{l.motivo_autorizacion_precio ? ` · Precio autorizado: ${l.motivo_autorizacion_precio}` : ""}</li>)}</ul><p className="mt-3 text-sm">Subtotal {formatCLP(v.subtotal_estimado)} + despacho {formatCLP(v.costo_entrega_estimado)} = {formatCLP(v.total_estimado)}</p><Link href={ROUTES.adminPossibleOrder(v.id)} aria-current={v.id === p.id ? "page" : undefined} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-primary">{v.id === p.id ? "Versión seleccionada; detalles y acciones abajo" : "Seleccionar y ver productos completos →"}</Link></details>)}</div>{cierre ? <p className="mt-3 text-sm">Solicitud cerrada: {cierre.estado}. No admite nuevas versiones ni otra conversión.{cierre.pedido_oficial_id ? <Link href={ROUTES.adminOrder(cierre.pedido_oficial_id)} className="ml-2 font-medium text-primary">Ver pedido oficial</Link> : null}</p> : null}</section>
+src/app/(admin)/admin/posibles-pedidos/[id]/page.tsx:35:     {p.pedido_oficial_id ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-5"><h2 className="font-semibold text-primary">Esta solicitud ya fue convertida</h2><p className="mt-2 text-sm">El pedido oficial está disponible en la operación habitual. No se puede volver a convertir.</p><Link href={ROUTES.adminOrder(p.pedido_oficial_id)} className="mt-3 inline-flex min-h-11 items-center font-medium text-primary">Ver pedido oficial →</Link></div> : !abierto ? <p className="rounded-xl bg-muted p-5 text-sm">Esta solicitud está cerrada. Sus versiones e historial se conservan para consulta.</p> : <p className="rounded-xl border border-primary/15 bg-primary/5 p-4 text-sm leading-6">Esta solicitud no genera cargos. Solo la conversión crea el pedido oficial y su movimiento contable. La aceptación se gestiona después en Pedidos.</p>}
+src/app/(admin)/admin/posibles-pedidos/actions.ts:20:     if (!data?.posible_pedido_id) return { error: "No pudimos verificar el resultado. Reintenta la misma operación." };
+src/app/(admin)/admin/posibles-pedidos/actions.ts:24:     if (data.pedido_id) {
+src/app/(admin)/admin/posibles-pedidos/actions.ts:25:       revalidatePath("/admin"); revalidatePath("/admin/pedidos"); revalidatePath(`/admin/pedidos/${data.pedido_id}`);
+src/app/(admin)/admin/posibles-pedidos/actions.ts:28:     return { exito: validado.data.tipo === "convertir" ? "Pedido oficial creado en estado recibido. No se registró ningún pago." : "Solicitud actualizada.", pedidoId: data.pedido_id ?? undefined };
+src/app/(admin)/admin/rutas/diferencias-actions.ts:26:     const previa = await prepararEntregaTodoCorrecto(s.p_pedido_id, s.p_version_esperada);
+src/app/(admin)/admin/rutas/diferencias-actions.ts:29:     const { data, error } = await db.from("items_pedido").select("id,cantidad,total_linea,total_final_administrativo,precio_final_unitario_snapshot,modo_cantidad_snapshot,nombre_presentacion_snapshot,unidad_snapshot").eq("pedido_id", s.p_pedido_id);
+src/app/(admin)/admin/rutas/diferencias-actions.ts:30:     if (error || !data || data.length !== s.p_items.length || data.some(i => !s.p_items.some(x => x.item_pedido_id === i.id))) return { error: "La lista debe incluir todos los productos del pedido." };
+src/app/(admin)/admin/rutas/diferencias-actions.ts:35:       const cantidad = s.p_items.find(i => i.item_pedido_id === preparado.id)!.cantidad_entregada;
+src/app/(admin)/admin/rutas/diferencias-actions.ts:53:     const { data: version, error: errorVersion } = await db.rpc("leer_preparacion_explicita", { p_pedido_id: s.p_pedido_id });
+src/app/(admin)/admin/rutas/diferencias-actions.ts:56:     return { resumen: { ...previa.resumen, productos, subtotal, total, solicitud: { p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada, p_clave: s.p_clave, p_items: s.p_items.map(i => ({ item_pedido_id: i.item_pedido_id, cantidad_entregada: i.cantidad_entregada })) } } };
+src/app/(admin)/admin/rutas/diferencias-actions.ts:66:     const { data, error } = await db.from("aplicaciones_pago").select("monto_aplicado,pagos!inner(estado)").eq("pedido_id", s.p_pedido_id).eq("activa", true).eq("pagos.estado", "confirmado");
+src/app/(admin)/admin/rutas/diferencias-actions.ts:87:       p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada, p_clave: s.p_clave,
+src/app/(admin)/admin/rutas/diferencias-actions.ts:88:       p_items: s.p_items.map(i => ({ item_pedido_id: i.item_pedido_id, cantidad_entregada: i.cantidad_entregada })),
+src/app/(admin)/admin/rutas/entrega-actions.ts:13:   p_pedido_id: string;
+src/app/(admin)/admin/rutas/entrega-actions.ts:16:   p_items: { item_pedido_id: string; cantidad_entregada: number }[];
+src/app/(admin)/admin/rutas/entrega-actions.ts:45:     const { data: antes, error: errorAntes } = await db.rpc("leer_preparacion_explicita", { p_pedido_id: pedidoId });
+src/app/(admin)/admin/rutas/entrega-actions.ts:58:       .eq("pedido_id", pedidoId).order("id");
+src/app/(admin)/admin/rutas/entrega-actions.ts:60:       .select("item_pedido_id,cantidad_preparada,importe_linea_operativo,confirmado_explicito")
+src/app/(admin)/admin/rutas/entrega-actions.ts:61:       .eq("pedido_id", pedidoId).order("item_pedido_id");
+src/app/(admin)/admin/rutas/entrega-actions.ts:65:       const preparado = preparaciones.find((fila) => fila.item_pedido_id === item.id);
+src/app/(admin)/admin/rutas/entrega-actions.ts:81:     const { data: despues, error: errorDespues } = await db.rpc("leer_preparacion_explicita", { p_pedido_id: pedidoId });
+src/app/(admin)/admin/rutas/entrega-actions.ts:85:       p_pedido_id: pedidoId, p_version_esperada: versionEsperada, p_clave: randomUUID(),
+src/app/(admin)/admin/rutas/entrega-actions.ts:86:       p_items: productos.map((item) => ({ item_pedido_id: item.id, cantidad_entregada: item.cantidad })),
+src/app/(admin)/admin/rutas/entrega-actions.ts:104:   const previa = await prepararEntregaTodoCorrecto(s.p_pedido_id, s.p_version_esperada);
+src/app/(admin)/admin/rutas/entrega-actions.ts:109:     const { data, error } = await db.from("aplicaciones_pago")
+src/app/(admin)/admin/rutas/entrega-actions.ts:110:       .select("monto_aplicado,pagos!inner(estado)").eq("pedido_id", s.p_pedido_id).eq("activa", true).eq("pagos.estado", "confirmado");
+src/app/(admin)/admin/rutas/entrega-actions.ts:129:       p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada,
+src/app/(admin)/admin/rutas/entrega-actions.ts:131:       p_items: s.p_items.map(i => ({ item_pedido_id: i.item_pedido_id, cantidad_entregada: i.cantidad_entregada })),
+src/app/(admin)/admin/rutas/entrega-fallida-dialog.tsx:40:         intento.current ??= { p_pedido_id: pedidoId, p_version_esperada: versionEsperada,
+src/app/(admin)/admin/rutas/entrega-validacion.ts:5:   return s && uuid(s.p_pedido_id) && uuid(s.p_clave) && Number.isSafeInteger(s.p_version_esperada) && s.p_version_esperada >= 0 && s.p_version_esperada < Number.MAX_SAFE_INTEGER &&
+src/app/(admin)/admin/rutas/entrega-validacion.ts:6:     Array.isArray(s.p_items) && s.p_items.length > 0 && new Set(s.p_items.map(i => i?.item_pedido_id)).size === s.p_items.length &&
+src/app/(admin)/admin/rutas/entrega-validacion.ts:7:     s.p_items.every(i => i && uuid(i.item_pedido_id) && typeof i.cantidad_entregada === "number" && Number.isFinite(i.cantidad_entregada) && i.cantidad_entregada >= 0 && i.cantidad_entregada < 1e9 && /^\d+(\.\d{1,3})?$/.test(String(i.cantidad_entregada)));
+src/app/(admin)/admin/rutas/entrega-visual-dialog.tsx:96:           ? await prepararEntregaDiferencias({ p_pedido_id: pedidoId, p_version_esperada: versionEsperada, p_clave: claveDiferencias.current!,
+src/app/(admin)/admin/rutas/entrega-visual-dialog.tsx:97:               p_items: items.map(item => ({ item_pedido_id: item.id, cantidad_entregada: Number(cantidades[item.id]) })) })
+src/app/(admin)/admin/rutas/fallida-actions.ts:7:   p_pedido_id: string;
+src/app/(admin)/admin/rutas/fallida-actions.ts:17:   if (confirmacion !== true || !s || !uuid(s.p_pedido_id) || !uuid(s.p_clave) ||
+src/app/(admin)/admin/rutas/fallida-actions.ts:33:       p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada,
+src/app/(admin)/admin/rutas/fallida-actions.ts:50:     if (data?.resultado?.estado !== "entrega_fallida" || data.resultado.pedido_id !== s.p_pedido_id) {
+src/app/(admin)/admin/rutas/preparacion-actions.ts:19:   const { data: item, error: errorItem } = await supabase.from("items_pedido").select("pedido_id").eq("id", itemId).single();
+src/app/(admin)/admin/rutas/preparacion-actions.ts:21:   const { data: pedido } = await supabase.from("pedidos").select("estado").eq("id", item.pedido_id).single();
+src/app/(admin)/admin/rutas/preparacion-actions.ts:23:     const { error } = await supabase.rpc("marcar_pedido_preparando_administrativo", { p_pedido_id: item.pedido_id });
+src/app/(admin)/admin/rutas/preparacion-actions.ts:28:     p_item_pedido_id: itemId, p_cantidad: cantidad,
+src/app/(customer)/mi-cuenta/mensajes/actions.ts:34:   pedido_id: string | null;
+src/app/(customer)/mi-cuenta/mensajes/actions.ts:56:     p_pedido_id: input.pedidoId ?? null,
+src/app/(customer)/mi-cuenta/pedidos/actions.ts:56:     p_pedido_id: pedidoId,
+src/app/(customer)/mi-cuenta/pedidos/actions.ts:66:   const resultado = (data as Array<{ pedido_id: string; cliente_id: string | null; fecha_entrega: string | null }> | null)?.[0];
+src/app/(customer)/mi-cuenta/pedidos/actions.ts:70:   revalidatePath(`/mi-cuenta/pedidos/${resultado.pedido_id}`);
+src/app/(customer)/mi-cuenta/pedidos/actions.ts:71:   revalidatePath(`/pedido/confirmacion/${resultado.pedido_id}`);
+src/app/(customer)/mi-cuenta/pedidos/actions.ts:74:   revalidatePath(`/admin/pedidos/${resultado.pedido_id}`);
+src/app/(public)/checkout/actions.ts:104:   if (!pedido?.pedido_id || !pedido?.numero_pedido) return { error: "El pedido fue procesado, pero no pudimos confirmar su resultado. Intenta nuevamente con el mismo pedido." };
+src/app/(public)/checkout/actions.ts:108:   revalidatePath(`/admin/pedidos/${pedido.pedido_id}`);
+src/app/(public)/checkout/actions.ts:109:   revalidatePath(`/pedido/confirmacion/${pedido.pedido_id}`);
+src/app/(public)/checkout/actions.ts:111:   return { pedidoId: pedido.pedido_id, numeroPedido: pedido.numero_pedido };
+src/components/admin/administrative-correction.tsx:34:     referencia: c.snapshot.pago.referencia, aplicaciones: c.snapshot.aplicaciones.filter(a => a.activa).map(a => ({ pedido_id: a.pedido_id, monto: Number(a.monto_aplicado) })),
+src/components/admin/administrative-correction.tsx:45:   const destinos = c.tipo === "pago" ? [...new Set(c.snapshot.aplicaciones.filter(a => a.activa).map(a => a.pedido_id))] : [];
+src/components/admin/administrative-correction.tsx:61:         const regla = c.reglas.find(r => r.id === p.item_pedido_id);
+src/components/admin/administrative-correction.tsx:77:         solicitud.items.push({ item_pedido_id: p.item_pedido_id, cantidad_entregada: cantidad });
+src/components/admin/administrative-correction.tsx:86:         if (!entero(r.monto) || !["efectivo", "transferencia"].includes(r.metodo) || r.aplicaciones.some(a => !Number.isSafeInteger(a.monto) || a.monto < 0 || !destinos.includes(a.pedido_id)) || r.aplicaciones.reduce((s, a) => s + a.monto, 0) > r.monto) {
+src/components/admin/administrative-correction.tsx:98:         r.aplicaciones.forEach(a => detalle.push(`Pedido ${a.pedido_id}: aplicar ${formatCLP(a.monto)}.`));
+src/components/admin/administrative-correction.tsx:101:         const anterior = c.snapshot.aplicaciones.filter(a => a.activa && a.pedido_id === id).reduce((s, a) => s + Number(a.monto_aplicado), 0);
+src/components/admin/administrative-correction.tsx:102:         const nuevo = reemplazos.flatMap(r => r.aplicaciones).filter(a => a.pedido_id === id).reduce((s, a) => s + a.monto, 0);
+src/components/admin/administrative-correction.tsx:114:         {c.vigente.productos.map((p, i) => <label key={p.item_pedido_id} className="block">{p.nombre_producto} · {p.nombre_presentacion} · {p.unidad}
+src/components/admin/administrative-correction.tsx:115:           <span className="block text-muted-foreground">Original entregado: {c.original.productos.find(o => o.item_pedido_id === p.item_pedido_id)?.cantidad_entregada}; vigente: {p.cantidad_entregada}. Importe vigente: {formatCLP(p.importe_definitivo)}.</span>
+src/components/admin/administrative-correction.tsx:124:       <ul>{c.snapshot.aplicaciones.map(a => <li key={a.id}>Pedido {a.pedido_id}: {formatCLP(a.monto_aplicado)} · {a.activa ? "Activa" : "Histórica / anulada"}</li>)}</ul>
+src/components/admin/administrative-correction.tsx:132:           {destinos.map(id => <label key={id} className="block">Aplicar al pedido {id} (0 = sin aplicación)<input className={campo} type="number" min="0" step="1" value={r.aplicaciones.find(a => a.pedido_id === id)?.monto ?? 0} onChange={e => setReemplazos(reemplazos.map((v, n) => n === i ? { ...v, aplicaciones: [...v.aplicaciones.filter(a => a.pedido_id !== id), { pedido_id: id, monto: Number(e.target.value) }] } : v))} /></label>)}
+src/components/admin/delivery-order-card.tsx:97:           {!compacta && pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Actor: {revision.actor_id}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
+src/lib/admin/clientes.ts:98: type SaldoPedidoFila = { pedido_id: string; saldo_pendiente: number | string };
+src/lib/admin/clientes.ts:145:     supabase.from("v_saldos_pedidos").select("pedido_id,saldo_pendiente").eq("cliente_id", id),
+src/lib/admin/clientes.ts:196:       saldoPendiente: Number((saldosPedidosResultado.data as SaldoPedidoFila[] ?? []).find((saldoPedido) => saldoPedido.pedido_id === pedido.id)?.saldo_pendiente ?? 0),
+src/lib/admin/correcciones-types.ts:2:   item_pedido_id: string; nombre_producto: string; nombre_presentacion?: string;
+src/lib/admin/correcciones-types.ts:10:   aplicaciones: { id: string; pedido_id: string; monto_aplicado: number; activa: boolean }[];
+src/lib/admin/correcciones-types.ts:12: export type ReemplazoPago = { monto: number; metodo: string; referencia: string | null; aplicaciones: { pedido_id: string; monto: number }[] };
+src/lib/admin/correcciones-types.ts:20:   items?: { item_pedido_id: string; cantidad_entregada: number }[]; reemplazos?: ReemplazoPago[] };
+src/lib/admin/pedido-borrador.ts:92:   pedido_id: string;
+src/lib/admin/pedido-historial.ts:59:     leer("historial_estados_pedido", "id,estado_anterior,estado_nuevo,cambiado_por,observacion,fecha_creacion", "pedido_id", id),
+src/lib/admin/pedido-historial.ts:60:     leer("items_pedido", "id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot", "pedido_id", id),
+src/lib/admin/pedido-historial.ts:61:     leer("aplicaciones_pago", "id,pago_id,monto_aplicado,fecha_creacion,activa,fecha_anulacion,anulada_por,motivo_anulacion", "pedido_id", id),
+src/lib/admin/pedido-historial.ts:62:     leer("paradas_ruta", "id,ruta_id,posicion,estado_logistico,hora_inicio,hora_entrega,fecha_creacion", "pedido_id", id),
+src/lib/admin/pedido-historial.ts:63:     supabase.rpc("leer_preparacion_explicita", { p_pedido_id: id }),
+src/lib/admin/pedido-historial.ts:79:     [nombreItem(e.item_pedido_id), ...(e.motivo ? [String(e.motivo)] : []), ...cambios(registro(e.valores_anteriores), registro(e.valores_nuevos))], true);
+src/lib/admin/pedido-historial.ts:80:   const precios = await Promise.all(items.map((item) => leer("auditoria_precios_pedido_administrativo", "item_pedido_id,precio_referencia,precio_aplicado,total_original,total_aplicado,motivo,administrador_id,fecha_autorizacion", "item_pedido_id", String(item.id), "item_pedido_id")));
+src/lib/admin/pedido-historial.ts:82:     const detalles = [nombreItem(e.item_pedido_id), `Motivo: ${texto(e.motivo)}`];
+src/lib/admin/pedido-historial.ts:88:     agregar(`precio-${e.item_pedido_id}`, e.fecha_autorizacion, "Ajuste de precio autorizado", e.administrador_id, detalles);
+src/lib/admin/pedido-historial.ts:92:       [`Ruta: ${e.ruta_id}`, `Estado actual de parada (no histórico): ${texto(e.estado_logistico)}`, `Posición actual: ${texto(e.posicion)}`, "La ruta no conserva un historial de cambios de posición."], true);
+src/lib/admin/pedido-historial.ts:110:   const correcciones = await leer("correcciones_venta_entregada", "id,fecha,actor_id,motivo,anteriores,nuevos,diferencia", "pedido_id", id);
+src/lib/admin/pedido-historial.ts:116:           const antes = lista(anterior.productos).find(a => a.item_pedido_id === p.item_pedido_id);
+src/lib/admin/pedido-historial.ts:117:           return `${nombreItem(p.item_pedido_id)} · Entregado anterior: ${texto(antes?.cantidad_entregada)} · Corregido: ${texto(p.cantidad_entregada)} · Importe anterior: ${dinero(antes?.importe_definitivo)} · Corregido: ${dinero(p.importe_definitivo)}`;
+src/lib/admin/pedido-historial.ts:126:   const { data: evidencia, error: errorEvidencia } = await supabase.rpc("leer_intentos_pedido_admin", { p_pedido_id: id });
+src/lib/admin/pedido-historial.ts:147:   const { data: resolucion, error: errorResolucion } = await supabase.rpc("leer_resolucion_no_entregado_admin", { p_pedido_id: id });
+src/lib/admin/pedido-historial.ts:162:   const rutas = await Promise.all([...new Set(paradas.map((p) => String(p.ruta_id)))].map((rutaId) => leer("rutas", "id,fecha_operativa", "id", rutaId)));
+src/lib/admin/pedidos.ts:61: export type RevisionPreparacion = { version: number; actor_id: string; fecha: string; item_pedido_id: string | null; motivo: string; valores_anteriores: Record<string, unknown>; valores_nuevos: Record<string, unknown> };
+src/lib/admin/pedidos.ts:161:   pedido_id: string;
+src/lib/admin/pedidos.ts:175:   item_pedido_id: string;
+src/lib/admin/pedidos.ts:304:     .in("item_pedido_id", lote)
+src/lib/admin/pedidos.ts:306:     .order("item_pedido_id").range(desde, hasta)).catch((error: { code: string }) => {
+src/lib/admin/pedidos.ts:312:     itemPedidoId: fila.item_pedido_id,
+src/lib/admin/pedidos.ts:391:       .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad")
+src/lib/admin/pedidos.ts:392:       .in("pedido_id", lote).order("id").range(desde, hasta));
+src/lib/admin/pedidos.ts:396:       const fecha = fechaPorPedido.get(item.pedido_id);
+src/lib/admin/pedidos.ts:437:     const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
+src/lib/admin/pedidos.ts:449:       .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot,total_linea")
+src/lib/admin/pedidos.ts:450:       .in("pedido_id", lote)
+src/lib/admin/pedidos.ts:460:         .select("item_pedido_id,cantidad_preparada,motivo_faltante,confirmado_explicito,importe_linea_operativo")
+src/lib/admin/pedidos.ts:461:         .in("item_pedido_id", lote).order("item_pedido_id").range(desde, hasta));
+src/lib/admin/pedidos.ts:464:         preparacionPorItem.set(preparacion.item_pedido_id, preparacion);
+src/lib/admin/pedidos.ts:474:         pedidoId: item.pedido_id,
+src/lib/admin/pedidos.ts:488:       const itemsPedido = itemsPorPedido.get(item.pedido_id) ?? [];
+src/lib/admin/pedidos.ts:490:       itemsPorPedido.set(item.pedido_id, itemsPedido);
+src/lib/admin/pedidos.ts:524:     .eq("pedido_id", id).order("id").range(desde, hasta));
+src/lib/posibles-pedidos/administracion.ts:9:   cliente_id: string | null; pedido_oficial_id: string | null; fecha_creacion: string;
+src/lib/posibles-pedidos/administracion.ts:12:   posible_pedido_id: string; id: string; presentacion_producto_id: string; nombre_producto_snapshot: string; nombre_presentacion_snapshot: string;
+src/lib/posibles-pedidos/administracion.ts:21: const columnas = "solicitud_id,numero_version,id,codigo_publico,nombre_solicitante,telefono_contacto,fecha_entrega_solicitada,observaciones,estado,version,subtotal_estimado,costo_entrega_estimado,total_estimado,cliente_id,pedido_oficial_id,fecha_creacion";
+src/lib/posibles-pedidos/administracion.ts:51:     supabase.from("items_posible_pedido").select("posible_pedido_id,id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,cantidad_original,activo,orden,subtotal,precio_neto_original_snapshot,precio_venta_original_snapshot,precio_neto_autorizado,precio_venta_autorizado,motivo_autorizacion_precio,fecha_autorizacion_precio").in("posible_pedido_id", versiones.map((v) => v.id)).order("orden"),
+src/lib/posibles-pedidos/administracion.ts:52:     supabase.from("historial_posibles_pedidos").select("id,evento,version_resultante,fecha_creacion,motivo,administrador_id,cambios").eq("posible_pedido_id",id).order("version_resultante", { ascending: false }),
+src/lib/posibles-pedidos/administracion.ts:60:   return { versiones: versiones as PosiblePedido[], cierre: cierre as PosiblePedido | undefined, pedido: pedido as PosiblePedido, lineasVersiones: (lineas.data ?? []) as LineaPosible[], lineas: (lineas.data ?? []).filter((l) => l.posible_pedido_id === id) as LineaPosible[], eventos: (eventos.data ?? []) as EventoPosible[], clientes: (clientes.data ?? []) as ClientePosible[], direcciones: (direcciones.data ?? []) as DireccionPosible[], fechas: (fechas.data ?? []).map((f: { fecha: string }) => f.fecha) as string[], presentaciones: (presentaciones.data ?? []) as unknown as PresentacionPosible[], asociado: asociado.data as ClientePosible | null };

@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronDown } from "lucide-react";
 import { OrderOperationalAction } from "@/components/admin/order-operational-action";
 import { PreparationItemControl } from "@/components/admin/preparation-item-control";
 import { PreparationCompactItemControl } from "@/components/admin/preparation-compact-item-control";
+import { SinStockAction } from "@/components/admin/sin-stock-action";
 import { FinalizePreparationAction } from "@/components/admin/finalize-preparation-action";
 import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
@@ -76,11 +77,13 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
 
           {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
-          {(!compacta || rutaMultiple) && !soloLecturaRuta && (requierePreparacion || pendienteDeConfirmacion || listoParaDespacho) ? (
+          {!soloLecturaRuta && (requierePreparacion || pendienteDeConfirmacion || listoParaDespacho) ? (
             <div className="mt-4 border-t border-border pt-3">
               <p className="mb-3 text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
-              {pedido.estado === "confirmado" ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
-              {pedido.estado === "preparando" && permisoPreparacion.permitida ? <FinalizePreparationAction key={pedido.versionPreparacion} pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} version={pedido.versionPreparacion} pendientes={pedido.items.filter((item) => !item.confirmadoExplicito).length} lineasConFaltantes={pedido.items.filter((item) => item.tieneFaltante).length} /> : null}
+              {pedido.estado === "confirmado" && !compacta ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
+              {(pedido.estado === "preparando" || (pedido.estado === "listo_despacho" && pedido.items.some(i => i.cantidadPreparada !== i.cantidad))) && permisoPreparacion.permitida ? <FinalizePreparationAction reautorizar={pedido.estado === "listo_despacho"} key={pedido.versionPreparacion} pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} version={pedido.versionPreparacion} pendientes={pedido.items.length === 0 || pedido.items.every(i => i.cantidadPreparada === 0) ? Math.max(1, pedido.items.length) : pedido.items.filter((item) => !item.confirmadoExplicito).length} lineasConFaltantes={pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada !== item.cantidad).length} /> : null}
+              {permisoPreparacion.permitida && ["preparando", "listo_despacho"].includes(pedido.estado) && pedido.items.length > 0 && pedido.items.every(i => i.confirmadoExplicito && i.cantidadPreparada === 0 && i.importeOperativo === 0) ? <SinStockAction key={pedido.versionPreparacion} pedidoId={pedido.id} version={pedido.versionPreparacion} /> : null}
+              {pedido.estado === "preparando" && pedido.items.length > 0 && pedido.items.every(i => i.cantidadPreparada === 0) ? <p className="mt-2 rounded-lg bg-muted p-3 text-sm">Sin unidades preparadas. Confirma cantidad e importe cero en cada producto y luego resuelve expresamente la falta total de stock.</p> : null}
               {pedido.estado === "preparando" ? <p className="mt-2 text-sm text-muted-foreground">{pedido.items.filter((item) => !item.confirmadoExplicito).length} productos pendientes de confirmación explícita.</p> : null}
               {pendienteDeConfirmacion ? <p className="text-sm text-muted-foreground">Pendiente de confirmación</p> : null}
               {listoParaDespacho && (!rutaMultiple || estadoCantidad === "Listo") ? (
@@ -94,7 +97,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
 
           {operativa && !compacta ? <div className="mt-3 space-y-1 text-sm"><p>{pedido.items.filter((item) => item.confirmadoExplicito).length} de {pedido.items.length} productos confirmados</p><progress className="h-2 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={pedido.items.filter((item) => item.confirmadoExplicito).length} /></div> : null}
           {!compacta && pedido.importeOperativoPreparacion !== null ? <p className="mt-3 text-sm">Importe operativo provisional: {pedido.importeOperativoPreparacion !== null && pedido.importeOperativoPreparacion !== pedido.total ? <><s>{formatCLP(pedido.total)}</s>{" → "}</> : null}{formatCLP(pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total)}</p> : null}
-          {!compacta && pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Actor: {revision.actor_id}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
+          {!compacta && pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Responsable: {revision.actorNombre ?? "Responsable sin nombre disponible"}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
           <ContenedorProductos className="group mt-4 border-t border-border pt-3">
             {!compacta ? <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
               <span className="group-open:hidden">Ver productos</span>
@@ -108,7 +111,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
                   {pedido.items.map((item) => (pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta ? (
                     <li key={`${item.id}-${pedido.versionPreparacion}`} className="list-none"><ul><ControlProducto item={item} version={pedido.versionPreparacion} /></ul>{rutaMultiple && pedido.estado === "preparando" ? <details className="pb-3"><summary className="min-h-11 cursor-pointer py-2 text-sm">Confirmar cantidad e importe de {item.nombreProducto}</summary><ul><PreparationItemControl item={item} version={pedido.versionPreparacion} /></ul></details> : null}</li>
                   ) : (
-                    <ControlProducto key={item.id} item={item} version={pedido.versionPreparacion} soloLectura />
+                    <PreparationItemControl key={item.id} item={item} version={pedido.versionPreparacion} soloLectura />
                   ))}
                 </ul>
               )}

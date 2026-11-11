@@ -59,13 +59,14 @@ export function JornadaSalidaControl({ fecha, carga, habilitada }: { fecha: stri
         setMensaje("Salida a ruta registrada.");
         router.refresh();
       } catch {
-        setMensaje("No se recibió respuesta. Reintenta Salir a ruta para recuperar la operación sin duplicarla.");
+        setMensaje("No se recibió respuesta. Reintenta Registrar salida efectiva para recuperar la operación sin duplicarla.");
       } finally { ejecutando.current = false; }
     });
   }
   return <section className="space-y-3" aria-label="Salida a ruta">
-    {(preparados || Boolean(cola.current?.length)) && <Button disabled={pendiente || !habilitada || (!cola.current?.length && problemas.length > 0)} onClick={salir}>{pendiente ? "Registrando salida…" : "Salir a ruta"}</Button>}
+    {(preparados || Boolean(cola.current?.length)) && <Button disabled={pendiente || !habilitada || (!cola.current?.length && problemas.length > 0)} onClick={salir}>{pendiente ? "Registrando salida…" : "Registrar salida efectiva"}</Button>}
     {carga.pedidos.some(p => p.incluido === false && p.estado !== "cancelado") && <p className="text-sm">Se conservan los pedidos excluidos, incluidos los reprogramados pendientes de inclusión. <Link className="underline" href={`/admin/pedidos/entregas/${fecha}`}>Revisar e incluir explícitamente en la carga</Link>.</p>}
+    {carga.pedidos.some(p => p.estado === "entrega_fallida" && p.incluido === false) && <p className="rounded-lg bg-muted p-3 text-sm">Los pedidos resueltos y excluidos no forman parte del reparto físico. Consulta su motivo en el historial.</p>}
     {cancelados.length > 0 && <p className="text-sm text-muted-foreground">No se incluyen por estar cancelados: {cancelados.map(p => p.numero).join(", ")}. El motivo queda registrado al guardar la selección.</p>}
     {problemas.length > 0 && <ul className="space-y-1 text-sm text-destructive">{problemas.map(problema => <li key={problema}>{problema}</li>)}</ul>}
     <p role="status" className="text-sm">{mensaje}</p>

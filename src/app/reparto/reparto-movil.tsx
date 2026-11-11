@@ -1,11 +1,12 @@
 "use client";
+import { formatCLP } from "@/lib/formatters";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { operarReparto, type SolicitudReparto } from "./actions";
 export type Jornada = { ruta?: string; nombre?: string; fecha: string; asignacion: number; estado: string; pedidos: {
   id: string; numero: string; cliente: string; direccion: string | null; telefono: string | null;
   referencia: string | null; preparacion?: "sin_preparar" | "parcial" | "listo"; estado: string; version: number; posicion: number | null;
-  productos: { nombre: string; cantidad: number; solicitada?: number; faltante?: number; unidad: string }[];
+  productos: { nombre: string; cantidad: number; solicitada?: number; faltante?: number; enviada?: number; importe_operativo?: number; unidad: string }[];
 }[] };
 const boton = "min-h-12 rounded-lg border px-4 py-3 font-medium disabled:opacity-50";
 export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: Jornada[]; consultaFallida?: boolean }) {
@@ -56,7 +57,7 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
           <h3 className="font-semibold">{p.posicion ? `${p.posicion}. ` : ""}{p.numero} · {p.cliente}</h3>
           <p>{p.direccion || "Dirección pendiente: consulta a administración"}</p><p>{p.referencia}</p>
           {p.telefono && <a className="inline-block min-h-12 py-3 underline" href={`tel:${p.telefono.replace(/[^+\d]/g, "")}`}>Llamar: {p.telefono}</a>}
-          <ul>{p.productos.map((i, n) => <li key={n}>{i.cantidad} {i.unidad}{j.ruta ? " preparados" : ""} · {i.nombre}{i.solicitada !== undefined && <> · Solicitados: {i.solicitada} · Faltantes: {i.faltante ?? 0}</>}</li>)}</ul>
+          <details className="rounded-xl border bg-muted/30 px-3"><summary className="min-h-12 cursor-pointer py-3 font-semibold text-primary">Ver productos · {p.productos.length}</summary><ul className="divide-y">{p.productos.map((i, n) => <li key={n} className="space-y-2 py-3 text-sm"><p className="font-semibold">{i.nombre}</p><dl className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div><dt className="text-muted-foreground">Solicitado</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.solicitada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Preparado</dt><dd>{i.cantidad} {i.unidad}</dd></div><div><dt className="text-muted-foreground">Enviado</dt><dd>{i.enviada === undefined ? "Sin dato de salida" : `${i.enviada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Diferencia preparada</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.cantidad - i.solicitada} ${i.unidad}`}</dd></div></dl><p className="text-xs text-muted-foreground">Importe operativo: {i.importe_operativo == null ? "No disponible en esta ruta" : formatCLP(i.importe_operativo)} · Referencia de preparación</p></li>)}</ul></details>
           {p.preparacion && <p className={`inline-flex rounded-md px-2 py-1 text-sm font-semibold ${p.preparacion === "listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted"}`}>Preparación: {p.preparacion === "listo" ? "✓ Listo" : p.preparacion === "parcial" ? "Parcial" : "Sin preparar"}</p>}
           <p>Entrega: {p.estado === "entrega_fallida" ? "No entregado" : p.estado === "entregado" ? "Entregado" : p.estado === "en_reparto" ? "En reparto" : "Pendiente de entrega"}</p>
           {p.estado === "en_reparto" && <div className="space-y-3">

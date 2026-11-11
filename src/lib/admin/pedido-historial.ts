@@ -1,4 +1,5 @@
 import "server-only";
+import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
 
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { formatCLP } from "@/lib/formatters";
@@ -10,12 +11,12 @@ export type EventoPedido = {
 };
 const registro = (valor: unknown): Registro => valor && typeof valor === "object" && !Array.isArray(valor) ? valor as Registro : {};
 const lista = (valor: unknown): Registro[] => Array.isArray(valor) ? valor.map(registro) : [];
-const texto = (valor: unknown) => valor == null ? "Sin registro" : String(valor).replaceAll("_", " ");
+const texto = (valor: unknown) => valor == null ? "Sin registro" : (typeof valor === "boolean" ? valor ? "Sí" : "No" : String(valor)).replaceAll("_", " ");
 const dinero = (valor: unknown) => valor == null ? "Sin registro" : formatCLP(Number(valor));
 const campos: Record<string, string> = {
   estado: "Estado", cantidad_preparada: "Cantidad preparada", confirmado_explicito: "Confirmación del producto",
   importe_linea_operativo: "Importe operativo provisional", total_operativo_preparacion: "Total operativo provisional",
-  preparacion_estado: "Estado de preparación", incluido: "Incluido en carga", motivo: "Motivo",
+  parcial_autorizado: "Preparación parcial autorizada", preparacion_estado: "Estado de preparación", incluido: "Incluido en carga", motivo: "Motivo",
 };
 function cambios(anterior: Registro, nuevo: Registro) {
   return Object.entries(campos).flatMap(([clave, nombre]) => {
@@ -75,8 +76,8 @@ export async function obtenerHistorialPedido(id: string) {
     const item = items.find((i) => i.id === itemId);
     return item ? `${item.nombre_producto_snapshot}${item.nombre_presentacion_snapshot ? ` · ${item.nombre_presentacion_snapshot}` : ""} · Unidad: ${item.unidad_snapshot}` : "Pedido";
   };
-  for (const e of lista(registro(preparacion.data).historial)) agregar(`preparacion-${e.version}`, e.fecha, "Preparación", e.actor_id,
-    [nombreItem(e.item_pedido_id), ...(e.motivo ? [String(e.motivo)] : []), ...cambios(registro(e.valores_anteriores), registro(e.valores_nuevos))], true);
+  for (const e of lista(registro(preparacion.data).historial)) agregar(`preparacion-${e.version}`, e.fecha, registro(e.valores_nuevos).origen === "sin_stock_pre_despacho" ? "No entregado por falta de stock" : "Preparación", e.actor_id,
+    [nombreItem(e.item_pedido_id), ...(e.motivo ? [String(e.motivo)] : []), ...cambios(registro(e.valores_anteriores), registro(e.valores_nuevos))], registro(e.valores_nuevos).origen !== "sin_stock_pre_despacho");
   const precios = await Promise.all(items.map((item) => leer("auditoria_precios_pedido_administrativo", "item_pedido_id,precio_referencia,precio_aplicado,total_original,total_aplicado,motivo,administrador_id,fecha_autorizacion", "item_pedido_id", String(item.id), "item_pedido_id")));
   for (const e of precios.flat()) {
     const detalles = [nombreItem(e.item_pedido_id), `Motivo: ${texto(e.motivo)}`];
@@ -169,10 +170,12 @@ export async function obtenerHistorialPedido(id: string) {
       const antes = lista(anterior.pedidos).find((p) => p.id === id);
       const despues = lista(nuevo.pedidos).find((p) => p.id === id);
       const seleccion = lista(solicitud.pedidos).find((p) => p.id === id);
-      if (solicitud.accion === "guardar" ? !seleccion : !(antes?.incluido || despues?.incluido)) continue;
-      agregar(`carga-${fecha}-${h.version}`, h.instante, `Carga / ruta · ${texto(solicitud.accion)}`, h.actor,
+      if (solicitud.accion === "resolver_sin_stock" ? solicitud.pedido !== id : solicitud.accion === "guardar" ? !seleccion : !(antes?.incluido || despues?.incluido)) continue;
+      agregar(`carga-${fecha}-${h.version}`, h.instante, `Carga / ruta · ${describirAccionRuta(String(solicitud.accion))}`, h.actor,
         [`Jornada: ${fecha}`, ...cambios({ estado: anterior.estado }, { estado: nuevo.estado }), ...cambios(antes ?? {}, despues ?? {}), ...(solicitud.motivo ? [`Motivo: ${solicitud.motivo}`] : [])], solicitud.accion === "guardar" || solicitud.accion === "reabrir");
     }
   }
+  const nombreResponsable = await obtenerNombresResponsables(eventos.map(e => e.actor));
+  for (const evento of eventos) evento.actor = nombreResponsable(evento.actor);
   return { numeroPedido: String(pedido.numero_pedido), avisos, eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };
 }

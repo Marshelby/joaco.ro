@@ -7,16 +7,17 @@ import { operarRutaMultiple } from "./multiple-actions";
 import type { SolicitudRutaMultiple } from "./multiple-types";
 
 type Comando = Omit<SolicitudRutaMultiple, "clave">;
-export function RutaMultipleForm({ comando, children, etiqueta, disabled = false }: {
-  comando: Comando; children?: ReactNode; etiqueta: string; disabled?: boolean;
+export function RutaMultipleForm({ comando, children, etiqueta, disabled = false, editarBloqueado = false, validarFormulario = false }: {
+  comando: Comando; children?: ReactNode; etiqueta: string; disabled?: boolean; editarBloqueado?: boolean; validarFormulario?: boolean;
 }) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
+  const [valido, setValido] = useState(!validarFormulario);
   const [error, setError] = useState("");
   const [incierta, setIncierta] = useState(false);
   const solicitud = useRef<SolicitudRutaMultiple | null>(null);
   const bloqueo = useRef(false);
-  return <form className="space-y-3" onSubmit={e => {
+  return <form className="space-y-3" onChange={e => { if (validarFormulario) setValido(e.currentTarget.checkValidity()); }} onSubmit={e => {
     e.preventDefault();
     if (bloqueo.current || disabled) return;
     if (document.querySelector('[data-preparacion-pendiente="true"]')) { setError("Guarda o cancela las cantidades en edición antes de continuar."); return; }
@@ -39,8 +40,8 @@ export function RutaMultipleForm({ comando, children, etiqueta, disabled = false
       finally { bloqueo.current = false; }
     });
   }}>
-    <fieldset disabled={disabled || pendiente || incierta} className="min-w-0 space-y-3">{children}</fieldset>
-    <div className="flex flex-wrap gap-2"><Button type="submit" disabled={disabled || pendiente}>{pendiente ? "Procesando…" : incierta ? "Reintentar la misma solicitud" : etiqueta}</Button>
+    <fieldset disabled={(!editarBloqueado && disabled) || pendiente || incierta} className="min-w-0 space-y-3">{children}</fieldset>
+    <div className="flex flex-wrap gap-2"><Button type="submit" className="h-auto min-h-11 whitespace-normal" disabled={disabled || pendiente || !valido}>{pendiente ? "Procesando…" : incierta ? "Reintentar la misma solicitud" : etiqueta}</Button>
       {incierta && <Button type="button" variant="secondary" disabled={pendiente} onClick={() => { solicitud.current = null; setIncierta(false); setError(""); router.refresh(); }}>Consultar estado actualizado</Button>}
     </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

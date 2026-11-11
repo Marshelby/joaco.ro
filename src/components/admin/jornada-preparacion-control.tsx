@@ -2,14 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { marcarPedidoPreparando, guardarPreparacionItemPedido, finalizarPreparacionPedidoAction } from "@/app/(admin)/admin/pedidos/actions";
+import { marcarPedidoPreparando, guardarPreparacionItemPedido, finalizarPreparacionPedidoAction, resolverSinStockAction } from "@/app/(admin)/admin/pedidos/actions";
 import type { PedidoEntregaAdmin } from "@/lib/admin/pedidos";
 import { resolverModoCantidadPreparacion } from "@/lib/order-preparation";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { formatCLP } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 
-type Paso = { tipo: "inicio" | "producto" | "cierre"; datos: FormData };
+type Paso = { tipo: "inicio" | "producto" | "cierre" | "sin_stock"; datos: FormData };
 
 export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: readonly PedidoEntregaAdmin[]; habilitada: boolean }) {
   const router = useRouter();
@@ -56,7 +56,11 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
             pasos.push({ tipo: "producto", datos: d });
             version += 1;
           }
-          pasos.push({ tipo: "cierre", datos: datosPedido() });
+          const cierre = datosPedido();
+          const sinStock = pedido.items.length > 0 && pedido.items.every(i => Number(formulario.get(`cantidad-${i.id}`)) === 0);
+          cierre.set("motivo", String(formulario.get(`motivo-${pedido.id}`) ?? ""));
+          cierre.set(sinStock ? "confirmaSinStock" : "autorizaParcial", formulario.get(`autoriza-${pedido.id}`) === "si" ? "si" : "no");
+          pasos.push({ tipo: sinStock ? "sin_stock" : "cierre", datos: cierre });
         }
         cola.current = pasos;
       }
@@ -66,11 +70,11 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
         try {
           while (cola.current?.length) {
             const paso = cola.current[0];
-            const resultado = paso.tipo === "inicio" ? await marcarPedidoPreparando({}, paso.datos) : paso.tipo === "producto" ? await guardarPreparacionItemPedido({}, paso.datos) : await finalizarPreparacionPedidoAction({}, paso.datos);
+            const resultado = paso.tipo === "inicio" ? await marcarPedidoPreparando({}, paso.datos) : paso.tipo === "producto" ? await guardarPreparacionItemPedido({}, paso.datos) : paso.tipo === "sin_stock" ? await resolverSinStockAction({}, paso.datos) : await finalizarPreparacionPedidoAction({}, paso.datos);
             if (resultado.error) { setMensaje(`${resultado.error} Los pasos completados se conservan. Reintenta o recarga para revisar la jornada.`); return; }
             cola.current.shift();
           }
-          setMensaje("Todos los pedidos preparados. Ya puedes salir a ruta.");
+          setMensaje("Preparación confirmada y pedidos sin stock resueltos. Revisa la autorización de salida; el despacho se registra por separado.");
           setAbierto(false);
           setIniciada(false);
           cola.current = null;
@@ -88,7 +92,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
       </div>
       {faltantes > 0 ? <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <p className="font-semibold">Revisar antes de confirmar: {faltantes} {faltantes === 1 ? "producto con faltantes" : "productos con faltantes"}</p>
-        <p className="mt-1 text-xs">Puedes confirmar cantidades parciales o cero. Revisa el importe manual de cada diferencia, también cuando se prepare más de lo solicitado.</p>
+        <p className="mt-1 text-xs">Las cantidades parciales requieren autorización administrativa. Los pedidos con todas las cantidades cero requieren resolución expresa sin stock. Revisa el importe manual de cada diferencia, también cuando se prepare más de lo solicitado.</p>
       </div> : null}
       <fieldset disabled={pendiente || iniciada} className="min-w-0 space-y-3">
         <legend className="sr-only">Productos preparados por cliente</legend>
@@ -99,6 +103,7 @@ export function JornadaPreparacionControl({ pedidos, habilitada }: { pedidos: re
           </div>
           {cliente.pedidos.map(p => <div key={p.id}>
             <p className="border-t px-3 py-1.5 text-[11px] font-medium text-muted-foreground">Pedido {p.numeroPedido}</p>
+            {p.items.some(i => Number(cantidades[i.id] ?? i.cantidadPreparada ?? 0) !== i.cantidad) ? <div key={p.items.every(i => Number(cantidades[i.id] ?? i.cantidadPreparada ?? 0) === 0) ? "sin-stock" : "parcial"} className="m-3 space-y-3 rounded-lg border border-amber-200 p-3"><label className="block text-sm">Motivo administrativo<textarea name={`motivo-${p.id}`} required maxLength={2000} rows={2} className="mt-1 w-full rounded-lg border bg-background p-2" /></label><label className="flex min-h-11 items-start gap-3 text-sm"><input name={`autoriza-${p.id}`} type="checkbox" value="si" required className="mt-1" />{p.items.every(i => Number(cantidades[i.id] ?? i.cantidadPreparada ?? 0) === 0) ? "Confirmo falta total de stock. Resolver como No entregado — Sin stock y retirar del reparto, sin venta, deuda ni cobro." : "Autorizo expresamente la preparación parcial con estas cantidades e importes."}</label></div> : null}
             <div className="divide-y">{p.items.map(item => {
               const cantidad = cantidades[item.id] ?? String(item.cantidadPreparada ?? 0);
               const valor = Number(cantidad);

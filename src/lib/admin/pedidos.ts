@@ -1,3 +1,4 @@
+import { obtenerNombresResponsables } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
@@ -58,7 +59,7 @@ export type ItemPreparacionPedidoAdmin = {
   tieneFaltante: boolean;
 };
 
-export type RevisionPreparacion = { version: number; actor_id: string; fecha: string; item_pedido_id: string | null; motivo: string; valores_anteriores: Record<string, unknown>; valores_nuevos: Record<string, unknown> };
+export type RevisionPreparacion = { version: number; actor_id: string; actorNombre?: string; fecha: string; item_pedido_id: string | null; motivo: string; valores_anteriores: Record<string, unknown>; valores_nuevos: Record<string, unknown> };
 
 export type PedidoEntregaAdmin = PedidoAdminListado & {
   versionPreparacion: number;
@@ -440,6 +441,8 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
     pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
   }));
+  const nombreResponsable = await obtenerNombresResponsables(pedidos.flatMap(p => p.historialPreparacion.map(h => h.actor_id)));
+  for (const p of pedidos) for (const h of p.historialPreparacion) h.actorNombre = nombreResponsable(h.actor_id);
   const idsPedidos = pedidos.map((pedido) => pedido.id);
 
   let resumenProductos: readonly ResumenProductoEntrega[] = [];

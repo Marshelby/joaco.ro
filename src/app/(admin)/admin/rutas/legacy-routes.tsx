@@ -100,9 +100,8 @@ export default async function AdminRoutesPage({ searchParams }: {
       <details className="rounded-xl border bg-card p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Productos solicitados de la jornada</summary><DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" /></details>
     </>}
     <JornadaPreparacionControl key={fecha} pedidos={entrega.pedidos} habilitada={permiso.permitida} />
-    <JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} />
-    </>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
-      <RutaDiaMap cerrada={carga.estado === "cerrada"} fecha={fecha} paradas={entrega.pedidos.map((pedido, indice) => ({
+    </>} salida={<section className="space-y-3 rounded-xl border bg-card p-4"><h3 className="font-semibold">Despacho efectivo</h3><JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} /></section>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
+      <RutaDiaMap cerrada={carga.estado === "cerrada"} fecha={fecha} paradas={entrega.pedidos.filter(p => carga.pedidos.find(c => c.id === p.id)?.incluido !== false).map((pedido, indice) => ({
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
         ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
         entregado: pedido.estado === "entregado",
@@ -120,7 +119,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                     const formato = (cantidad: number) => formatearCantidadPreparacionEntrega(cantidad, producto.nombrePresentacion, producto.unidad, producto.modoCantidadSnapshot);
                     return <li key={producto.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-2 text-sm ${color}`}>
                       <span className={`min-w-0 break-words font-medium ${preparado === 0 ? "line-through" : ""}`}>{producto.nombreProducto}{producto.nombrePresentacion ? ` · ${producto.nombrePresentacion}` : ""}</span>
-                      <span>{estado} · Preparado / solicitado: {formato(preparado)} / {formato(producto.cantidad)}</span>
+                      <span>{estado} · Solicitado: {formato(producto.cantidad)} · Preparado: {formato(preparado)} · Enviado: {carga.pedidos.find(p => p.id === pedido.id)?.productos.find(i => i.id === producto.id)?.enviada == null ? "Sin dato histórico de salida" : formato(carga.pedidos.find(p => p.id === pedido.id)!.productos.find(i => i.id === producto.id)!.enviada!)}</span>
                     </li>;
                   })}</ul>}
                 </details>

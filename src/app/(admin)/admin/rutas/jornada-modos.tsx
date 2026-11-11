@@ -3,9 +3,9 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
-type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: ReactNode };
+type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: ReactNode; salida?: ReactNode };
 
-export function JornadaModos({ titulo, mensaje, preparacion, ruta }: Props) {
+export function JornadaModos({ titulo, mensaje, preparacion, ruta, salida }: Props) {
   const [modo, setModo] = useState<"preparacion" | "ruta">("preparacion");
   const encabezado = useRef<HTMLDivElement>(null);
 
@@ -26,7 +26,7 @@ export function JornadaModos({ titulo, mensaje, preparacion, ruta }: Props) {
       </div>
       <p className="text-sm text-muted-foreground">{mensaje}</p>
     </div>
-    <div id="jornada-preparacion" hidden={modo !== "preparacion"} className="space-y-6">{preparacion}</div>
-    <div id="jornada-ruta" hidden={modo !== "ruta"}>{ruta}</div>
+    <div id="jornada-preparacion" hidden={modo !== "preparacion"} className="space-y-6">{preparacion}<div className="rounded-xl border bg-card p-4"><Button type="button" onClick={() => cambiarModo("ruta")}>Ir a ver ruta</Button><p className="mt-2 text-xs text-muted-foreground">Revisa las paradas y el despacho en la vista de ruta.</p></div></div>
+    <div id="jornada-ruta" hidden={modo !== "ruta"} className="space-y-4">{salida}{ruta}</div>
   </>;
 }

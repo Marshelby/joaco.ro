@@ -28,6 +28,7 @@ export function PreparationItemControl({ item, version, soloLectura = false }: {
       <p>Solicitado: {formatear(item.cantidad)}<span className="block text-muted-foreground">Importe original: {formatCLP(item.importeOriginal)}</span></p>
       <p>Preparado: {item.cantidadPreparada !== null ? formatear(item.cantidadPreparada) : "Sin confirmar"}<span className="block text-muted-foreground">Importe provisional: {item.confirmadoExplicito && item.importeOperativo !== null ? formatCLP(item.importeOperativo) : "Sin confirmar"}</span></p>
     </div>
+    {item.cantidadPreparada !== null ? <p className="rounded-lg bg-background p-2 text-xs">Diferencia respecto de lo solicitado: {formatear(item.cantidadPreparada - item.cantidad)}.</p> : null}
     {!soloLectura && !editando ? <Button type="button" variant="outline" onClick={() => { setCantidad(String(item.cantidadPreparada ?? item.cantidad)); setImporte(""); setClave(crypto.randomUUID()); setEditando(true); }}>{item.confirmadoExplicito ? "Corregir preparación" : "Confirmar cantidad e importe"}</Button> : null}
     {!soloLectura && editando ? <form action={accion} data-preparacion-pendiente={resultado.guardado ? undefined : "true"} className="space-y-3 rounded-lg border p-3">
       <input type="hidden" name="itemPedidoId" value={item.id} />

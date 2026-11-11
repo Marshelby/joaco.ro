@@ -22,7 +22,7 @@ function valoresRevision(valores: Record<string, unknown>) {
   return `${valores.confirmado_explicito ? "LISTO" : "PENDIENTE"} · Cantidad preparada: ${cantidad == null ? "sin confirmación" : String(cantidad)} · Importe operativo: ${typeof importe === "number" ? formatCLP(importe) : "sin confirmación"}`;
 }
 
-export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number }) {
+export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean }) {
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
@@ -36,6 +36,9 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   // El encabezado cuenta únicamente cantidades persistidas, sin depender de la confirmación final.
   const preparados = pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada >= item.cantidad).length;
 
+  const estadoCantidad = !pedido.items.length || pedido.items.every(i => (i.cantidadPreparada ?? 0) === 0)
+    ? "Sin preparar" : preparados === pedido.items.length ? "Listo" : "Parcial";
+
   return (
     <li className={compacta ? "overflow-hidden rounded-xl border border-border bg-card" : "rounded-xl border border-border bg-card p-4 sm:p-5"}>
       {/* El desplegable oculta el contenido sin desmontar los controles en edición. */}
@@ -47,7 +50,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <span className="block truncate text-xs text-muted-foreground" title={pedido.nombreUbicacionSnapshot ?? undefined}>{pedido.nombreUbicacionSnapshot?.trim() || "Sin ubicación comercial registrada"}</span>
             <span className="block text-[11px] text-muted-foreground"><span className="sr-only">Pedido </span>{pedido.numeroPedido}</span>
           </span>
-          <span className="col-start-2 flex flex-wrap gap-1 md:col-start-auto"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></span>
+          <span className="col-start-2 flex flex-wrap gap-1 md:col-start-auto"><OrderStatusBadge estado={pedido.estado} />{rutaMultiple ? <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${estadoCantidad === "Listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted text-foreground"}`}>{estadoCantidad === "Listo" && <CheckCircle2 className="size-4" aria-hidden="true" />}{estadoCantidad}</span> : <PreparationStatusBadge estado={pedido.preparacionEstado} />}</span>
           <span className="col-start-2 space-y-1 text-xs text-muted-foreground md:col-start-auto">
             <span className="block">{preparados} / {pedido.items.length} preparados</span>
             <progress className="block h-1.5 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={preparados} />
@@ -65,22 +68,22 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
               <div><dt className="text-muted-foreground">Creado</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div>
               <div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div>
             </dl>
-            <div className="flex flex-wrap gap-2"><OrderStatusBadge estado={pedido.estado} /><PreparationStatusBadge estado={pedido.preparacionEstado} /></div>
+            <div className="flex flex-wrap gap-2"><OrderStatusBadge estado={pedido.estado} />{rutaMultiple ? <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${estadoCantidad === "Listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted text-foreground"}`}>{estadoCantidad === "Listo" && <CheckCircle2 className="size-4" aria-hidden="true" />}{estadoCantidad}</span> : <PreparationStatusBadge estado={pedido.preparacionEstado} />}</div>
             <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink></> : null}
           </div>
 
-          <div className="mt-3"><ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink></div>
+          <div className="mt-3 flex flex-wrap gap-2">{rutaMultiple ? <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="secondary">Ver pedido</ActionLink> : null}<ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink></div>
 
           {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
-          {!compacta && (requierePreparacion || pendienteDeConfirmacion || listoParaDespacho) ? (
+          {(!compacta || rutaMultiple) && !soloLecturaRuta && (requierePreparacion || pendienteDeConfirmacion || listoParaDespacho) ? (
             <div className="mt-4 border-t border-border pt-3">
               <p className="mb-3 text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
               {pedido.estado === "confirmado" ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
               {pedido.estado === "preparando" && permisoPreparacion.permitida ? <FinalizePreparationAction key={pedido.versionPreparacion} pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} version={pedido.versionPreparacion} pendientes={pedido.items.filter((item) => !item.confirmadoExplicito).length} lineasConFaltantes={pedido.items.filter((item) => item.tieneFaltante).length} /> : null}
               {pedido.estado === "preparando" ? <p className="mt-2 text-sm text-muted-foreground">{pedido.items.filter((item) => !item.confirmadoExplicito).length} productos pendientes de confirmación explícita.</p> : null}
               {pendienteDeConfirmacion ? <p className="text-sm text-muted-foreground">Pendiente de confirmación</p> : null}
-              {listoParaDespacho ? (
+              {listoParaDespacho && (!rutaMultiple || estadoCantidad === "Listo") ? (
                 <p className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary/10 px-3 text-sm font-semibold text-primary">
                   <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
                   Listo para despacho
@@ -102,8 +105,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
               <h4 className="text-sm font-semibold text-foreground">Productos</h4>
               {pedido.items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : (
                 <ul className="mt-2 divide-y divide-border">
-                  {pedido.items.map((item) => (pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida ? (
-                    <ControlProducto key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} />
+                  {pedido.items.map((item) => (pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta ? (
+                    <li key={`${item.id}-${pedido.versionPreparacion}`} className="list-none"><ul><ControlProducto item={item} version={pedido.versionPreparacion} /></ul>{rutaMultiple && pedido.estado === "preparando" ? <details className="pb-3"><summary className="min-h-11 cursor-pointer py-2 text-sm">Confirmar cantidad e importe de {item.nombreProducto}</summary><ul><PreparationItemControl item={item} version={pedido.versionPreparacion} /></ul></details> : null}</li>
                   ) : (
                     <ControlProducto key={item.id} item={item} version={pedido.versionPreparacion} soloLectura />
                   ))}

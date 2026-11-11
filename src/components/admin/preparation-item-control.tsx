@@ -13,7 +13,7 @@ export function PreparationItemControl({ item, version, soloLectura = false }: {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
   const [clave, setClave] = useState("");
-  const [cantidad, setCantidad] = useState(String(item.confirmadoExplicito ? item.cantidadPreparada : item.cantidad));
+  const [cantidad, setCantidad] = useState(String(item.cantidadPreparada ?? item.cantidad));
   const [importe, setImporte] = useState("");
   const [resultado, accion, pendiente] = useActionState(guardarPreparacionItemPedido, {});
   const modo = resolverModoCantidadPreparacion({ modoCantidadSnapshot: item.modoCantidadSnapshot, unidad: item.unidad, nombrePresentacion: item.nombrePresentacion });
@@ -23,13 +23,13 @@ export function PreparationItemControl({ item, version, soloLectura = false }: {
   const clase = "mt-1 w-full rounded-lg border border-input bg-background p-2";
   return <li className="space-y-3 py-3 text-sm">
     <p className="font-medium">{item.nombreProducto} {item.nombrePresentacion ? `· ${item.nombrePresentacion}` : ""}</p>
-    <p className="font-semibold">{item.confirmadoExplicito ? "LISTO" : "PENDIENTE"}</p>
+    <p className="font-semibold">{item.confirmadoExplicito ? "CANTIDAD E IMPORTE CONFIRMADOS" : "PENDIENTE DE CONFIRMACIÓN"}</p>
     <div className="grid gap-2 sm:grid-cols-2">
       <p>Solicitado: {formatear(item.cantidad)}<span className="block text-muted-foreground">Importe original: {formatCLP(item.importeOriginal)}</span></p>
-      <p>Preparado: {item.confirmadoExplicito ? formatear(item.cantidadPreparada ?? 0) : "Sin confirmar"}<span className="block text-muted-foreground">Importe provisional: {item.confirmadoExplicito && item.importeOperativo !== null ? formatCLP(item.importeOperativo) : "Sin confirmar"}</span></p>
+      <p>Preparado: {item.cantidadPreparada !== null ? formatear(item.cantidadPreparada) : "Sin confirmar"}<span className="block text-muted-foreground">Importe provisional: {item.confirmadoExplicito && item.importeOperativo !== null ? formatCLP(item.importeOperativo) : "Sin confirmar"}</span></p>
     </div>
-    {!soloLectura && !editando ? <Button type="button" variant="outline" onClick={() => { setCantidad(String(item.confirmadoExplicito ? item.cantidadPreparada : item.cantidad)); setImporte(""); setClave(crypto.randomUUID()); setEditando(true); }}>{item.confirmadoExplicito ? "Corregir preparación" : "Listo"}</Button> : null}
-    {!soloLectura && editando ? <form action={accion} className="space-y-3 rounded-lg border p-3">
+    {!soloLectura && !editando ? <Button type="button" variant="outline" onClick={() => { setCantidad(String(item.cantidadPreparada ?? item.cantidad)); setImporte(""); setClave(crypto.randomUUID()); setEditando(true); }}>{item.confirmadoExplicito ? "Corregir preparación" : "Confirmar cantidad e importe"}</Button> : null}
+    {!soloLectura && editando ? <form action={accion} data-preparacion-pendiente={resultado.guardado ? undefined : "true"} className="space-y-3 rounded-lg border p-3">
       <input type="hidden" name="itemPedidoId" value={item.id} />
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="clave" value={clave} />
@@ -43,7 +43,7 @@ export function PreparationItemControl({ item, version, soloLectura = false }: {
       <label className="block">Motivo o detalle de la revisión
         <textarea className={clase} name="motivo" maxLength={400} disabled={pendiente} onChange={() => setClave(crypto.randomUUID())} />
       </label>
-      <div className="flex gap-2"><Button type="submit" disabled={pendiente}>{pendiente ? "Guardando…" : "Confirmar listo"}</Button><Button type="button" variant="ghost" disabled={pendiente} onClick={() => setEditando(false)}>Cancelar</Button></div>
+      <div className="flex gap-2"><Button type="submit" disabled={pendiente}>{pendiente ? "Guardando…" : "Confirmar preparación"}</Button><Button type="button" variant="ghost" disabled={pendiente} onClick={() => setEditando(false)}>Cancelar</Button></div>
       <p aria-live="polite">{resultado.error ?? (resultado.guardado ? "Preparación guardada." : "")}</p>
     </form> : null}
   </li>;

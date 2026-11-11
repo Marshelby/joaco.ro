@@ -3,13 +3,36 @@ import { revalidatePath } from "next/cache";
 import { exigirRepartidor } from "@/lib/reparto/server";
 
 export type SolicitudReparto = {
-  fecha: string; asignacion: number; accion: "entregar" | "fallida" | "revisar_cierre" | "cerrar";
+  ruta?: string; fecha: string; asignacion: number; accion: "entregar" | "fallida" | "revisar_cierre" | "cerrar";
   pedido?: string; version?: number; clave?: string; motivo?: string; observaciones?: string; huella?: string;
 };
 export type RespuestaReparto = { error?: string; ok?: boolean; cierre?: { version: number; huella: string; estado: string } };
 const uuid = (s: unknown) => typeof s === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 export async function operarReparto(s: SolicitudReparto): Promise<RespuestaReparto> {
   const db = await exigirRepartidor();
+  if (s?.ruta) {
+    if (!uuid(s.ruta) || !uuid(s.clave) || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
+      !["entregar", "fallida", "cerrar"].includes(s.accion) || (s.accion !== "cerrar" && (!uuid(s.pedido) || !Number.isSafeInteger(s.version) || s.version! < 0))) return { error: "Solicitud inválida. Actualiza la ruta." };
+    try {
+      const { data, error } = await db.rpc("operar_ruta_multiple", { p_solicitud: {
+        accion: s.accion, ruta: s.ruta, fecha: s.fecha, version: s.asignacion, clave: s.clave,
+        pedido: s.pedido, version_pedido: s.version, motivo: s.motivo, observaciones: s.observaciones,
+      } });
+      if (error || data?.ok !== true) {
+        const mensajes: Record<string, string> = {
+          VERSION_RUTA_CONFLICTO: "Otro responsable actualizó esta ruta. Consulta el estado actualizado antes de continuar.",
+          VERSION_OPERATIVA_CONFLICTO: "El pedido cambió. Consulta su estado actualizado.",
+          NO_AUTORIZADO: "Tu asignación o permiso ya no permite esta operación.",
+          PEDIDOS_PENDIENTES: "Resuelve todos los pedidos de esta ruta antes de cerrarla.",
+          RUTA_NO_EDITABLE: "La ruta no está en reparto o ya está cerrada.",
+          ESTADO_PEDIDO_INVALIDO: "Este pedido ya no admite la operación. Consulta su estado actualizado.",
+        };
+        return { error: mensajes[error?.message ?? ""] ?? "La operación no se pudo confirmar. Consulta el estado actualizado o reintenta la misma solicitud." };
+      }
+      for (const path of ["/reparto", "/admin/rutas", "/admin/pedidos", "/admin/clientes", "/mi-cuenta/pedidos"]) revalidatePath(path, "layout");
+      return { ok: true };
+    } catch { return { error: "Respuesta no recibida. Reintenta la misma solicitud." }; }
+  }
   if (!s || (typeof s.fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isFinite(Date.parse(s.fecha)) || new Date(s.fecha).toISOString().slice(0, 10) !== s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
     !["entregar", "fallida", "revisar_cierre", "cerrar"].includes(s.accion) ||
     (s.accion !== "revisar_cierre" && (!uuid(s.clave) || !Number.isSafeInteger(s.version) || (s.version! < 0 || s.version! >= Number.MAX_SAFE_INTEGER))) ||

@@ -25,7 +25,7 @@ const Mapa = dynamic(() => import("./ruta-dia-map-leaflet"), {
   loading: () => <div className="h-full animate-pulse bg-muted" aria-label="Cargando mapa de la ruta" />,
 });
 
-export function RutaDiaMap({ paradas: originales, fecha, cerrada = false }: { paradas: ParadaRuta[]; fecha: string; cerrada?: boolean }) {
+export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId, versionRuta }: { paradas: ParadaRuta[]; fecha: string; cerrada?: boolean; rutaId?: string; versionRuta?: number }) {
   const [orden, setOrden] = useState(originales.map((p) => p.id));
   const confirmado = useRef(orden);
   const actual = useRef(orden);
@@ -47,7 +47,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false }: { pa
 
   useEffect(() => {
     let vigente = true;
-    ordenRutaDiaAction(fecha).then((resultado) => {
+    ordenRutaDiaAction(fecha, undefined, undefined, rutaId).then((resultado) => {
       if (!vigente) return;
       if (resultado.error || !resultado.orden || resultado.version === undefined) {
         setError(resultado.error ?? "No se pudo recuperar el orden.");
@@ -62,7 +62,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false }: { pa
       setLista(true);
     });
     return () => { vigente = false; };
-  }, [fecha, originales]);
+  }, [fecha, originales, rutaId, versionRuta]);
 
   useEffect(() => () => {
     if (arrastre.current) cancelAnimationFrame(arrastre.current.frame);
@@ -84,7 +84,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false }: { pa
     setGuardando(true);
     setError(null);
     try {
-      const resultado = await ordenRutaDiaAction(fecha, actual.current, version.current);
+      const resultado = await ordenRutaDiaAction(fecha, actual.current, version.current, rutaId);
       if (resultado.error || resultado.version === undefined || !resultado.orden) {
         throw new Error(resultado.error ?? "No se pudo confirmar el orden.");
       }
@@ -167,7 +167,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false }: { pa
     <h3 className="border-b border-border px-3 py-3 font-semibold">Mapa de la ruta</h3>
     <p className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-3 text-xs" aria-live="polite"><span>Entregados: {paradas.filter(p => p.entregado).length}</span><span className="text-destructive">Entrega fallida: {paradas.filter(p => p.fallida).length}</span><span>Pendientes: {paradas.filter(p => !p.entregado && !p.fallida).length}</span></p>
     <div className="space-y-1 px-3 py-2 text-sm" aria-live="polite">
-      <p>{guardando ? "Guardando orden…" : lista ? "Arrastra el asa para ordenar las paradas. También puedes usar las flechas del teclado." : "Reordenamiento no disponible hasta recuperar el orden guardado."}</p>
+      <p>{cerrada ? "Orden bloqueado: ruta en reparto o cerrada." : guardando ? "Guardando orden…" : lista ? "Arrastra el asa para ordenar las paradas. También puedes usar las flechas del teclado." : "Reordenamiento no disponible hasta recuperar el orden guardado."}</p>
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}
       {aviso ? <p role="alert">{aviso}</p> : null}
     </div>

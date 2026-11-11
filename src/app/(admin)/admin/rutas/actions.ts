@@ -1,12 +1,29 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
-export async function ordenRutaDiaAction(fecha: string, orden?: string[], version?: number): Promise<{
+export async function ordenRutaDiaAction(fecha: string, orden?: string[], version?: number, rutaId?: string): Promise<{
   orden?: string[]; version?: number; error?: string;
 }> {
   try {
     const supabase = await crearClienteSupabaseServidor();
+    if (rutaId) {
+      const { data: permiso, error: errorPermiso } = await supabase.rpc("es_admin");
+      if (errorPermiso || permiso !== true) return { error: "No autorizado." };
+      if (orden) {
+        const { data, error } = await supabase.rpc("operar_ruta_multiple", { p_solicitud: {
+          accion: "ordenar", ruta: rutaId, fecha, pedidos: orden, version, clave: crypto.randomUUID(),
+        } });
+        if (error || data?.ok !== true) return { error: "El orden no se pudo confirmar. Actualiza la ruta antes de continuar." };
+        revalidatePath("/admin/rutas");
+        return { orden, version: data.version };
+      }
+      const { data, error } = await supabase.rpc("leer_rutas_multiples", { p_fecha: fecha });
+      const ruta = data?.rutas?.find((r: { id: string }) => r.id === rutaId);
+      if (error || !ruta || !Array.isArray(ruta.pedidos) || !Number.isSafeInteger(ruta.version)) return { error: "No se pudo leer esta ruta." };
+      return { orden: ruta.pedidos, version: ruta.version };
+    }
     const { data, error } = await supabase.rpc("orden_ruta_dia", {
       p_fecha: fecha, p_orden: orden ?? null, p_version: version ?? null,
     });

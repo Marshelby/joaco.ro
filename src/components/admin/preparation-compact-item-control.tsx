@@ -88,7 +88,7 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
         </div>
       </div>
       <div className="flex items-center gap-2"><progress className="h-2 min-w-0 flex-1 accent-primary" aria-label={`Progreso de ${item.nombreProducto}`} max={100} value={Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0))} /><span className="text-xs">{Number.isFinite(valor) ? valor : 0} / {item.cantidad} · {Math.round(Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0)))}%</span></div>
-      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (guardado ? "Avance guardado. Pendiente de confirmación final." : item.confirmadoExplicito ? `LISTO · Guardado: ${formato(item.cantidadPreparada ?? 0)}` : item.cantidadPreparada !== null ? `Avance guardado: ${formato(item.cantidadPreparada)} · Pendiente de confirmación final` : "Pendiente de confirmación final")}</p>
+      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (guardado ? "Avance guardado. Pendiente de confirmación final." : item.confirmadoExplicito ? `Confirmado · Guardado: ${formato(item.cantidadPreparada ?? 0)}` : item.cantidadPreparada !== null ? `Avance guardado: ${formato(item.cantidadPreparada)} · Pendiente de confirmación final` : "Pendiente de confirmación final")}</p>
     </form>
   </li>;
 }

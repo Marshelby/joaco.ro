@@ -13,6 +13,6 @@ export async function obtenerNombresResponsables(ids: (string | null | undefined
 }
 
 export function describirAccionRuta(accion: string) {
-  const acciones: Record<string, string> = { crear: "Ruta creada", seleccionar: "Selección de pedidos actualizada", asignar: "Repartidores asignados", preparar: "Preparación iniciada", autorizar_parcial: "Salida parcial autorizada", resolver_sin_stock: "No entregado — Sin stock · Retirado del reparto", salir: "Salida efectiva registrada", cerrar: "Ruta cerrada", ordenar: "Orden de paradas actualizado", incorporar: "Pedidos incorporados", entregar: "Entrega confirmada", fallida: "Intento de entrega fallido", guardar: "Selección de carga guardada", confirmar: "Carga confirmada", reabrir: "Carga reabierta" };
+  const acciones: Record<string, string> = { confirmar_preparacion: "Preparación de la ruta confirmada", crear: "Ruta creada", seleccionar: "Selección de pedidos actualizada", asignar: "Repartidores asignados", preparar: "Preparación iniciada", autorizar_parcial: "Salida parcial autorizada", resolver_sin_stock: "No entregado — Sin stock · Retirado del reparto", salir: "Salida efectiva registrada", cerrar: "Ruta cerrada", ordenar: "Orden de paradas actualizado", incorporar: "Pedidos incorporados", entregar: "Entrega confirmada", fallida: "Intento de entrega fallido", guardar: "Selección de carga guardada", confirmar: "Carga confirmada", reabrir: "Carga reabierta" };
   return acciones[accion] ?? "Operación administrativa registrada";
 }

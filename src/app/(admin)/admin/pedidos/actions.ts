@@ -7,23 +7,20 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 export type EstadoAceptacionPedido = { error?: string; aceptado?: boolean };
 export type EstadoCancelacionPedido = { error?: string; cancelado?: boolean };
 export type EstadoTransicionPedido = { error?: string; actualizado?: boolean };
-export type EstadoPreparacionItem = { error?: string; guardado?: boolean };
-export type EstadoFinalizacionPreparacion = { error?: string; finalizado?: boolean };
 
 const mensajesRpc: Record<string, string> = {
   SIN_STOCK_IMPORTE_NO_CERO: "Una línea sin unidades debe confirmarse con importe cero.",
   SIN_STOCK_HISTORICO_INCOMPATIBLE: "El pedido tiene referencias históricas, actividad de reparto o registros contables incompatibles. Requiere revisión administrativa; no se modificó la contabilidad.",
   REFERENCIAS_OPERATIVAS_INCOMPATIBLES: "El pedido tiene asignaciones contradictorias entre rutas y cargas. Requiere revisar esas referencias antes de resolverlo.",
   RUTA_NO_EDITABLE: "La ruta debe estar en preparación y sin salida registrada.",
-  PARCIAL_NO_AUTORIZADO: "Autoriza expresamente el parcial e indica un motivo.",
-  SIN_STOCK_NO_CONFIRMADO: "Confirma todos los productos con cantidad e importe cero y la falta total de stock.",
+  PARCIAL_NO_AUTORIZADO: "Confirma las diferencias en el resumen de preparación de la ruta.",
+  SIN_STOCK_NO_CONFIRMADO: "Confirma expresamente la falta total de stock en el resumen de la ruta.",
   SIN_PREPARAR: "Un pedido sin productos preparados requiere resolución expresa por falta de stock.",
   REGIMEN_CONTABLE_NO_COMPATIBLE: "El pedido tiene contabilidad histórica; requiere revisión administrativa sin alterar sus cargos previos.",
   CARGA_CONFIRMADA: "Reabre la carga antes de resolver la falta de stock.",
   VERSION_OPERATIVA_CONFLICTO: "Otro cambio actualizó este pedido. Recarga y revisa los valores antes de continuar.",
   CLAVE_IDEMPOTENCIA_EN_USO: "La solicitud cambió. Cierra el control y vuelve a abrirlo.",
-  PRODUCTOS_PENDIENTES: "Confirma explícitamente todos los productos antes de finalizar.",
-  IMPORTE_MANUAL_REQUERIDO: "Si cambia la cantidad, ingresa un nuevo importe total manual para la línea.",
+  PRODUCTOS_PENDIENTES: "Guarda las cantidades y confirma el resumen de la ruta.",
   IMPORTE_ORIGINAL_REQUERIDO: "Sin cambio de cantidad se conserva el importe autorizado original.",
   PREPARACION_FECHA_NO_HABILITADA: "Preparación bloqueada: la fecha efectiva de entrega debe coincidir con hoy en America/Santiago. Si está vencida o no tiene fecha, requiere un flujo específico de reprogramación aún no disponible.",
   NO_AUTORIZADO: "No tienes permisos para esta operación.",
@@ -67,32 +64,6 @@ async function actualizarEstadoPedido(
   revalidatePath("/mi-cuenta/pedidos");
   revalidatePath(`/mi-cuenta/pedidos/${pedidoId}`);
   return { actualizado: true };
-}
-
-// Rechazar formularios incompletos antes de convertir una versión ausente en cero.
-function solicitudCierreValida(datos: FormData) {
-  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const version = datos.get("version");
-  return uuid.test(String(datos.get("pedidoId") ?? "")) && uuid.test(String(datos.get("clave") ?? ""))
-    && typeof version === "string" && /^\d+$/.test(version) && Number.isSafeInteger(Number(version));
-}
-
-export async function finalizarPreparacionPedidoAction(_: EstadoFinalizacionPreparacion, datos: FormData): Promise<EstadoFinalizacionPreparacion> {
-  if (!solicitudCierreValida(datos)) return { error: "La solicitud no contiene un pedido, clave y versión válidos. Recarga y revisa el pedido." };
-  const pedidoId = String(datos.get("pedidoId") ?? "").trim();
-  if (!pedidoId) return { error: "No fue posible identificar el pedido." };
-  const supabase = await crearClienteSupabaseServidor();
-  const { data: sesion } = await supabase.auth.getUser();
-  if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
-  const { data: pedido } = await supabase.from("pedidos").select("cliente_id,fecha_entrega").eq("id", pedidoId).maybeSingle();
-  const { error } = await supabase.rpc("cerrar_preparacion_autorizada", { p_pedido_id: pedidoId, p_version_esperada: Number(datos.get("version")), p_clave: String(datos.get("clave") ?? ""), p_motivo: String(datos.get("motivo") ?? "").trim(), p_autoriza_parcial: datos.get("autorizaParcial") === "si" });
-  if (error) return { error: error.code === "PGRST202" ? "Falta instalar el SQL manual de preparación autorizada y resolución sin stock." : mensajesRpc[error.message] ?? "No fue posible finalizar la preparación." };
-  revalidatePath("/admin"); revalidatePath("/admin/pedidos");
-  revalidatePath("/admin/rutas"); revalidatePath(`/admin/pedidos/${pedidoId}`);
-  if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
-  revalidatePath("/admin/clientes"); if (pedido?.cliente_id) revalidatePath(`/admin/clientes/${pedido.cliente_id}`);
-  revalidatePath("/mi-cuenta/pedidos"); revalidatePath(`/mi-cuenta/pedidos/${pedidoId}`); revalidatePath(`/pedido/confirmacion/${pedidoId}`);
-  return { finalizado: true };
 }
 
 export async function aceptarPedidoAdmin(_: EstadoAceptacionPedido, datos: FormData): Promise<EstadoAceptacionPedido> {
@@ -148,59 +119,3 @@ export async function marcarPedidoEntregado(_: EstadoTransicionPedido, datos: Fo
   return actualizarEstadoPedido(_, datos, "marcar_pedido_entregado_administrativo");
 }
 
-export async function guardarPreparacionItemPedido(_: EstadoPreparacionItem, datos: FormData): Promise<EstadoPreparacionItem> {
-  const itemPedidoId = String(datos.get("itemPedidoId") ?? "").trim();
-  const importeTexto = String(datos.get("importe") ?? "").trim();
-  const importe = importeTexto === "" ? null : Number(importeTexto);
-  if (importe !== null && (!Number.isSafeInteger(importe) || importe < 0)) return { error: "Ingresa un importe entero en CLP, cero o mayor." };
-  const cantidadTexto = String(datos.get("cantidadPreparada") ?? "").trim();
-  const cantidadPreparadaFormulario = Number(cantidadTexto);
-  const motivo = String(datos.get("motivo") ?? "").trim();
-  if (!itemPedidoId) return { error: "No fue posible identificar el producto." };
-  if (!cantidadTexto || !Number.isFinite(cantidadPreparadaFormulario) || cantidadPreparadaFormulario < 0) return { error: "Ingresa una cantidad preparada válida." };
-
-  const supabase = await crearClienteSupabaseServidor();
-  const { data: sesion } = await supabase.auth.getUser();
-  if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
-
-  const { data: item } = await supabase.from("items_pedido").select("pedido_id,cantidad").eq("id", itemPedidoId).maybeSingle();
-  const { data: pedido } = item
-    ? await supabase.from("pedidos").select("cliente_id,fecha_entrega").eq("id", item.pedido_id).maybeSingle()
-    : { data: null };
-  const { data, error } = await supabase.rpc("confirmar_producto_preparado", {
-    p_item_pedido_id: itemPedidoId,
-    p_cantidad: cantidadPreparadaFormulario,
-    p_importe: importe,
-    p_version_esperada: Number(datos.get("version")),
-    p_clave: String(datos.get("clave") ?? ""),
-    p_motivo: motivo || "Confirmación explícita de producto",
-  });
-  if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar la preparación." };
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/pedidos");
-  revalidatePath("/admin/rutas");
-  if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
-  if (item?.pedido_id) revalidatePath(`/admin/pedidos/${item.pedido_id}`);
-  if (pedido?.cliente_id) revalidatePath(`/admin/clientes/${pedido.cliente_id}`);
-
-  void data;
-  return { guardado: true };
-}
-
-export async function resolverSinStockAction(_: EstadoFinalizacionPreparacion, datos: FormData): Promise<EstadoFinalizacionPreparacion> {
-  if (!solicitudCierreValida(datos)) return { error: "La solicitud no contiene un pedido, clave y versión válidos. Recarga y revisa el pedido." };
-  const db = await crearClienteSupabaseServidor();
-  const { data: { user } } = await db.auth.getUser();
-  const { data: admin, error: permisoError } = await db.rpc("es_admin");
-  if (!user || permisoError || admin !== true) return { error: "No tienes permiso para resolver este pedido." };
-  const pedidoId = String(datos.get("pedidoId") ?? "");
-  const { error } = await db.rpc("resolver_pedido_sin_stock", { p_pedido_id: pedidoId, p_version_esperada: Number(datos.get("version")), p_clave: String(datos.get("clave") ?? ""), p_motivo: String(datos.get("motivo") ?? "").trim(), p_confirmado: datos.get("confirmaSinStock") === "si" });
-  if (error) return { error: error.code === "PGRST202" ? "Falta instalar el SQL manual para resolver pedidos sin stock." : mensajesRpc[error.message] ?? "No se pudo confirmar la resolución. Reintenta la misma solicitud o consulta el estado actualizado." };
-  for (const path of ["/admin/rutas", "/admin/pedidos", `/admin/pedidos/${pedidoId}`, `/admin/pedidos/${pedidoId}/historial`, "/reparto", "/mi-cuenta/pedidos"]) revalidatePath(path);
-  revalidatePath("/admin/pedidos/entregas/[fecha]", "page");
-  revalidatePath("/admin");
-  revalidatePath(`/mi-cuenta/pedidos/${pedidoId}`);
-  revalidatePath(`/pedido/confirmacion/${pedidoId}`);
-  return { finalizado: true };
-}

@@ -10,7 +10,7 @@ export type RutasMultiples = {
   repartidores: { usuario_id: string; nombre: string }[];
 };
 export type SolicitudRutaMultiple = {
-  accion: "crear" | "incorporar" | "seleccionar" | "asignar" | "preparar" | "autorizar_parcial" | "salir" | "cerrar" | "ordenar";
+  accion: "crear" | "incorporar" | "seleccionar" | "asignar" | "preparar" | "salir" | "cerrar" | "ordenar";
   ruta: string; fecha: string; version: number; clave: string;
   nombre?: string; pedidos?: string[]; repartidores?: string[]; pedido?: string; version_pedido?: number; motivo?: string;
 };

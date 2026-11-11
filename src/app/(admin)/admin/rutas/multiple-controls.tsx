@@ -20,9 +20,7 @@ export function RutaMultipleForm({ comando, children, etiqueta, disabled = false
   return <form className="space-y-3" onChange={e => { if (validarFormulario) setValido(e.currentTarget.checkValidity()); }} onSubmit={e => {
     e.preventDefault();
     if (bloqueo.current || disabled) return;
-    const selectorEdicion = comando.accion === "autorizar_parcial"
-      ? `[data-preparacion-pedido="${comando.pedido}"] [data-preparacion-pendiente="true"]`
-      : '[data-preparacion-pendiente="true"]';
+    const selectorEdicion = '[data-preparacion-pendiente="true"]';
     if (document.querySelector(selectorEdicion)) { setError("Guarda o cancela las cantidades en edición antes de continuar."); return; }
     if (!solicitud.current) {
       const f = new FormData(e.currentTarget);

@@ -53,6 +53,7 @@ export type ItemPreparacionPedidoAdmin = {
   cantidadPreparada: number | null;
   confirmadoExplicito: boolean;
   importeOriginal: number;
+  importeCalculado?: string | null;
   importeOperativo: number | null;
   cantidadFaltante: number;
   motivoFaltante: string | null;
@@ -434,9 +435,11 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     importeOperativoPreparacion: null,
     items: [],
   }));
+  const importesCalculados = new Map<string, string | null>();
   await Promise.all(pedidos.map(async (pedido) => {
     const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
     if (errorMeta) throw errorMeta;
+    for (const [id, importe] of Object.entries(meta.importes ?? {})) importesCalculados.set(id, importe === null ? null : String(importe));
     pedido.versionPreparacion = Number(meta.version);
     pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
     pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
@@ -483,6 +486,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
         cantidadPreparada,
         confirmadoExplicito: preparacion?.confirmado_explicito ?? false,
         importeOriginal: Number(item.total_linea),
+        importeCalculado: importesCalculados.get(item.id),
         importeOperativo: preparacion?.confirmado_explicito && preparacion.importe_linea_operativo !== null ? Number(preparacion.importe_linea_operativo) : null,
         cantidadFaltante: Number(item.cantidad) - (cantidadPreparada ?? Number(item.cantidad)),
         motivoFaltante: preparacion?.motivo_faltante ?? null,

@@ -41,7 +41,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
     ? "Sin preparar" : preparados === pedido.items.length ? "Listo" : "Parcial";
 
   return (
-    <li className={compacta ? "overflow-hidden rounded-xl border border-border bg-card" : "rounded-xl border border-border bg-card p-4 sm:p-5"}>
+    <li data-preparacion-pedido={pedido.id} className={compacta ? "overflow-hidden rounded-xl border border-border bg-card" : "rounded-xl border border-border bg-card p-4 sm:p-5"}>
       {/* El desplegable oculta el contenido sin desmontar los controles en edición. */}
       <Contenedor className={compacta ? "group/preparacion" : undefined}>
         {compacta ? <summary className="grid min-h-20 cursor-pointer list-none grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 md:grid-cols-[2rem_minmax(0,1fr)_auto_9rem_auto] [&::-webkit-details-marker]:hidden">
@@ -58,7 +58,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           </span>
           <ChevronDown className="col-start-3 row-start-1 size-4 text-muted-foreground transition-transform group-open/preparacion:rotate-180 md:col-start-5" aria-hidden="true" />
         </summary> : null}
-        <div className={compacta ? "border-t border-border p-4 sm:p-5" : undefined}>
+        <div id={`preparacion-${pedido.id}`} className={compacta ? "scroll-mt-24 border-t border-border p-4 sm:p-5" : "scroll-mt-24"}>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(10rem,1fr)_auto_auto] md:items-center md:gap-6">
             <div className="min-w-0">
               <OrderIdentity pedido={pedido} customerAction={pedido.clienteId ? <CustomerQuickViewDialog clienteId={pedido.clienteId} nombre={pedido.nombreClienteSnapshot} /> : undefined} />
@@ -81,7 +81,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <div className="mt-4 border-t border-border pt-3">
               <p className="mb-3 text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
               {pedido.estado === "confirmado" && !compacta ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} contexto="preparacion" preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
-              {(pedido.estado === "preparando" || (pedido.estado === "listo_despacho" && pedido.items.some(i => i.cantidadPreparada !== i.cantidad))) && permisoPreparacion.permitida ? <FinalizePreparationAction reautorizar={pedido.estado === "listo_despacho"} key={pedido.versionPreparacion} pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} version={pedido.versionPreparacion} pendientes={pedido.items.length === 0 || pedido.items.every(i => i.cantidadPreparada === 0) ? Math.max(1, pedido.items.length) : pedido.items.filter((item) => !item.confirmadoExplicito).length} lineasConFaltantes={pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada !== item.cantidad).length} /> : null}
+              {(pedido.estado === "preparando" || (!rutaMultiple && pedido.estado === "listo_despacho" && pedido.items.some(i => i.cantidadPreparada !== i.cantidad))) && permisoPreparacion.permitida ? <FinalizePreparationAction reautorizar={pedido.estado === "listo_despacho"} key={pedido.versionPreparacion} pedidoId={pedido.id} numeroPedido={pedido.numeroPedido} version={pedido.versionPreparacion} pendientes={pedido.items.length === 0 || pedido.items.every(i => i.cantidadPreparada === 0) ? Math.max(1, pedido.items.length) : pedido.items.filter((item) => !item.confirmadoExplicito || item.cantidadPreparada === null || item.importeOperativo === null).length} lineasConFaltantes={pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada !== item.cantidad).length} /> : null}
               {permisoPreparacion.permitida && ["preparando", "listo_despacho"].includes(pedido.estado) && pedido.items.length > 0 && pedido.items.every(i => i.confirmadoExplicito && i.cantidadPreparada === 0 && i.importeOperativo === 0) ? <SinStockAction key={pedido.versionPreparacion} pedidoId={pedido.id} version={pedido.versionPreparacion} /> : null}
               {pedido.estado === "preparando" && pedido.items.length > 0 && pedido.items.every(i => i.cantidadPreparada === 0) ? <p className="mt-2 rounded-lg bg-muted p-3 text-sm">Sin unidades preparadas. Confirma cantidad e importe cero en cada producto y luego resuelve expresamente la falta total de stock.</p> : null}
               {pedido.estado === "preparando" ? <p className="mt-2 text-sm text-muted-foreground">{pedido.items.filter((item) => !item.confirmadoExplicito).length} productos pendientes de confirmación explícita.</p> : null}
@@ -109,7 +109,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
               {pedido.items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : (
                 <ul className="mt-2 divide-y divide-border">
                   {pedido.items.map((item) => (pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta ? (
-                    <li key={`${item.id}-${pedido.versionPreparacion}`} className="list-none"><ul><ControlProducto item={item} version={pedido.versionPreparacion} /></ul>{rutaMultiple && pedido.estado === "preparando" ? <details className="pb-3"><summary className="min-h-11 cursor-pointer py-2 text-sm">Confirmar cantidad e importe de {item.nombreProducto}</summary><ul><PreparationItemControl item={item} version={pedido.versionPreparacion} /></ul></details> : null}</li>
+                    <li key={`${item.id}-${pedido.versionPreparacion}`} className="list-none"><ul><ControlProducto item={item} version={pedido.versionPreparacion} /></ul>{rutaMultiple && pedido.estado === "preparando" ? <details open={!item.confirmadoExplicito} className="pb-3"><summary className="min-h-11 cursor-pointer py-2 text-sm">{item.confirmadoExplicito ? "Revisar" : "Confirmar"} cantidad e importe de {item.nombreProducto}</summary><ul><PreparationItemControl item={item} version={pedido.versionPreparacion} /></ul></details> : null}</li>
                   ) : (
                     <PreparationItemControl key={item.id} item={item} version={pedido.versionPreparacion} soloLectura />
                   ))}

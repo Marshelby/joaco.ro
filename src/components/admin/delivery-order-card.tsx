@@ -56,7 +56,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <progress className="block h-1.5 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={preparados} />
           </span>
           <ChevronDown className="col-start-3 row-start-1 size-4 text-muted-foreground transition-transform group-open/preparacion:rotate-180 md:col-start-5" aria-hidden="true" />
-        </summary>}
+        </summary> : null}
         <div id={`preparacion-${pedido.id}`} className={compacta ? "scroll-mt-24 border-t border-border p-4 sm:p-5" : "scroll-mt-24"}>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(10rem,1fr)_auto_auto] md:items-center md:gap-6">
             <div className="min-w-0">

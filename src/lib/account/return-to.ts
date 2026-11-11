@@ -2,6 +2,7 @@ import { ROUTES } from "@/config/routes";
 
 const destinosCompraPermitidos = [ROUTES.checkout, ROUTES.cart] as const;
 const destinosAutenticacionPermitidos = [
+  "/reparto",
   ROUTES.home,
   ROUTES.checkout,
   ROUTES.cart,

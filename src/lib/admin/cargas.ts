@@ -1,7 +1,8 @@
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type CargaJornada = {
-  estado: "preparacion" | "lista" | "en_ruta";
+  estado: "preparacion" | "lista" | "en_ruta" | "cerrada";
+  salida_en?: string | null;
   version: number;
   pedidos: { id: string; numero: string; cliente: string; estado: string; incluido: boolean | null; motivo: string | null; pendientes: number; productos: { id: string; nombre: string; cantidad: number | null; importe: number | null; confirmado: boolean }[] }[];
   historial: { version: number; actor: string; instante: string; solicitud: { accion: string; motivo: string | null } }[];

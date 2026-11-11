@@ -25,7 +25,7 @@ const Mapa = dynamic(() => import("./ruta-dia-map-leaflet"), {
   loading: () => <div className="h-full animate-pulse bg-muted" aria-label="Cargando mapa de la ruta" />,
 });
 
-export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta[]; fecha: string }) {
+export function RutaDiaMap({ paradas: originales, fecha, cerrada = false }: { paradas: ParadaRuta[]; fecha: string; cerrada?: boolean }) {
   const [orden, setOrden] = useState(originales.map((p) => p.id));
   const confirmado = useRef(orden);
   const actual = useRef(orden);
@@ -79,7 +79,7 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
   }
 
   async function guardar() {
-    if (actual.current.join() === confirmado.current.join()) return;
+    if (cerrada || actual.current.join() === confirmado.current.join()) return;
     bloqueo.current = true;
     setGuardando(true);
     setError(null);
@@ -200,10 +200,10 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
               const activa = seleccionada === parada.id;
               return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.fallida ? "border-destructive/40 bg-destructive/5 text-destructive" : parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
                 <div className="flex items-center">
-                <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={!lista || guardando}
+                <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={cerrada || !lista || guardando}
                   className={`min-h-12 min-w-11 shrink-0 touch-none select-none rounded-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 ${arrastrada === parada.id ? "cursor-grabbing bg-muted" : "cursor-grab"}`}
                   onPointerDown={(evento) => {
-                    if (bloqueo.current || !lista || !evento.isPrimary || evento.button !== 0 || arrastre.current || !listado.current) return;
+                    if (cerrada || bloqueo.current || !lista || !evento.isPrimary || evento.button !== 0 || arrastre.current || !listado.current) return;
                     evento.preventDefault();
                     // La captura debe permanecer en un nodo que no se mueve al ordenar.
                     listado.current.setPointerCapture(evento.pointerId);
@@ -212,7 +212,7 @@ export function RutaDiaMap({ paradas: originales, fecha }: { paradas: ParadaRuta
                     seguirArrastre();
                   }}
                   onKeyDown={(evento) => {
-                    if (bloqueo.current || arrastre.current || !["ArrowUp", "ArrowDown"].includes(evento.key)) return;
+                    if (cerrada || bloqueo.current || arrastre.current || !["ArrowUp", "ArrowDown"].includes(evento.key)) return;
                     evento.preventDefault();
                     mover(parada.id, actual.current.indexOf(parada.id) + (evento.key === "ArrowUp" ? -1 : 1));
                     void guardar();

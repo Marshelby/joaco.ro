@@ -121,6 +121,42 @@ export async function obtenerHistorialPedido(id: string) {
     [`Subtotal: ${dinero(venta.subtotal)}`, `Despacho: ${dinero(venta.costo_entrega)}`, `Descuento: ${dinero(venta.descuento)}`, `Total definitivo: ${dinero(venta.total)}`,
       ...lista(venta.productos).map((p) => `${texto(p.nombre_producto)}${p.nombre_presentacion ? ` · ${p.nombre_presentacion}` : ""} · Unidad: ${texto(p.unidad)} · Pedido: ${texto(p.cantidad_pedida)} · Preparado: ${texto(p.cantidad_preparada)} · Entregado: ${texto(p.cantidad_entregada)} · Importe definitivo: ${dinero(p.importe_definitivo)}`)]);
 
+  // Lectura Fase 3: evidencia privada expuesta únicamente por RPC administrativa.
+  const avisos: string[] = [];
+  const { data: evidencia, error: errorEvidencia } = await supabase.rpc("leer_intentos_pedido_admin", { p_pedido_id: id });
+  if (errorEvidencia) {
+    avisos.push(errorEvidencia.code === "PGRST202"
+      ? "Los intentos fallidos y cierres requieren instalar el SQL manual de Fase 3. El historial mostrado es parcial."
+      : "No se pudo consultar la evidencia de intentos y cierres. El historial mostrado es parcial.");
+  } else {
+    for (const intento of lista(registro(evidencia).intentos)) {
+      agregar(`intento-fallido-${intento.id}`, intento.fecha, "Intento fallido · No entregado", intento.actor,
+        [`Motivo: ${texto(intento.motivo)}`, ...(intento.observaciones ? [`Observaciones: ${intento.observaciones}`] : []),
+          `Versión operativa: ${texto(intento.version)}`, "Este intento no constituye una entrega ni reconoce una venta o deuda."]);
+    }
+    for (const cierre of lista(registro(evidencia).cierres)) {
+      const intento = registro(cierre.intento), original = registro(intento.pedido), fallo = registro(intento.fallo);
+      agregar(`cierre-ruta-${cierre.fecha}-${cierre.version}`, cierre.cerrada_en, "Cierre de ruta · Evidencia del pedido", cierre.actor,
+        [`Jornada original: ${texto(cierre.fecha)}`, `Versión de cierre: ${texto(cierre.version)}`,
+          `Estado al cierre: ${texto(original.estado)}`, `Entrega programada conservada: ${texto(original.fecha_entrega)}`,
+          ...(fallo.motivo ? [`Motivo del intento: ${fallo.motivo}`] : []),
+          "El cierre conserva la evidencia original del intento, aunque el pedido cambie posteriormente."]);
+    }
+  }
+
+  const { data: resolucion, error: errorResolucion } = await supabase.rpc("leer_resolucion_no_entregado_admin", { p_pedido_id: id });
+  if (errorResolucion) {
+    avisos.push("No se pudieron consultar las resoluciones administrativas. Requiere SQL manual de Fase 4; el historial mostrado es parcial.");
+  } else {
+    for (const r of lista(registro(resolucion).resoluciones)) {
+      agregar(`resolucion-${r.id}`, r.fecha, r.operacion === "cancelar_no_entregado" ? "Cancelación administrativa de no entregado" : "Reprogramación administrativa de no entregado", r.actor,
+        [`Motivo: ${texto(r.motivo)}`, `Versión operativa: ${texto(r.version)}`,
+          ...(r.fecha_nueva ? [`Nueva fecha: ${r.fecha_nueva}`, "Pendiente de inclusión explícita en una nueva carga."] : []),
+          ...(r.tratamiento ? [`Tratamiento de pagos y créditos: ${r.tratamiento}`] : []),
+          "Conserva pedido, productos, precios, preparación, intentos y cierre original. No genera venta ni cargos ni devuelve pagos."]);
+    }
+  }
+
   // Las fechas vinculadas de rutas permiten encontrar jornadas anteriores sin inferir
   // que la fecha de entrega actual fue siempre la misma.
   const rutas = await Promise.all([...new Set(paradas.map((p) => String(p.ruta_id)))].map((rutaId) => leer("rutas", "id,fecha_operativa", "id", rutaId)));
@@ -138,5 +174,5 @@ export async function obtenerHistorialPedido(id: string) {
         [`Jornada: ${fecha}`, ...cambios({ estado: anterior.estado }, { estado: nuevo.estado }), ...cambios(antes ?? {}, despues ?? {}), ...(solicitud.motivo ? [`Motivo: ${solicitud.motivo}`] : [])], solicitud.accion === "guardar" || solicitud.accion === "reabrir");
     }
   }
-  return { numeroPedido: String(pedido.numero_pedido), eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };
+  return { numeroPedido: String(pedido.numero_pedido), avisos, eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };
 }

@@ -35,6 +35,7 @@ export async function registrarEntregaFallida(s: SolicitudEntregaFallida, confir
     });
     if (error) {
       const mensajes: Record<string, string> = {
+        RUTA_CERRADA: "La ruta ya está cerrada. Actualiza para consultar el resultado.",
         NO_AUTORIZADO: "No tienes permisos para registrar entregas fallidas.",
         VERSION_OPERATIVA_CONFLICTO: "El pedido cambió. Cierra y actualiza la ruta antes de revisarlo nuevamente.",
         CLAVE_IDEMPOTENCIA_EN_USO: "La clave corresponde a otra solicitud. Cierra y revisa el estado del pedido.",
@@ -52,8 +53,8 @@ export async function registrarEntregaFallida(s: SolicitudEntregaFallida, confir
   } catch {
     return { error: "No se pudo verificar la respuesta. Reintenta: se conserva la clave y el contenido original para evitar duplicados." };
   }
-  for (const ruta of ["/admin/rutas", `/admin/pedidos/${s.p_pedido_id}`, `/admin/pedidos/${s.p_pedido_id}/historial`]) {
-    try { revalidatePath(ruta); } catch { /* El cliente también actualiza la ruta. */ }
+  for (const ruta of ["/admin/rutas", "/admin/pedidos", "/mi-cuenta/pedidos", "/reparto"]) {
+    try { revalidatePath(ruta, "layout"); } catch { /* El cliente también actualiza la ruta. */ }
   }
   return { exito: true };
 }

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { CierreRutaDialog } from "./cierre-ruta-dialog";
 import { RutaDiaMap } from "./ruta-dia-map";
 import { JornadaModos } from "./jornada-modos";
 import { EntregaFallidaDialog } from "./entrega-fallida-dialog";
+import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
 import { EntregaVisualDialog } from "./entrega-visual-dialog";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -48,6 +50,15 @@ export default async function AdminRoutesPage({ searchParams }: {
     obtenerConteoPedidosPorFecha(hoy, dias[6]),
   ]);
   const coordenadas = await obtenerCoordenadasRuta(entrega.pedidos.map((pedido) => pedido.id));
+  const disponibilidadEntrega = await leerDisponibilidadEntrega(entrega.pedidos.map(pedido => pedido.id));
+  for (const pedido of entrega.pedidos) {
+    if (disponibilidadEntrega[pedido.id] !== null) continue;
+    if (!Number.isSafeInteger(pedido.versionPreparacion) || pedido.versionPreparacion < 0 || pedido.versionPreparacion >= Number.MAX_SAFE_INTEGER) {
+      disponibilidadEntrega[pedido.id] = "Recarga para verificar la versión operativa.";
+    } else if (!pedido.items.length || pedido.items.some(item => !item.confirmadoExplicito || item.cantidadPreparada === null || item.importeOperativo === null)) {
+      disponibilidadEntrega[pedido.id] = "La preparación tiene productos pendientes de cantidad o importe confirmado.";
+    }
+  }
   const permiso = obtenerPermisoTemporalPreparacion(fecha);
   const productos = entrega.pedidos.flatMap((pedido) => pedido.items);
   const confirmados = productos.filter((item) => item.confirmadoExplicito).length;
@@ -71,6 +82,7 @@ export default async function AdminRoutesPage({ searchParams }: {
         <Button type="submit" variant="secondary">Consultar</Button>
       </form>
     </section>
+    {(carga.estado === "en_ruta" && carga.salida_en) || carga.estado === "cerrada" ? <CierreRutaDialog key={fecha} fecha={fecha} cerrada={carga.estado === "cerrada"} /> : null}
     <JornadaModos key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen operativo">
       {[
@@ -91,7 +103,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     <JornadaPreparacionControl key={fecha} pedidos={entrega.pedidos} habilitada={permiso.permitida} />
     <JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} />
     </>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
-      <RutaDiaMap fecha={fecha} paradas={entrega.pedidos.map((pedido, indice) => ({
+      <RutaDiaMap cerrada={carga.estado === "cerrada"} fecha={fecha} paradas={entrega.pedidos.map((pedido, indice) => ({
         id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
         ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
         entregado: pedido.estado === "entregado",
@@ -116,8 +128,8 @@ export default async function AdminRoutesPage({ searchParams }: {
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
                   <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
                   <Button type="button" variant="outline" disabled>Contactar</Button>
-                  <EntregaVisualDialog habilitada={pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
-                  <EntregaFallidaDialog habilitada={pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
+                  <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
+                  <EntregaFallidaDialog habilitada={carga.estado !== "cerrada" && pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
                 </div>
               </div>
         ),

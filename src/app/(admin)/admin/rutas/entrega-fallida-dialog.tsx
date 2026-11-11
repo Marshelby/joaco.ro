@@ -11,9 +11,9 @@ import { registrarEntregaFallida, type SolicitudEntregaFallida } from "./fallida
 const motivos = ["Cliente ausente", "Cliente rechazó pedido", "Dirección incorrecta", "Problema de acceso", "Otro"];
 const campo = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background p-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, numero, cliente, ubicacion, productos, totalReferencia }: {
+export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, numero, cliente, ubicacion, productos, totalReferencia, ocultarReferencia = false, onRegistrada }: {
   habilitada: boolean; pedidoId: string; versionEsperada: number; numero: string; cliente: string;
-  ubicacion: string | null; productos: number; totalReferencia: number;
+  ubicacion: string | null; productos: number; totalReferencia: number; ocultarReferencia?: boolean; onRegistrada?: () => void;
 }) {
   const id = useId();
   const router = useRouter();
@@ -43,6 +43,7 @@ export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, nu
         const respuesta = await registrarEntregaFallida(intento.current, true);
         if (!respuesta.exito) { setError(respuesta.error ?? "No se pudo registrar. Reintenta con la misma solicitud."); return; }
         setExito(true);
+        onRegistrada?.();
         router.refresh();
       } catch { setError("No se pudo verificar la respuesta. Reintenta con la misma solicitud para evitar duplicados."); }
       finally { bloqueo.current = false; }
@@ -61,8 +62,7 @@ export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, nu
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
             <section aria-label="Resumen del pedido" className="space-y-1 rounded-xl bg-muted/50 p-3 text-sm">
               <p className="font-semibold">Pedido {numero} · {cliente}</p>
-              <p>{ubicacion || "Sin ubicación comercial registrada"}</p>
-              <p>{productos} productos · Referencia provisional: {formatCLP(totalReferencia)}</p>
+              {!ocultarReferencia ? <><p>{ubicacion || "Sin ubicación comercial registrada"}</p><p>{productos} productos · Referencia provisional: {formatCLP(totalReferencia)}</p></> : null}
             </section>
             <p className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">Confirmar una entrega fallida no genera venta definitiva, deuda nueva ni pagos. Los registros previos se conservan. El pedido quedará en entrega fallida.</p>
             <fieldset disabled={enviado || pendiente || exito || !habilitada} className="space-y-3">

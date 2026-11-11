@@ -1,3 +1,4 @@
+import { UndeliveredOrders } from "@/components/admin/undelivered-orders";
 import { OrderIdentity } from "@/components/admin/order-identity";
 import { OrderViews } from "@/components/admin/order-views";
 import { PossibleOrdersList } from "@/components/admin/possible-orders-list";
@@ -16,9 +17,14 @@ import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 export const metadata: Metadata = { title: "Pedidos" };
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ filtro?: string; estado?: string; pagina?: string }> }) {
+export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ filtro?: string; estado?: string; pagina?: string; q?: string; desde?: string; hasta?: string }> }) {
   const params = await searchParams;
   const { filtro } = params;
+  if (filtro === "no-entregados") return <div className="space-y-8">
+    <PageHeader title="Pedidos" description="Seguimiento administrativo de entregas fallidas." />
+    <OrderViews vista="no-entregados" />
+    <UndeliveredOrders filtros={params} />
+  </div>;
   if (filtro === "posibles") return <div className="space-y-8">
     <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<ActionLink href={ROUTES.adminNewOrder()}>Crear pedido</ActionLink>} />
     <OrderViews vista="posibles" />

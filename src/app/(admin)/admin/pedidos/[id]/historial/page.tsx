@@ -27,6 +27,7 @@ export default async function HistorialPedidoPage({ params }: { params: Promise<
       <p>Los estados actuales se indican expresamente. Solo se muestran valores anteriores y nuevos cuando están conservados. Puede haber operaciones históricas sin auditoría disponible.</p>
       <p>Los ajustes de cuenta del cliente no tienen una relación directa con este pedido y no se atribuyen a su historial. Los ajustes de precio vinculados a sus productos sí se incluyen.</p>
     </div>
+    {historial.avisos.map(aviso => <p key={aviso} role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">{aviso}</p>)}
     <ol aria-label="Línea de tiempo del pedido" className="ml-2 space-y-5 border-l-2 border-border pl-5 sm:pl-8">
       {historial.eventos.map((evento) => <li key={evento.id} className="relative min-w-0 rounded-xl border bg-card p-4 sm:p-5">
         <span aria-hidden="true" className="absolute -left-[1.75rem] top-6 size-3 rounded-full border-2 border-background bg-primary sm:-left-[2.5rem]" />

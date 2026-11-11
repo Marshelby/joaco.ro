@@ -33,7 +33,7 @@ function ControlCarga({ fecha, carga, habilitada, identidades = {} }: Props) {
   // Una respuesta de red incierta conserva clave y payload al reintentar.
   const intento = useRef<{ firma: string; clave: string } | null>(null);
   const lista = carga.estado === "lista";
-  const salio = carga.estado === "en_ruta";
+  const salio = carga.estado === "en_ruta" || carga.estado === "cerrada";
   const incompletos = carga.pedidos.filter((p) => p.incluido && (p.pendientes > 0 || p.estado !== "listo_despacho"));
 
   function operar(accion: "guardar" | "confirmar" | "salir" | "reabrir") {
@@ -52,7 +52,7 @@ function ControlCarga({ fecha, carga, habilitada, identidades = {} }: Props) {
   }
 
   return <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6" aria-labelledby="carga-title">
-    <div><h2 id="carga-title" className="text-xl font-semibold">Carga de camioneta</h2><p className="mt-1 text-sm">Estado de la carga: <strong>{lista ? "Lista para salir" : salio ? "En ruta" : "En preparación"}</strong> · Revisión {carga.version}</p></div>
+    <div><h2 id="carga-title" className="text-xl font-semibold">Carga de camioneta</h2><p className="mt-1 text-sm">Estado de la carga: <strong>{carga.estado === "cerrada" ? "Cerrada" : lista ? "Lista para salir" : salio ? "En ruta" : "En preparación"}</strong> · Revisión {carga.version}</p></div>
     <p className="text-sm text-muted-foreground">Guarda los pedidos incluidos y los motivos de exclusión. Pedidos listos confirma que todos los productos ya están preparados y físicamente cargados en la camioneta. Los pedidos conservan su estado individual hasta Salir a ruta.</p>
     <fieldset disabled={pendiente || !habilitada || lista || salio} className="space-y-3">
       <legend className="sr-only">Pedidos de la carga</legend>
@@ -71,7 +71,7 @@ function ControlCarga({ fecha, carga, habilitada, identidades = {} }: Props) {
       {lista && <Button disabled={pendiente || !habilitada} onClick={() => operar("salir")}>Salir a ruta</Button>}
     </div>
     {lista && <div className="space-y-2 border-t pt-3"><label className="block text-sm">Motivo para volver a preparación<textarea className="mt-1 block min-h-20 w-full rounded border bg-background p-3" maxLength={2000} value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={pendiente || !habilitada} /></label><Button variant="secondary" disabled={pendiente || !habilitada || !motivo.trim()} onClick={() => operar("reabrir")}>Volver a preparación conservando cantidades e importes</Button></div>}
-    {salio && <p className="text-sm">Salida registrada. Las diferencias posteriores se resolverán en el futuro flujo del repartidor.</p>}
+    {salio && <p className="text-sm">{carga.estado === "cerrada" ? "Ruta cerrada. Consulta su resultado desde Rutas." : "Salida registrada. Consulta el resultado y termina la ruta desde Rutas."}</p>}
     <p role="status" className="text-sm">{pendiente ? "Registrando operación…" : mensaje}</p>
     {carga.historial.length > 0 && <details><summary className="cursor-pointer text-sm">Auditoría de carga</summary><ol className="space-y-2 pt-3 text-sm">{carga.historial.map((h) => <li key={h.version} className="break-words">Revisión {h.version} · {h.solicitud.accion} · {h.instante} · Actor {h.actor}{h.solicitud.motivo ? ` · ${h.solicitud.motivo}` : ""}</li>)}</ol></details>}
   </section>;

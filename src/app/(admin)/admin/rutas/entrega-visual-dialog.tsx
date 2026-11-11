@@ -16,6 +16,7 @@ import { confirmarEntregaDiferencias, prepararEntregaDiferencias, revisarCobroDi
 
 type Props = {
   habilitada: boolean;
+  motivoBloqueo: string | null;
   pedidoId: string;
   versionEsperada: number;
   numero: string;
@@ -31,6 +32,7 @@ export function EntregaVisualDialog(props: Props) {
   const [abierto, setAbierto] = useState(false);
   return <Dialog.Root open={abierto} onOpenChange={setAbierto}>
     <Dialog.Trigger disabled={!props.habilitada} className={buttonVariants({ variant: "outline" })}>Entregado</Dialog.Trigger>
+    {props.motivoBloqueo ? <p role="status" className="w-full text-xs text-muted-foreground">{props.motivoBloqueo}</p> : null}
     <Dialog.Portal keepMounted>
       <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/30" />
       <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">
@@ -40,7 +42,7 @@ export function EntregaVisualDialog(props: Props) {
   </Dialog.Root>;
 }
 
-function ContenidoEntrega({ pedidoId, versionEsperada, numero, cliente, items, totalReferencia: referenciaOriginal }: Props) {
+function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, cliente, items, totalReferencia: referenciaOriginal }: Props) {
   const id = useId();
   const router = useRouter();
   const bloqueo = useRef(false);
@@ -50,7 +52,7 @@ function ContenidoEntrega({ pedidoId, versionEsperada, numero, cliente, items, t
   const [balanceServidor, setBalanceServidor] = useState<BalanceEntrega | null>(null);
   const [exito, setExito] = useState<BalanceEntrega | null>(null);
   async function confirmar() {
-    if (bloqueo.current || exito || !resultado || !resumen || !pagoValido || !balanceServidor) return;
+    if (!habilitada || bloqueo.current || exito || !resultado || !resumen || !pagoValido || !balanceServidor) return;
     bloqueo.current = true;
     setEnviando(true);
     setEnviado(true);
@@ -204,7 +206,7 @@ function ContenidoEntrega({ pedidoId, versionEsperada, numero, cliente, items, t
     <footer className="shrink-0 space-y-2 border-t border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {exito ? <p role="status" className="text-sm font-semibold">Entrega y cobro registrados. Deuda: {formatCLP(exito.deuda_pendiente)} · Saldo a favor generado: {formatCLP(exito.saldo_a_favor_generado)}</p> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      <div className="flex gap-2">{paso > 1 ? <Button type="button" variant="outline" disabled={cargando || enviado} onClick={() => { setBalanceServidor(null); setPaso(paso - 1); }}>Atrás</Button> : <Dialog.Close render={<Button variant="outline" />}>Cancelar</Dialog.Close>}{paso < 3 ? <Button type="button" className="min-w-0 flex-1" disabled={cargando || (paso === 1 ? !resultado || (diferencias && !cantidadesValidas) : !pagoValido)} onClick={continuar}>{cargando ? "Preparando resumen…" : "Continuar"}</Button> : <Button type="button" className="min-w-0 flex-1" disabled={cargando || enviando || !!exito || !resultado || !resumen || !pagoValido || !balanceServidor} onClick={confirmar} aria-describedby={`${id}-aviso`}>{enviando ? "Confirmando…" : enviado && !exito ? "Reintentar confirmación" : "Confirmar entrega"}</Button>}</div>
+      <div className="flex gap-2">{paso > 1 ? <Button type="button" variant="outline" disabled={cargando || enviado} onClick={() => { setBalanceServidor(null); setPaso(paso - 1); }}>Atrás</Button> : <Dialog.Close render={<Button variant="outline" />}>Cancelar</Dialog.Close>}{paso < 3 ? <Button type="button" className="min-w-0 flex-1" disabled={cargando || (paso === 1 ? !resultado || (diferencias && !cantidadesValidas) : !pagoValido)} onClick={continuar}>{cargando ? "Preparando resumen…" : "Continuar"}</Button> : <Button type="button" className="min-w-0 flex-1" disabled={!habilitada || cargando || enviando || !!exito || !resultado || !resumen || !pagoValido || !balanceServidor} onClick={confirmar} aria-describedby={`${id}-aviso`}>{enviando ? "Confirmando…" : enviado && !exito ? "Reintentar confirmación" : "Confirmar entrega"}</Button>}</div>
       <p id={`${id}-aviso`} className="text-center text-xs text-muted-foreground">La entrega y el pago se registran juntos. Tras enviar, los reintentos conservan la misma clave, versión, cantidades y cobro.</p>
     </footer>
   </Dialog.Popup>;

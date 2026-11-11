@@ -1,5 +1,8 @@
 "use server";
 
+import { solicitudValida, cobroValido, leerBalanceEntrega } from "./entrega-validacion";
+import { mensajeErrorEntrega } from "./entrega-errores";
+import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
@@ -35,13 +38,18 @@ export async function prepararEntregaTodoCorrecto(pedidoId: string, versionEsper
     const { data: sesion, error: errorSesion } = await db.auth.getUser();
     if (errorSesion || !sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
     const { data: admin, error: errorAdmin } = await db.rpc("es_admin");
-    if (errorAdmin || admin !== true) return { error: "No tienes permisos para revisar esta entrega." };
+    if (errorAdmin) return { error: mensajeErrorEntrega(errorAdmin, "No fue posible verificar tus permisos.") };
+    if (admin !== true) return { error: "No tienes permisos para revisar esta entrega." };
+    const disponibilidad = await leerDisponibilidadEntrega([pedidoId]);
+    if (disponibilidad[pedidoId] !== null) return { error: disponibilidad[pedidoId] };
     const { data: antes, error: errorAntes } = await db.rpc("leer_preparacion_explicita", { p_pedido_id: pedidoId });
-    if (errorAntes || Number(antes?.version) !== versionEsperada) return { error: "El pedido cambió. Recarga antes de continuar." };
+    if (errorAntes) return { error: mensajeErrorEntrega(errorAntes, "No fue posible verificar la versión operativa. Reintenta.") };
+    if (Number(antes?.version) !== versionEsperada) return { error: "El pedido cambió. Recarga antes de continuar." };
     const { data: pedido, error: errorPedido } = await db.from("pedidos")
       .select("estado,regimen_contable,preparacion_finalizada_en,venta_definitiva_snapshot,total_operativo_preparacion,costo_entrega,descuento")
       .eq("id", pedidoId).single();
-    if (errorPedido || !pedido || pedido.regimen_contable !== "entrega_v1" || pedido.estado !== "en_reparto" ||
+    if (errorPedido) return { error: mensajeErrorEntrega(errorPedido, "No fue posible leer el pedido.") };
+    if (!pedido || pedido.regimen_contable !== "entrega_v1" || pedido.estado !== "en_reparto" ||
       !pedido.preparacion_finalizada_en || pedido.venta_definitiva_snapshot !== null) {
       return { error: "Este pedido no admite la entrega Todo correcto: requiere entrega_v1, preparación finalizada y estado en reparto." };
     }
@@ -71,7 +79,8 @@ export async function prepararEntregaTodoCorrecto(pedidoId: string, versionEsper
     if (pedido.total_operativo_preparacion == null || ![subtotal, costoEntrega, descuento, total].every((importe) => Number.isSafeInteger(importe) && importe >= 0) ||
       total !== Number(pedido.total_operativo_preparacion)) return { error: "Los importes de preparación no coinciden. Recarga el pedido." };
     const { data: despues, error: errorDespues } = await db.rpc("leer_preparacion_explicita", { p_pedido_id: pedidoId });
-    if (errorDespues || Number(despues?.version) !== versionEsperada) return { error: "El pedido cambió durante la revisión. Recarga antes de continuar." };
+    if (errorDespues) return { error: mensajeErrorEntrega(errorDespues, "No fue posible verificar la versión operativa. Reintenta.") };
+    if (Number(despues?.version) !== versionEsperada) return { error: "El pedido cambió durante la revisión. Recarga antes de continuar." };
     return { resumen: { productos, subtotal, costoEntrega, descuento, total, solicitud: {
       p_pedido_id: pedidoId, p_version_esperada: versionEsperada, p_clave: randomUUID(),
       p_items: productos.map((item) => ({ item_pedido_id: item.id, cantidad_entregada: item.cantidad })),
@@ -90,16 +99,8 @@ export type CobroEntrega = {
 export type SolicitudConCobro = SolicitudEntregaTodoCorrecto & { p_cobro: CobroEntrega };
 export type BalanceEntrega = { deuda_pendiente: number; saldo_a_favor_generado: number };
 
-function cobroValido(c: CobroEntrega) {
-  return c && [c.efectivo, c.transferencia, c.efectivo + c.transferencia].every(n => Number.isSafeInteger(n) && n >= 0) &&
-    ((c.metodo === "por_pagar" && c.confirmar_por_pagar === true && c.efectivo === 0 && c.transferencia === 0) ||
-    (c.confirmar_por_pagar === false && ((c.metodo === "efectivo" && c.efectivo > 0 && c.transferencia === 0) ||
-      (c.metodo === "transferencia" && c.transferencia > 0 && c.efectivo === 0) ||
-      (c.metodo === "ambos" && c.efectivo > 0 && c.transferencia > 0))));
-}
-
 export async function revisarCobroEntrega(s: SolicitudConCobro): Promise<{ balance?: BalanceEntrega; error?: string }> {
-  if (!cobroValido(s.p_cobro)) return { error: "Revisa los montos y la confirmación de Por pagar." };
+  if (!solicitudValida(s) || !cobroValido(s)) return { error: "Revisa los montos y la confirmación de Por pagar." };
   const previa = await prepararEntregaTodoCorrecto(s.p_pedido_id, s.p_version_esperada);
   if (!previa.resumen) return { error: previa.error };
   if (JSON.stringify(previa.resumen.solicitud.p_items) !== JSON.stringify(s.p_items)) return { error: "La preparación cambió. Vuelve a revisar el pedido." };
@@ -107,7 +108,7 @@ export async function revisarCobroEntrega(s: SolicitudConCobro): Promise<{ balan
     const db = await crearClienteSupabaseServidor();
     const { data, error } = await db.from("aplicaciones_pago")
       .select("monto_aplicado,pagos!inner(estado)").eq("pedido_id", s.p_pedido_id).eq("activa", true).eq("pagos.estado", "confirmado");
-    if (error) return { error: "No fue posible consultar los abonos anteriores." };
+    if (error) return { error: mensajeErrorEntrega(error, "No fue posible consultar los abonos anteriores.") };
     const pendiente = previa.resumen.total - (data ?? []).reduce((sum, a) => sum + Number(a.monto_aplicado), 0);
     if (!Number.isSafeInteger(pendiente) || pendiente < 0) return { error: "Los abonos anteriores requieren revisión contable." };
     const recibido = s.p_cobro.efectivo + s.p_cobro.transferencia;
@@ -116,36 +117,32 @@ export async function revisarCobroEntrega(s: SolicitudConCobro): Promise<{ balan
 }
 
 export async function confirmarEntregaTodoCorrecto(s: SolicitudConCobro): Promise<{ resultado?: BalanceEntrega; error?: string }> {
-  if (!s || !cobroValido(s.p_cobro) || !Number.isSafeInteger(s.p_version_esperada) || s.p_version_esperada < 0 ||
-    !Array.isArray(s.p_items) || !s.p_items.length || s.p_items.some(i => !Number.isFinite(i.cantidad_entregada) || i.cantidad_entregada < 0)) {
+  if (!solicitudValida(s) || !cobroValido(s)) {
     return { error: "Los datos de entrega o cobro no son válidos." };
   }
   let resultado: BalanceEntrega;
   try {
     const db = await crearClienteSupabaseServidor();
-    const { data: sesion } = await db.auth.getUser();
-    if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión y reintenta con la misma solicitud." };
+    const { data: sesion, error: errorSesion } = await db.auth.getUser();
+    if (errorSesion || !sesion.user) return { error: "Tu sesión expiró. Inicia sesión y reintenta con la misma solicitud." };
     const { data, error } = await db.rpc("confirmar_entrega_todo_correcto", {
       p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada,
-      p_clave: s.p_clave, p_items: s.p_items, p_cobro: s.p_cobro,
+      p_clave: s.p_clave,
+      p_items: s.p_items.map(i => ({ item_pedido_id: i.item_pedido_id, cantidad_entregada: i.cantidad_entregada })),
+      p_cobro: { metodo: s.p_cobro.metodo, efectivo: s.p_cobro.efectivo, transferencia: s.p_cobro.transferencia, confirmar_por_pagar: s.p_cobro.confirmar_por_pagar },
     });
     if (error) {
-      const mensajes: Record<string, string> = {
-        NO_AUTORIZADO: "No tienes permisos para confirmar entregas.",
-        VERSION_OPERATIVA_CONFLICTO: "El pedido cambió. Cierra y revisa nuevamente antes de confirmar.",
-        CLAVE_IDEMPOTENCIA_EN_USO: "Esta clave corresponde a otra solicitud. Revisa el pedido.",
-        ESTADO_PEDIDO_INVALIDO: "El pedido ya no está disponible para entregar. Revisa su estado.",
-        ENTREGA_NO_COINCIDE_CON_PREPARACION: "La entrega no coincide con la preparación confirmada.",
-        METODO_E_IMPORTES_INCOMPATIBLES: "Revisa el método y los montos recibidos.",
-        APLICACIONES_PREVIAS_SUPERAN_VENTA: "Los abonos anteriores superan la venta. Requiere revisión contable.",
-      };
-      return { error: mensajes[error.message] ?? "No se pudo confirmar la entrega y el cobro. Reintenta con la misma solicitud; la operación es atómica." };
+      return { error: mensajeErrorEntrega(error, "No se pudo verificar la entrega y el cobro. Reintenta con la misma solicitud para evitar duplicados.") };
     }
-    resultado = data.resultado;
+    const balance = leerBalanceEntrega(data?.resultado);
+    if (!balance) return { error: "No se pudo verificar la respuesta. Reintenta con la misma solicitud." };
+    resultado = balance;
   } catch {
     return { error: "No se pudo verificar la respuesta. Reintenta: se conserva la misma clave para evitar duplicados." };
   }
   // Una falla de actualización visual no convierte una operación confirmada en fallida.
-  try { revalidatePath("/admin/rutas"); } catch { /* El cliente también solicita los datos actualizados. */ }
+  for (const ruta of ["/admin/rutas", "/admin/pedidos", "/admin/clientes", "/mi-cuenta/pedidos", "/reparto"]) {
+    try { revalidatePath(ruta, "layout"); } catch { /* El cliente también solicita los datos actualizados. */ }
+  }
   return { resultado };
 }

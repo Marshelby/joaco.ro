@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     const resultado = await resolverDestinoPostAuth(
       () => supabase.rpc("ensure_cuenta_cliente_actual"),
       returnTo,
+      () => supabase.rpc("acceso_repartidor"),
     );
     response.headers.set("location", new URL(resultado.estado === "listo" ? resultado.destino : hrefError(returnTo), url.origin).toString());
   } catch {

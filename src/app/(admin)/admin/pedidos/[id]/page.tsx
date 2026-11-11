@@ -1,3 +1,4 @@
+import { UndeliveredOrderActions } from "@/components/admin/undelivered-order-actions";
 import { AdministrativeCorrection } from "@/components/admin/administrative-correction";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -49,6 +50,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}
       </div>
+
+      {pedido.estado === "entrega_fallida" ? <UndeliveredOrderActions pedidoId={pedido.id} /> : null}
+      {pedido.estado === "cancelado" ? <p className="text-sm text-muted-foreground">Pedido cancelado. Consulta el historial para revisar el motivo y el tratamiento de pagos y créditos; la cancelación no realiza devoluciones automáticas.</p> : null}
 
       {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} /> : null}
 

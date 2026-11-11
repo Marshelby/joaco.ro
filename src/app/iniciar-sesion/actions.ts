@@ -38,6 +38,7 @@ async function resolverRedireccionPostAuth(
     resultado = await resolverDestinoPostAuth(
       () => supabase.rpc("ensure_cuenta_cliente_actual"),
       returnTo,
+      () => supabase.rpc("acceso_repartidor"),
     );
   } catch {
     redirect(hrefAcceso({ modo, error: "cuenta", returnTo }));

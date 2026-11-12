@@ -2,14 +2,22 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { PedidoEntregaAdmin } from "@/lib/admin/pedidos";
+import type { DetalleEntregaAdmin } from "@/lib/admin/pedidos";
 import type { RutaMultiple } from "./multiple-types";
 import { confirmarPreparacionRuta } from "./preparacion-actions";
 import { formatCLP } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 
-export function RutaPreparacionControl({ ruta, pedidos, habilitada, fecha }: { ruta: Pick<RutaMultiple, "id" | "nombre" | "version" | "pedidos">; fecha?: string; pedidos: PedidoEntregaAdmin[]; habilitada: boolean }) {
+type Props = {
+  ruta: Pick<RutaMultiple, "id" | "nombre" | "version" | "pedidos">;
+  fecha?: string;
+  // El resumen consulta la colección readonly entregada por administración.
+  pedidos: DetalleEntregaAdmin["pedidos"];
+  habilitada: boolean;
+};
+
+export function RutaPreparacionControl({ ruta, pedidos, habilitada, fecha }: Props) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [mensaje, setMensaje] = useState("");

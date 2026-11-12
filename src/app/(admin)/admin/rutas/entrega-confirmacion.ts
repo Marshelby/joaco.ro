@@ -5,7 +5,7 @@ import type { BalanceEntrega, SolicitudConCobro } from "./entrega-actions";
 import { cobroValido, solicitudValida, leerBalanceEntrega } from "./entrega-validacion";
 import { mensajeErrorEntrega } from "./entrega-errores";
 
-export type RespuestaConfirmacion = { resultado?: BalanceEntrega; yaEntregado?: boolean; error?: string };
+export type RespuestaConfirmacion = { resultado?: BalanceEntrega; yaEntregado?: boolean; recuperada?: boolean; error?: string };
 export async function resolverEntrega(s: SolicitudConCobro, diferencias: boolean, soloConsultar = false): Promise<RespuestaConfirmacion> {
  if (!solicitudValida(s) || !cobroValido(s)) return { error: "Los datos de entrega o cobro no son válidos." };
  let respuesta: RespuestaConfirmacion;
@@ -21,7 +21,7 @@ export async function resolverEntrega(s: SolicitudConCobro, diferencias: boolean
    if (data?.confirmada === true && data.misma_solicitud === true) {
     const balance = leerBalanceEntrega(data.resultado);
     if (!balance || data.resultado?.pedido_id !== s.p_pedido_id || data.resultado?.estado !== "entregado") throw new Error("El comprobante persistido tiene un formato incompatible. Requiere revisión.");
-    return { resultado: balance };
+    return { resultado: balance, recuperada: true };
    }
    if (data?.confirmada !== false) throw new Error("La consulta del resultado devolvió un formato incompatible.");
    return null;
@@ -33,12 +33,16 @@ export async function resolverEntrega(s: SolicitudConCobro, diferencias: boolean
   else {
    let fallo = "No se recibió un comprobante válido de entrega y cobro.";
    let balance: BalanceEntrega | null = null;
+   let recuperada = false;
    try {
     const { data, error } = await db.rpc(diferencias ? "confirmar_entrega_hubo_diferencias" : "confirmar_entrega_todo_correcto", args);
     if (error) fallo = mensajeErrorEntrega(error, "No se pudo confirmar la entrega y el cobro.");
-    else if (data?.resultado?.pedido_id === s.p_pedido_id && data.resultado.estado === "entregado") balance = leerBalanceEntrega(data.resultado);
+    else if (data?.resultado?.pedido_id === s.p_pedido_id && data.resultado.estado === "entregado") {
+     balance = leerBalanceEntrega(data.resultado);
+     recuperada = data.reintento === true;
+    }
    } catch { fallo = "Se perdió la conexión al confirmar la entrega y el cobro."; }
-   if (balance) respuesta = { resultado: balance };
+   if (balance) respuesta = { resultado: balance, recuperada };
    else {
     try {
      const recuperada = await consultar();

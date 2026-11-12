@@ -63,15 +63,21 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
   const intento = useRef<SolicitudConCobro | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
-  const [balanceServidor, setBalanceServidor] = useState<BalanceEntrega | null>(null);
+  const [balancePrevisto, setBalancePrevisto] = useState<BalanceEntrega | null>(null);
   const [yaEntregado, setYaEntregado] = useState(false);
   const [datosVista, setDatosVista] = useState<DatosVistaEntrega | null>(null);
   const almacenamiento = `entrega-pendiente:${pedidoId}`;
   const tipoIntento = useRef(false);
   const confirmado = useRef(false);
+  const [recuperada, setRecuperada] = useState(false);
   const [exito, setExito] = useState<BalanceEntrega | null>(null);
+  function limpiarSolicitudConfirmada() {
+    // Un fallo de almacenamiento no convierte un comprobante real en un fallo de entrega.
+    // Si la clave permanece, la próxima apertura solo recuperará el mismo resultado.
+    try { sessionStorage.removeItem(almacenamiento); } catch { /* La recuperación sigue siendo idempotente. */ }
+  }
   async function confirmar() {
-    if (paso !== 3 || bloqueo.current || exito || yaEntregado || (!intento.current && (!habilitada || !resultado || !resumen || !pagoValido || !balanceServidor))) return;
+    if (paso !== 3 || cargando || confirmado.current || bloqueo.current || exito || yaEntregado || (!intento.current && (!habilitada || !resultado || !resumen || !pagoValido || !balancePrevisto))) return;
     bloqueo.current = true;
     setEnviando(true);
     setEnviado(true);
@@ -85,19 +91,21 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
     if (!intento.current) { bloqueo.current = false; setEnviando(false); return; }
     try {
       const respuesta = await (tipoIntento.current ? confirmarEntregaDiferencias : confirmarEntregaTodoCorrecto)(intento.current);
-      if (respuesta.yaEntregado) { confirmado.current = true; setYaEntregado(true); sessionStorage.removeItem(almacenamiento); router.refresh(); return; }
+      if (respuesta.yaEntregado) { confirmado.current = true; setYaEntregado(true); limpiarSolicitudConfirmada(); router.refresh(); return; }
       if (!respuesta.resultado) { setError(respuesta.error ?? "No fue posible confirmar. Reintenta con la misma solicitud."); return; }
       confirmado.current = true;
+      setRecuperada(respuesta.recuperada === true);
       setExito(respuesta.resultado);
-      sessionStorage.removeItem(almacenamiento);
+      limpiarSolicitudConfirmada();
       router.refresh();
     } catch {
       try {
         const recuperada = await recuperarEntrega(intento.current!, tipoIntento.current);
         if (recuperada.resultado || recuperada.yaEntregado) {
           confirmado.current = !!(recuperada.resultado || recuperada.yaEntregado);
+          setRecuperada(recuperada.recuperada === true);
           setExito(recuperada.resultado ?? null); setYaEntregado(!!recuperada.yaEntregado);
-          sessionStorage.removeItem(almacenamiento); router.refresh();
+          limpiarSolicitudConfirmada(); router.refresh();
         } else setError(recuperada.error ?? "Resultado pendiente de verificar. Reintenta la misma solicitud.");
       } catch { setError("No hay conexión para recuperar el resultado. Reintenta la misma solicitud, incluso si el pedido ya aparece entregado."); }
     }
@@ -129,16 +137,17 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
         if (guardada) {
           const pendiente = JSON.parse(guardada);
           if (!solicitudValida(pendiente?.solicitud) || !cobroValido(pendiente?.solicitud) || pendiente.solicitud.p_pedido_id !== pedidoId || typeof pendiente.diferencias !== "boolean") throw new Error("Solicitud almacenada inválida. Requiere revisión antes de volver a confirmar.");
+          if (!vigente) return;
           intento.current = pendiente.solicitud;
           tipoIntento.current = pendiente.diferencias;
-          if (!vigente) return;
           setEnviado(true); setPaso(3);
           const recuperada = await recuperarEntrega(pendiente.solicitud, pendiente.diferencias);
           if (!vigente) return;
           confirmado.current = !!(recuperada.resultado || recuperada.yaEntregado);
+          setRecuperada(recuperada.recuperada === true);
           setExito(recuperada.resultado ?? null); setYaEntregado(!!recuperada.yaEntregado);
           setError(recuperada.error ?? null);
-          if (recuperada.resultado || recuperada.yaEntregado) { sessionStorage.removeItem(almacenamiento); router.refresh(); }
+          if (recuperada.resultado || recuperada.yaEntregado) { limpiarSolicitudConfirmada(); router.refresh(); }
           return;
         }
         const respuesta = await cargarVistaEntrega(pedidoId, versionEsperada);
@@ -157,10 +166,10 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
       if (paso === 1) {
         if (!resultado || (diferencias && !cantidadesValidas)) return;
         setResumen(valorarVistaEntrega(datosVista, cantidades, diferencias));
-        setBalanceServidor(null);
+        setBalancePrevisto(null);
         setPaso(2);
       } else if (paso === 2 && resumen && pagoValido) {
-        setBalanceServidor(balanceVistaEntrega(resumen.total, datosVista.aplicadoPrevio, cobro()));
+        setBalancePrevisto(balanceVistaEntrega(resumen.total, datosVista.aplicadoPrevio, cobro()));
         setPaso(3);
       }
     } catch (error) { setError(error instanceof Error ? error.message : "Revisa los datos de entrega."); }
@@ -197,7 +206,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
       <p className="mt-1 text-xs text-muted-foreground">Preparado: {item.cantidadPreparada === null ? "Sin registrar" : formato(item.cantidadPreparada)} · Solicitado: {formato(item.cantidad)}</p>
       <p className="mt-1 text-xs text-muted-foreground">Importe provisional de preparación: {formatCLP(item.importeOperativo ?? item.importeOriginal)}{item.importeOperativo === null ? " (referencia original)" : ""}</p>
       {paso === 1 && diferencias ? <label className="mt-3 block text-sm" htmlFor={`${id}-${item.id}`}>Cantidad realmente entregada
-        <input id={`${id}-${item.id}`} type="number" inputMode="decimal" min="0" step={fraccionable(item) ? "0.001" : "1"} disabled={cargando || enviado} className={campo} value={cantidades[item.id]} onChange={(event) => { setResumen(null); setBalanceServidor(null); setError(null); setCantidades((actual) => ({ ...actual, [item.id]: event.target.value })); }} aria-invalid={!cantidadValida(item)} />
+        <input id={`${id}-${item.id}`} type="number" inputMode="decimal" min="0" step={fraccionable(item) ? "0.001" : "1"} disabled={cargando || enviado} className={campo} value={cantidades[item.id]} onChange={(event) => { setResumen(null); setBalancePrevisto(null); setError(null); setCantidades((actual) => ({ ...actual, [item.id]: event.target.value })); }} aria-invalid={!cantidadValida(item)} />
         <span className="mt-1 block text-xs text-muted-foreground">{fraccionable(item) ? "Kilogramos, hasta tres decimales." : "Unidades o presentaciones completas, sin decimales."} Se permite cero y superar lo preparado.</span>
       </label> : <p className="mt-2 text-sm font-medium">Entregado: {formato(diferencias ? Number(cantidades[item.id]) : item.cantidadPreparada ?? 0)}</p>}
     </li>;
@@ -221,8 +230,8 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
   const balance = <div className="space-y-2 rounded-xl bg-muted/50 p-3 text-sm" role="status" aria-live="polite" aria-atomic="true">
     <p className="flex flex-wrap justify-between gap-2"><span>Total de la entrega</span><strong>{formatCLP(totalReferencia)}</strong></p>
     <p className="flex flex-wrap justify-between gap-2"><span>Total recibido</span><strong>{formatCLP(recibido)}</strong></p>
-    <p className="flex flex-wrap justify-between gap-2 font-semibold"><span>{diferencias && paso !== 3 ? "Saldo tras abonos anteriores" : metodo === "pendiente" ? "Deuda prevista" : (balanceServidor && paso === 3 ? balanceServidor.saldo_a_favor_generado > 0 : saldo < 0) ? "Saldo a favor" : "Monto pendiente"}</span><span>{diferencias && !(balanceServidor && paso === 3) ? "Se calculará al continuar" : formatCLP(balanceServidor && paso === 3 ? (balanceServidor.saldo_a_favor_generado || balanceServidor.deuda_pendiente) : Math.abs(saldo))}</span></p>
-    <p className="text-xs text-muted-foreground">El servidor verifica abonos anteriores y calcula la deuda o el excedente. Los valores se confirman atómicamente al guardar.</p>
+    <p className="flex flex-wrap justify-between gap-2 font-semibold"><span>{diferencias && paso !== 3 ? "Saldo tras abonos anteriores" : metodo === "pendiente" ? "Deuda prevista" : (balancePrevisto && paso === 3 ? balancePrevisto.saldo_a_favor_generado > 0 : saldo < 0) ? "Saldo a favor" : "Monto pendiente"}</span><span>{diferencias && !(balancePrevisto && paso === 3) ? "Se calculará al continuar" : formatCLP(balancePrevisto && paso === 3 ? (balancePrevisto.saldo_a_favor_generado || balancePrevisto.deuda_pendiente) : Math.abs(saldo))}</span></p>
+    <p className="text-xs text-muted-foreground">Simulación con los abonos anteriores consultados. El servidor volverá a verificar la deuda o el excedente al confirmar la entrega.</p>
   </div>;
 
   return <Dialog.Popup onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); }} className="motion-dialog-content flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl outline-none">
@@ -237,7 +246,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
           <fieldset className="space-y-2"><legend className="mb-2 font-semibold">¿Cómo fue la entrega?</legend>{([
             ["correcto", "Todo correcto", "El cliente recibió exactamente los productos y cantidades preparados."],
             ["diferencias", "Hubo diferencias", "Indica las cantidades realmente entregadas, incluyendo cero."],
-          ] as const).map(([valor, titulo, texto]) => <label key={valor} className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 ${resultado === valor ? "border-primary bg-primary/5" : "border-border"}`}><input type="radio" name={`${id}-resultado`} className="mt-1 size-4 accent-primary" checked={resultado === valor} disabled={cargando} onChange={() => { if (resultado !== valor) { setResumen(null); setBalanceServidor(null); } setResultado(valor); setError(null); }} /><span><span className="block text-sm font-semibold">{titulo}</span><span className="mt-1 block text-xs text-muted-foreground">{texto}</span></span></label>)}</fieldset>
+          ] as const).map(([valor, titulo, texto]) => <label key={valor} className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 ${resultado === valor ? "border-primary bg-primary/5" : "border-border"}`}><input type="radio" name={`${id}-resultado`} className="mt-1 size-4 accent-primary" checked={resultado === valor} disabled={cargando} onChange={() => { if (resultado !== valor) { setResumen(null); setBalancePrevisto(null); } setResultado(valor); setError(null); }} /><span><span className="block text-sm font-semibold">{titulo}</span><span className="mt-1 block text-xs text-muted-foreground">{texto}</span></span></label>)}</fieldset>
           {productos}
           <p className="text-sm font-semibold">Total provisional de referencia: {formatCLP(totalReferencia)}</p>
           {diferencias ? <p className="text-xs text-muted-foreground">Al continuar se calculará una vista previa con las reglas de precio autorizadas. Si no cambió ninguna cantidad, selecciona Todo correcto.</p> : null}
@@ -250,15 +259,15 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
           {balance}
           {metodo && !pagoValido && metodo !== "pendiente" ? <p className="text-xs text-destructive">Ingresa montos enteros CLP mayores a cero en cada medio seleccionado.</p> : null}
         </> : null}
-        {paso === 3 && !intento.current ? <><h2 className="font-semibold">Revisar entrega</h2><p className="text-sm text-muted-foreground">{diferencias ? "Hubo diferencias · vista previa con reglas autorizadas" : "Todo correcto · coincide con lo preparado"}</p>{productos}<section className="space-y-2"><h3 className="text-sm font-semibold">Método de pago del cliente</h3><p className="text-sm">{metodo === "pendiente" ? "Por pagar · confirmación adicional aceptada" : metodo === "ambos" ? "Efectivo + Transferencia" : metodo === "efectivo" ? "Efectivo" : "Transferencia"}</p>{usaEfectivo ? <p className="text-sm">Efectivo: {formatCLP(Number(efectivo))}</p> : null}{usaTransferencia ? <p className="text-sm">Transferencia: {formatCLP(Number(transferencia))}</p> : null}{balance}</section></> : null}
-        {paso === 3 && intento.current ? <p className="text-sm">Solicitud conservada · {tipoIntento.current ? "Hubo diferencias" : "Todo correcto"} · Efectivo: {formatCLP(intento.current.p_cobro.efectivo)} · Transferencia: {formatCLP(intento.current.p_cobro.transferencia)}. Los reintentos consultan el comprobante antes de enviar.</p> : null}
+        {paso === 3 && !intento.current ? <><h2 className="font-semibold">Revisar entrega</h2><p className="text-sm text-muted-foreground">Simulación previa: esta revisión no registra la entrega ni el cobro. Se guardarán únicamente al pulsar Confirmar entrega.</p><p className="text-sm text-muted-foreground">{diferencias ? "Hubo diferencias · vista previa con reglas autorizadas" : "Todo correcto · coincide con lo preparado"}</p>{productos}<section className="space-y-2"><h3 className="text-sm font-semibold">Método de pago del cliente</h3><p className="text-sm">{metodo === "pendiente" ? "Por pagar · confirmación adicional aceptada" : metodo === "ambos" ? "Efectivo + Transferencia" : metodo === "efectivo" ? "Efectivo" : "Transferencia"}</p>{usaEfectivo ? <p className="text-sm">Efectivo: {formatCLP(Number(efectivo))}</p> : null}{usaTransferencia ? <p className="text-sm">Transferencia: {formatCLP(Number(transferencia))}</p> : null}{balance}</section></> : null}
+        {paso === 3 && intento.current ? <p className="text-sm">Solicitud de confirmación conservada · {tipoIntento.current ? "Hubo diferencias" : "Todo correcto"} · Efectivo: {formatCLP(intento.current.p_cobro.efectivo)} · Transferencia: {formatCLP(intento.current.p_cobro.transferencia)}. Al abrir solo se consulta si ya fue confirmada; esta recuperación no registra otra entrega ni otro cobro. Si no hay comprobante, únicamente Reintentar confirmación puede reenviar la misma solicitud.</p> : null}
       </div>
     </div>
     <footer className="shrink-0 space-y-2 border-t border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      {yaEntregado ? <p role="status" className="text-sm font-semibold">Este pedido ya tiene entrega y cobro confirmados. Se actualizó su estado; puedes cerrar.</p> : null}
-      {exito ? <p role="status" className="text-sm font-semibold">Entrega y cobro registrados. Deuda: {formatCLP(exito.deuda_pendiente)} · Saldo a favor generado: {formatCLP(exito.saldo_a_favor_generado)}</p> : null}
+      {yaEntregado ? <p role="status" className="text-sm font-semibold">Este pedido ya fue confirmado mediante otra solicitud. No se registró el cobro de este intento. Se actualizó su estado; puedes cerrar.</p> : null}
+      {exito ? <p role="status" className="text-sm font-semibold">{recuperada ? "Comprobante recuperado de una solicitud previamente confirmada. No se registró un nuevo cobro." : "Entrega y cobro registrados."} Deuda: {formatCLP(exito.deuda_pendiente)} · Saldo a favor generado: {formatCLP(exito.saldo_a_favor_generado)}</p> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      <div className="flex gap-2">{paso > 1 ? <Button type="button" variant="outline" disabled={cargando || enviado} onClick={() => { setBalanceServidor(null); setPaso(paso - 1); }}>Atrás</Button> : <Dialog.Close render={<Button type="button" variant="outline" />}>Cancelar</Dialog.Close>}{paso < 3 ? <Button key="continuar" type="button" className="min-w-0 flex-1" disabled={!datosVista || cargando || enviado || (paso === 1 ? !resultado || (diferencias && !cantidadesValidas) : !pagoValido)} onClick={continuar}>{cargando ? "Preparando resumen…" : "Continuar"}</Button> : <Button key="confirmar" type="button" className="min-w-0 flex-1" disabled={cargando || enviando || !!exito || yaEntregado || (!intento.current && (!habilitada || !resultado || !resumen || !pagoValido || !balanceServidor))} onClick={(event) => { if (event.detail > 1) return; void confirmar(); }} aria-describedby={`${id}-aviso`}>{enviando ? "Confirmando…" : enviado && !exito ? "Reintentar confirmación" : "Confirmar entrega"}</Button>}</div>
+      <div className="flex gap-2">{paso > 1 ? <Button type="button" variant="outline" disabled={cargando || enviado} onClick={() => { setBalancePrevisto(null); setPaso(paso - 1); }}>Atrás</Button> : <Dialog.Close render={<Button type="button" variant="outline" />}>Cancelar</Dialog.Close>}{paso < 3 ? <Button key="continuar" type="button" className="min-w-0 flex-1" disabled={!datosVista || cargando || enviado || (paso === 1 ? !resultado || (diferencias && !cantidadesValidas) : !pagoValido)} onClick={continuar}>{cargando ? "Preparando resumen…" : "Continuar"}</Button> : <Button key="confirmar" type="button" className="min-w-0 flex-1" disabled={cargando || enviando || !!exito || yaEntregado || (!intento.current && (!habilitada || !resultado || !resumen || !pagoValido || !balancePrevisto))} onClick={(event) => { if (event.detail > 1) return; void confirmar(); }} aria-describedby={`${id}-aviso`}>{enviando ? "Confirmando…" : enviado && !exito ? "Reintentar confirmación" : "Confirmar entrega"}</Button>}</div>
       <p id={`${id}-aviso`} className="text-center text-xs text-muted-foreground">La entrega y el pago se registran juntos. Tras enviar, los reintentos conservan la misma clave, versión, cantidades y cobro.</p>
     </footer>
   </Dialog.Popup>;

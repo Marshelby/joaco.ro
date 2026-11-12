@@ -1,10 +1,15 @@
-// Lista cerrada: nunca devolver mensajes, detalles ni hints del motor al cliente.
+// Mensajes conocidos e identificadores de negocio seguros; sin SQL, detalles ni hints.
 export function mensajeErrorEntrega(error: { code?: string; message?: string }, alternativa: string): string {
   if (["PGRST202", "PGRST203", "PGRST204", "PGRST205", "42883", "42703", "42P01"].includes(error.code ?? "")) {
     return "La confirmación de entrega con cobro no está disponible en esta instalación. Requiere revisión de compatibilidad; no uses la confirmación antigua.";
   }
   if (["42501", "PGRST301", "PGRST302"].includes(error.code ?? "")) return "Tu sesión o permisos no permiten esta operación. Inicia sesión nuevamente o solicita acceso.";
   const mensajes: Record<string, string> = {
+    ENTREGA_PERSISTIDA_INCONSISTENTE: "Existe evidencia de entrega que no coincide con el pedido o su cobro. Requiere revisión contable; no vuelvas a cobrar.",
+    CLIENTE_INVALIDO: "El cliente del pedido no es válido o cambió durante la operación.",
+    IMPORTE_ENTREGA_INVALIDO: "Un importe definitivo de producto no es un entero CLP válido.",
+    OPERACION_INVALIDA: "La solicitud operativa está incompleta o no es válida.",
+    PEDIDO_NO_ENCONTRADO: "El pedido solicitado no existe o ya no está disponible.",
     RUTA_CERRADA: "La ruta ya está cerrada. Actualiza para consultar el resultado.",
     NO_AUTORIZADO: "No tienes permisos para confirmar entregas.",
     REGIMEN_CONTABLE_NO_COMPATIBLE: "Este pedido es legado o usa un régimen incompatible. No admite Confirmar entrega con cobro.",
@@ -29,5 +34,13 @@ export function mensajeErrorEntrega(error: { code?: string; message?: string }, 
     ITEMS_ENTREGA_NO_CORRESPONDEN: "Debes incluir todos los productos del pedido una sola vez.",
     FORMATO_UNIDAD_ENTREGA_INVALIDO: "El formato o la unidad de un producto requieren revisión.",
   };
-  return mensajes[error.message ?? ""] ?? alternativa;
+  const conocido = mensajes[error.message ?? ""];
+  if (conocido) return conocido;
+  // Identificador de negocio cerrado a ASCII; nunca exponer detalles, SQL ni PII.
+  if (/^[A-Z][A-Z0-9_]{2,100}$/.test(error.message ?? "")) return `La operación fue rechazada: ${error.message}. Requiere revisar esta causa antes de modificar la solicitud.`;
+  if (error.code === "55P03" || error.code === "40P01" || error.code === "40001") return "Otra operación está modificando el pedido o su contabilidad. Reintenta con la misma solicitud.";
+  if (error.code === "23505") return "Existe un registro con la misma referencia única. Es necesario verificar el comprobante antes de volver a cobrar.";
+  if (error.code === "23514") return "La entrega o el cobro incumplen una restricción de integridad contable. Requiere revisión de la instalación.";
+  const codigo = /^[A-Z0-9]{5,10}$/.test(error.code ?? "") ? ` Código: ${error.code}.` : "";
+  return alternativa + codigo;
 }

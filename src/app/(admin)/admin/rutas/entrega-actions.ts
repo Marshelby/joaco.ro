@@ -1,9 +1,9 @@
 "use server";
 
-import { solicitudValida, cobroValido, leerBalanceEntrega } from "./entrega-validacion";
+import { solicitudValida, cobroValido } from "./entrega-validacion";
 import { mensajeErrorEntrega } from "./entrega-errores";
 import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
-import { revalidatePath } from "next/cache";
+import { resolverEntrega } from "./entrega-confirmacion";
 import { randomUUID } from "node:crypto";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -116,33 +116,24 @@ export async function revisarCobroEntrega(s: SolicitudConCobro): Promise<{ balan
   } catch { return { error: "No fue posible revisar el cobro. Reintenta." }; }
 }
 
-export async function confirmarEntregaTodoCorrecto(s: SolicitudConCobro): Promise<{ resultado?: BalanceEntrega; error?: string }> {
-  if (!solicitudValida(s) || !cobroValido(s)) {
-    return { error: "Los datos de entrega o cobro no son válidos." };
-  }
-  let resultado: BalanceEntrega;
-  try {
-    const db = await crearClienteSupabaseServidor();
-    const { data: sesion, error: errorSesion } = await db.auth.getUser();
-    if (errorSesion || !sesion.user) return { error: "Tu sesión expiró. Inicia sesión y reintenta con la misma solicitud." };
-    const { data, error } = await db.rpc("confirmar_entrega_todo_correcto", {
-      p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada,
-      p_clave: s.p_clave,
-      p_items: s.p_items.map(i => ({ item_pedido_id: i.item_pedido_id, cantidad_entregada: i.cantidad_entregada })),
-      p_cobro: { metodo: s.p_cobro.metodo, efectivo: s.p_cobro.efectivo, transferencia: s.p_cobro.transferencia, confirmar_por_pagar: s.p_cobro.confirmar_por_pagar },
-    });
-    if (error) {
-      return { error: mensajeErrorEntrega(error, "No se pudo verificar la entrega y el cobro. Reintenta con la misma solicitud para evitar duplicados.") };
-    }
-    const balance = leerBalanceEntrega(data?.resultado);
-    if (!balance) return { error: "No se pudo verificar la respuesta. Reintenta con la misma solicitud." };
-    resultado = balance;
-  } catch {
-    return { error: "No se pudo verificar la respuesta. Reintenta: se conserva la misma clave para evitar duplicados." };
-  }
-  // Una falla de actualización visual no convierte una operación confirmada en fallida.
-  for (const ruta of ["/admin/rutas", "/admin/pedidos", "/admin/clientes", "/mi-cuenta/pedidos", "/reparto"]) {
-    try { revalidatePath(ruta, "layout"); } catch { /* El cliente también solicita los datos actualizados. */ }
-  }
-  return { resultado };
+export async function confirmarEntregaTodoCorrecto(s: SolicitudConCobro) {
+  return resolverEntrega(s, false);
+}
+
+export async function cargarVistaEntrega(pedido: string, version: number): Promise<{ datos?: import("./entrega-preview").DatosVistaEntrega; error?: string }> {
+ const previa = await prepararEntregaTodoCorrecto(pedido, version);
+ if (!previa.resumen) return { error: previa.error };
+ try {
+  const db = await crearClienteSupabaseServidor();
+  const { data: reglas, error } = await db.from("items_pedido").select("id,cantidad,total_linea,total_final_administrativo,precio_final_unitario_snapshot,modo_cantidad_snapshot,nombre_presentacion_snapshot,unidad_snapshot").eq("pedido_id", pedido);
+  const { data: abonos, error: errorAbonos } = await db.from("aplicaciones_pago").select("monto_aplicado,pagos!inner(estado)").eq("pedido_id", pedido).eq("activa", true).eq("pagos.estado", "confirmado");
+  if (error || errorAbonos || !reglas || reglas.length !== previa.resumen.productos.length) return { error: mensajeErrorEntrega(error ?? errorAbonos ?? {}, "No fue posible leer precios y abonos.") };
+  const aplicadoPrevio = (abonos ?? []).reduce((sum, a) => sum + Number(a.monto_aplicado), 0);
+  if (!Number.isSafeInteger(aplicadoPrevio) || aplicadoPrevio < 0) return { error: "Los abonos requieren revisión contable." };
+  return { datos: { resumen: previa.resumen, reglas, aplicadoPrevio } };
+ } catch { return { error: "No fue posible cargar la vista previa. Cierra y vuelve a abrir." }; }
+}
+
+export async function recuperarEntrega(s: SolicitudConCobro, diferencias: boolean) {
+ return resolverEntrega(s, diferencias, true);
 }

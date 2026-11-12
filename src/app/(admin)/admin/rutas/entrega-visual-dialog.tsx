@@ -2,7 +2,7 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { ItemPreparacionPedidoAdmin } from "@/lib/admin/pedidos";
@@ -10,9 +10,12 @@ import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-
 import { formatCLP } from "@/lib/formatters";
 
 import { useRouter } from "next/navigation";
-import { confirmarEntregaTodoCorrecto, revisarCobroEntrega, type BalanceEntrega, type SolicitudConCobro, prepararEntregaTodoCorrecto, type ResumenEntregaTodoCorrecto } from "./entrega-actions";
+import { confirmarEntregaTodoCorrecto, cargarVistaEntrega, recuperarEntrega, type BalanceEntrega, type SolicitudConCobro, type ResumenEntregaTodoCorrecto } from "./entrega-actions";
 
-import { confirmarEntregaDiferencias, prepararEntregaDiferencias, revisarCobroDiferencias } from "./diferencias-actions";
+import { confirmarEntregaDiferencias } from "./diferencias-actions";
+
+import { solicitudValida, cobroValido } from "./entrega-validacion";
+import { valorarVistaEntrega, balanceVistaEntrega, type DatosVistaEntrega } from "./entrega-preview";
 
 type Props = {
   habilitada: boolean;
@@ -30,13 +33,24 @@ const numeroValido = (valor: string) => valor.trim() !== "" && Number.isFinite(N
 
 export function EntregaVisualDialog(props: Props) {
   const [abierto, setAbierto] = useState(false);
-  return <Dialog.Root open={abierto} onOpenChange={setAbierto}>
-    <Dialog.Trigger disabled={!props.habilitada} className={buttonVariants({ variant: "outline" })}>Entregado</Dialog.Trigger>
+  const [pendiente, setPendiente] = useState(false);
+  useEffect(() => {
+    try {
+      const existe = !!sessionStorage.getItem(`entrega-pendiente:${props.pedidoId}`);
+      setPendiente(existe);
+      if (existe) setAbierto(true);
+    } catch { /* La carga del modal explica el error de almacenamiento. */ }
+  }, [props.pedidoId]);
+  return <Dialog.Root open={abierto} onOpenChange={(valor) => {
+    setAbierto(valor);
+    try { setPendiente(!!sessionStorage.getItem(`entrega-pendiente:${props.pedidoId}`)); } catch { /* Se conserva el estado actual. */ }
+  }}>
+    <Dialog.Trigger type="button" disabled={!props.habilitada && !pendiente} className={buttonVariants({ variant: "outline" })}>Entregado</Dialog.Trigger>
     {props.motivoBloqueo ? <p role="status" className="w-full text-xs text-muted-foreground">{props.motivoBloqueo}</p> : null}
     <Dialog.Portal keepMounted>
       <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/30" />
       <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">
-        <ContenidoEntrega {...props} />
+        {abierto ? <ContenidoEntrega {...props} /> : null}
       </Dialog.Viewport>
     </Dialog.Portal>
   </Dialog.Root>;
@@ -50,20 +64,43 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [balanceServidor, setBalanceServidor] = useState<BalanceEntrega | null>(null);
+  const [yaEntregado, setYaEntregado] = useState(false);
+  const [datosVista, setDatosVista] = useState<DatosVistaEntrega | null>(null);
+  const almacenamiento = `entrega-pendiente:${pedidoId}`;
+  const tipoIntento = useRef(false);
+  const confirmado = useRef(false);
   const [exito, setExito] = useState<BalanceEntrega | null>(null);
   async function confirmar() {
-    if (!habilitada || bloqueo.current || exito || !resultado || !resumen || !pagoValido || !balanceServidor) return;
+    if (paso !== 3 || bloqueo.current || exito || yaEntregado || (!intento.current && (!habilitada || !resultado || !resumen || !pagoValido || !balanceServidor))) return;
     bloqueo.current = true;
     setEnviando(true);
     setEnviado(true);
     setError(null);
-    intento.current ??= { ...resumen.solicitud, p_cobro: cobro() };
+    if (!intento.current && resumen) {
+      intento.current = { ...resumen.solicitud, p_cobro: cobro() };
+      tipoIntento.current = diferencias;
+      try { sessionStorage.setItem(almacenamiento, JSON.stringify({ solicitud: intento.current, diferencias })); }
+      catch { setError("No fue posible conservar la solicitud para recuperarla. Habilita el almacenamiento de esta pestaña antes de confirmar."); intento.current = null; bloqueo.current = false; setEnviando(false); setEnviado(false); return; }
+    }
+    if (!intento.current) { bloqueo.current = false; setEnviando(false); return; }
     try {
-      const respuesta = await (diferencias ? confirmarEntregaDiferencias : confirmarEntregaTodoCorrecto)(intento.current);
+      const respuesta = await (tipoIntento.current ? confirmarEntregaDiferencias : confirmarEntregaTodoCorrecto)(intento.current);
+      if (respuesta.yaEntregado) { confirmado.current = true; setYaEntregado(true); sessionStorage.removeItem(almacenamiento); router.refresh(); return; }
       if (!respuesta.resultado) { setError(respuesta.error ?? "No fue posible confirmar. Reintenta con la misma solicitud."); return; }
+      confirmado.current = true;
       setExito(respuesta.resultado);
+      sessionStorage.removeItem(almacenamiento);
       router.refresh();
-    } catch { setError("No se pudo verificar la respuesta. Reintenta con la misma solicitud para evitar duplicados."); }
+    } catch {
+      try {
+        const recuperada = await recuperarEntrega(intento.current!, tipoIntento.current);
+        if (recuperada.resultado || recuperada.yaEntregado) {
+          confirmado.current = !!(recuperada.resultado || recuperada.yaEntregado);
+          setExito(recuperada.resultado ?? null); setYaEntregado(!!recuperada.yaEntregado);
+          sessionStorage.removeItem(almacenamiento); router.refresh();
+        } else setError(recuperada.error ?? "Resultado pendiente de verificar. Reintenta la misma solicitud.");
+      } catch { setError("No hay conexión para recuperar el resultado. Reintenta la misma solicitud, incluso si el pedido ya aparece entregado."); }
+    }
     finally { bloqueo.current = false; setEnviando(false); }
   }
   function cobro(): SolicitudConCobro["p_cobro"] {
@@ -82,38 +119,51 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
   const [confirmarDeuda, setConfirmarDeuda] = useState(false);
   const diferencias = resultado === "diferencias";
   const totalReferencia = resumen ? resumen.total : referenciaOriginal;
-  const claveDiferencias = useRef<string | null>(null);
-  async function continuar() {
-    if (bloqueo.current || enviado || cargando) return;
-    bloqueo.current = true;
+  useEffect(() => {
+    if (confirmado.current) return;
+    let vigente = true;
+    async function cargar() {
+      setCargando(true);
+      try {
+        const guardada = sessionStorage.getItem(almacenamiento);
+        if (guardada) {
+          const pendiente = JSON.parse(guardada);
+          if (!solicitudValida(pendiente?.solicitud) || !cobroValido(pendiente?.solicitud) || pendiente.solicitud.p_pedido_id !== pedidoId || typeof pendiente.diferencias !== "boolean") throw new Error("Solicitud almacenada inválida. Requiere revisión antes de volver a confirmar.");
+          intento.current = pendiente.solicitud;
+          tipoIntento.current = pendiente.diferencias;
+          if (!vigente) return;
+          setEnviado(true); setPaso(3);
+          const recuperada = await recuperarEntrega(pendiente.solicitud, pendiente.diferencias);
+          if (!vigente) return;
+          confirmado.current = !!(recuperada.resultado || recuperada.yaEntregado);
+          setExito(recuperada.resultado ?? null); setYaEntregado(!!recuperada.yaEntregado);
+          setError(recuperada.error ?? null);
+          if (recuperada.resultado || recuperada.yaEntregado) { sessionStorage.removeItem(almacenamiento); router.refresh(); }
+          return;
+        }
+        const respuesta = await cargarVistaEntrega(pedidoId, versionEsperada);
+        if (vigente) { setDatosVista(respuesta.datos ?? null); setError(respuesta.error ?? null); }
+      } catch (error) { if (vigente) setError(error instanceof Error ? error.message : "No fue posible cargar la entrega."); }
+      finally { if (vigente) setCargando(false); }
+    }
+    void cargar();
+    return () => { vigente = false; };
+  }, [almacenamiento, pedidoId, versionEsperada, router]);
+
+  function continuar() {
+    if (bloqueo.current || enviado || cargando || !datosVista) return;
+    setError(null);
     try {
-    if (paso === 1 && resultado && (!resumen || diferencias)) {
-      setCargando(true);
-      setError(null);
-      try {
-        if (diferencias) claveDiferencias.current ??= crypto.randomUUID();
-        const respuesta = diferencias
-          ? await prepararEntregaDiferencias({ p_pedido_id: pedidoId, p_version_esperada: versionEsperada, p_clave: claveDiferencias.current!,
-              p_items: items.map(item => ({ item_pedido_id: item.id, cantidad_entregada: Number(cantidades[item.id]) })) })
-          : await prepararEntregaTodoCorrecto(pedidoId, versionEsperada);
-        if (!respuesta.resumen) { setError(respuesta.error ?? "No fue posible preparar la entrega."); return; }
-        // Se conserva el mismo payload (clave, versión y orden) durante esta revisión.
-        setResumen(respuesta.resumen);
-      } catch { setError("No fue posible leer el resumen. Reintenta."); return; }
-      finally { setCargando(false); }
-    }
-    if (paso === 2 && resultado && resumen) {
-      setCargando(true);
-      setError(null);
-      try {
-        const respuesta = await (diferencias ? revisarCobroDiferencias : revisarCobroEntrega)({ ...resumen.solicitud, p_cobro: cobro() });
-        if (!respuesta.balance) { setError(respuesta.error ?? "No fue posible revisar el cobro."); return; }
-        setBalanceServidor(respuesta.balance);
-      } catch { setError("No fue posible revisar el cobro. Reintenta."); return; }
-      finally { setCargando(false); }
-    }
-    setPaso(paso + 1);
-    } finally { bloqueo.current = false; }
+      if (paso === 1) {
+        if (!resultado || (diferencias && !cantidadesValidas)) return;
+        setResumen(valorarVistaEntrega(datosVista, cantidades, diferencias));
+        setBalanceServidor(null);
+        setPaso(2);
+      } else if (paso === 2 && resumen && pagoValido) {
+        setBalanceServidor(balanceVistaEntrega(resumen.total, datosVista.aplicadoPrevio, cobro()));
+        setPaso(3);
+      }
+    } catch (error) { setError(error instanceof Error ? error.message : "Revisa los datos de entrega."); }
   }
   const usaEfectivo = metodo === "efectivo" || metodo === "ambos";
   const usaTransferencia = metodo === "transferencia" || metodo === "ambos";
@@ -175,7 +225,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
     <p className="text-xs text-muted-foreground">El servidor verifica abonos anteriores y calcula la deuda o el excedente. Los valores se confirman atómicamente al guardar.</p>
   </div>;
 
-  return <Dialog.Popup className="motion-dialog-content flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl outline-none">
+  return <Dialog.Popup onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); }} className="motion-dialog-content flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl outline-none">
     <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4">
       <div className="min-w-0"><Dialog.Title className="text-lg font-semibold">Entrega del pedido {numero}</Dialog.Title><Dialog.Description className="mt-1 break-words text-sm text-muted-foreground">{cliente} · Confirmación de entrega y cobro</Dialog.Description></div>
       <Dialog.Close type="button" aria-label="Cerrar entrega" className="flex size-11 shrink-0 items-center justify-center rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><X className="size-5" aria-hidden="true" /></Dialog.Close>
@@ -190,7 +240,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
           ] as const).map(([valor, titulo, texto]) => <label key={valor} className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 ${resultado === valor ? "border-primary bg-primary/5" : "border-border"}`}><input type="radio" name={`${id}-resultado`} className="mt-1 size-4 accent-primary" checked={resultado === valor} disabled={cargando} onChange={() => { if (resultado !== valor) { setResumen(null); setBalanceServidor(null); } setResultado(valor); setError(null); }} /><span><span className="block text-sm font-semibold">{titulo}</span><span className="mt-1 block text-xs text-muted-foreground">{texto}</span></span></label>)}</fieldset>
           {productos}
           <p className="text-sm font-semibold">Total provisional de referencia: {formatCLP(totalReferencia)}</p>
-          {diferencias ? <p className="text-xs text-muted-foreground">Al continuar, el servidor calculará el total definitivo con las reglas de precio autorizadas. Si no cambió ninguna cantidad, selecciona Todo correcto.</p> : null}
+          {diferencias ? <p className="text-xs text-muted-foreground">Al continuar se calculará una vista previa con las reglas de precio autorizadas. Si no cambió ninguna cantidad, selecciona Todo correcto.</p> : null}
         </> : null}
         {paso === 2 ? <>
           {diferencias ? productos : null}
@@ -200,13 +250,15 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
           {balance}
           {metodo && !pagoValido && metodo !== "pendiente" ? <p className="text-xs text-destructive">Ingresa montos enteros CLP mayores a cero en cada medio seleccionado.</p> : null}
         </> : null}
-        {paso === 3 ? <><h2 className="font-semibold">Revisar entrega</h2><p className="text-sm text-muted-foreground">{diferencias ? "Hubo diferencias · cantidades valoradas por el servidor" : "Todo correcto · coincide con lo preparado"}</p>{productos}<section className="space-y-2"><h3 className="text-sm font-semibold">Método de pago del cliente</h3><p className="text-sm">{metodo === "pendiente" ? "Por pagar · confirmación adicional aceptada" : metodo === "ambos" ? "Efectivo + Transferencia" : metodo === "efectivo" ? "Efectivo" : "Transferencia"}</p>{usaEfectivo ? <p className="text-sm">Efectivo: {formatCLP(Number(efectivo))}</p> : null}{usaTransferencia ? <p className="text-sm">Transferencia: {formatCLP(Number(transferencia))}</p> : null}{balance}</section></> : null}
+        {paso === 3 && !intento.current ? <><h2 className="font-semibold">Revisar entrega</h2><p className="text-sm text-muted-foreground">{diferencias ? "Hubo diferencias · vista previa con reglas autorizadas" : "Todo correcto · coincide con lo preparado"}</p>{productos}<section className="space-y-2"><h3 className="text-sm font-semibold">Método de pago del cliente</h3><p className="text-sm">{metodo === "pendiente" ? "Por pagar · confirmación adicional aceptada" : metodo === "ambos" ? "Efectivo + Transferencia" : metodo === "efectivo" ? "Efectivo" : "Transferencia"}</p>{usaEfectivo ? <p className="text-sm">Efectivo: {formatCLP(Number(efectivo))}</p> : null}{usaTransferencia ? <p className="text-sm">Transferencia: {formatCLP(Number(transferencia))}</p> : null}{balance}</section></> : null}
+        {paso === 3 && intento.current ? <p className="text-sm">Solicitud conservada · {tipoIntento.current ? "Hubo diferencias" : "Todo correcto"} · Efectivo: {formatCLP(intento.current.p_cobro.efectivo)} · Transferencia: {formatCLP(intento.current.p_cobro.transferencia)}. Los reintentos consultan el comprobante antes de enviar.</p> : null}
       </div>
     </div>
     <footer className="shrink-0 space-y-2 border-t border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      {yaEntregado ? <p role="status" className="text-sm font-semibold">Este pedido ya tiene entrega y cobro confirmados. Se actualizó su estado; puedes cerrar.</p> : null}
       {exito ? <p role="status" className="text-sm font-semibold">Entrega y cobro registrados. Deuda: {formatCLP(exito.deuda_pendiente)} · Saldo a favor generado: {formatCLP(exito.saldo_a_favor_generado)}</p> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      <div className="flex gap-2">{paso > 1 ? <Button type="button" variant="outline" disabled={cargando || enviado} onClick={() => { setBalanceServidor(null); setPaso(paso - 1); }}>Atrás</Button> : <Dialog.Close render={<Button variant="outline" />}>Cancelar</Dialog.Close>}{paso < 3 ? <Button type="button" className="min-w-0 flex-1" disabled={cargando || (paso === 1 ? !resultado || (diferencias && !cantidadesValidas) : !pagoValido)} onClick={continuar}>{cargando ? "Preparando resumen…" : "Continuar"}</Button> : <Button type="button" className="min-w-0 flex-1" disabled={!habilitada || cargando || enviando || !!exito || !resultado || !resumen || !pagoValido || !balanceServidor} onClick={confirmar} aria-describedby={`${id}-aviso`}>{enviando ? "Confirmando…" : enviado && !exito ? "Reintentar confirmación" : "Confirmar entrega"}</Button>}</div>
+      <div className="flex gap-2">{paso > 1 ? <Button type="button" variant="outline" disabled={cargando || enviado} onClick={() => { setBalanceServidor(null); setPaso(paso - 1); }}>Atrás</Button> : <Dialog.Close render={<Button type="button" variant="outline" />}>Cancelar</Dialog.Close>}{paso < 3 ? <Button key="continuar" type="button" className="min-w-0 flex-1" disabled={!datosVista || cargando || enviado || (paso === 1 ? !resultado || (diferencias && !cantidadesValidas) : !pagoValido)} onClick={continuar}>{cargando ? "Preparando resumen…" : "Continuar"}</Button> : <Button key="confirmar" type="button" className="min-w-0 flex-1" disabled={cargando || enviando || !!exito || yaEntregado || (!intento.current && (!habilitada || !resultado || !resumen || !pagoValido || !balanceServidor))} onClick={(event) => { if (event.detail > 1) return; void confirmar(); }} aria-describedby={`${id}-aviso`}>{enviando ? "Confirmando…" : enviado && !exito ? "Reintentar confirmación" : "Confirmar entrega"}</Button>}</div>
       <p id={`${id}-aviso`} className="text-center text-xs text-muted-foreground">La entrega y el pago se registran juntos. Tras enviar, los reintentos conservan la misma clave, versión, cantidades y cobro.</p>
     </footer>
   </Dialog.Popup>;

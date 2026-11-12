@@ -1,8 +1,8 @@
 "use server";
 
-import { solicitudValida, cobroValido, leerBalanceEntrega } from "./entrega-validacion";
+import { solicitudValida, cobroValido } from "./entrega-validacion";
 import { mensajeErrorEntrega } from "./entrega-errores";
-import { revalidatePath } from "next/cache";
+import { resolverEntrega } from "./entrega-confirmacion";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { prepararEntregaTodoCorrecto, type SolicitudConCobro, type SolicitudEntregaTodoCorrecto, type ResumenEntregaTodoCorrecto, type BalanceEntrega } from "./entrega-actions";
 
@@ -72,31 +72,6 @@ export async function revisarCobroDiferencias(s: SolicitudConCobro): Promise<{ b
   } catch { return { error: "No fue posible revisar los abonos. Reintenta." }; }
 }
 
-export async function confirmarEntregaDiferencias(s: SolicitudConCobro): Promise<{ resultado?: BalanceEntrega; error?: string }> {
-  if (!solicitudValida(s) || !cobroValido(s)) return { error: "Los datos de entrega o cobro no son válidos." };
-  let resultado: BalanceEntrega;
-  try {
-    const db = await crearClienteSupabaseServidor();
-    const { data: sesion, error: errorSesion } = await db.auth.getUser();
-    if (errorSesion || !sesion.user) return { error: "Tu sesión expiró. Inicia sesión y reintenta con la misma solicitud." };
-    const { data: admin, error: errorAdmin } = await db.rpc("es_admin");
-    if (errorAdmin) return { error: mensajeErrorEntrega(errorAdmin, "No fue posible verificar tus permisos.") };
-    if (admin !== true) return { error: "No tienes permisos para confirmar entregas." };
-    // No releer ni exigir la versión actual antes de la RPC: debe poder resolver reintentos ya confirmados.
-    const { data, error } = await db.rpc("confirmar_entrega_hubo_diferencias", {
-      p_pedido_id: s.p_pedido_id, p_version_esperada: s.p_version_esperada, p_clave: s.p_clave,
-      p_items: s.p_items.map(i => ({ item_pedido_id: i.item_pedido_id, cantidad_entregada: i.cantidad_entregada })),
-      p_cobro: { metodo: s.p_cobro.metodo, efectivo: s.p_cobro.efectivo, transferencia: s.p_cobro.transferencia, confirmar_por_pagar: s.p_cobro.confirmar_por_pagar },
-    });
-    if (error) {
-      return { error: mensajeErrorEntrega(error, "No se pudo verificar la entrega y el cobro. Reintenta con la misma solicitud para evitar duplicados.") };
-    }
-    const balance = leerBalanceEntrega(data?.resultado);
-    if (!balance) return { error: "No se pudo verificar la respuesta. Reintenta con la misma solicitud." };
-    resultado = balance;
-  } catch { return { error: "No se pudo verificar la respuesta. Reintenta con la misma solicitud para evitar duplicados." }; }
-  for (const ruta of ["/admin/rutas", "/admin/pedidos", "/admin/clientes", "/mi-cuenta/pedidos", "/reparto"]) {
-    try { revalidatePath(ruta, "layout"); } catch { /* El cliente también actualiza la ruta tras el éxito. */ }
-  }
-  return { resultado };
+export async function confirmarEntregaDiferencias(s: SolicitudConCobro) {
+  return resolverEntrega(s, true);
 }

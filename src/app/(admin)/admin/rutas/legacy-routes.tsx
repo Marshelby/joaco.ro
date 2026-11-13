@@ -1,3 +1,5 @@
+import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
+import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { CierreRutaDialog } from "./cierre-ruta-dialog";
 import { RutaDiaMap } from "./ruta-dia-map";
 import { JornadaModos } from "./jornada-modos";
@@ -11,7 +13,6 @@ import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
 import { DeliveryProductsSummary } from "@/components/admin/delivery-products-summary";
 import { RutaPreparacionControl } from "./ruta-preparacion-control";
 import { JornadaSalidaControl } from "@/components/admin/jornada-salida-control";
-import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
@@ -112,17 +113,10 @@ export default async function AdminRoutesPage({ searchParams }: {
                 <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
                 <details className="rounded-lg border border-border p-3">
                   <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Ver productos</summary>
-                  {pedido.items.length === 0 ? <p className="py-2 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p> : <ul className="divide-y divide-border">{pedido.items.map((producto) => {
-                    const preparado = producto.cantidadPreparada ?? 0;
-                    const estado = preparado === 0 ? "Sin unidades" : preparado < producto.cantidad ? "Parcial" : preparado > producto.cantidad ? "Cantidad superior" : "Completo";
-                    const color = preparado === 0 ? "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200" : preparado < producto.cantidad ? "bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" : preparado > producto.cantidad ? "bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200" : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200";
-                    const formato = (cantidad: number) => formatearCantidadPreparacionEntrega(cantidad, producto.nombrePresentacion, producto.unidad, producto.modoCantidadSnapshot);
-                    return <li key={producto.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-2 text-sm ${color}`}>
-                      <span className={`min-w-0 break-words font-medium ${preparado === 0 ? "line-through" : ""}`}>{producto.nombreProducto}{producto.nombrePresentacion ? ` · ${producto.nombrePresentacion}` : ""}</span>
-                      <span>{estado} · Solicitado: {formato(producto.cantidad)} · Preparado: {formato(preparado)} · Enviado: {carga.pedidos.find(p => p.id === pedido.id)?.productos.find(i => i.id === producto.id)?.enviada == null ? "Sin dato histórico de salida" : formato(carga.pedidos.find(p => p.id === pedido.id)!.productos.find(i => i.id === producto.id)!.enviada!)}</span>
-                    </li>;
-                  })}</ul>}
+                  <ul className="divide-y divide-border">{pedido.items.map(item => <DeliveryProductDetail key={item.id} item={item} contexto={pedido.contextoEntrega} coloresLegacy />)}</ul>
+                  <DeliveryOrderTotals pedido={pedido} />
                 </details>
+                <DeliveryObservation contexto={pedido.contextoEntrega} />
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
                   <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
                   <Button type="button" variant="outline" disabled>Contactar</Button>

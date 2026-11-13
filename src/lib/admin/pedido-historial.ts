@@ -1,4 +1,5 @@
 import "server-only";
+import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
 
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
@@ -68,6 +69,11 @@ export async function obtenerHistorialPedido(id: string) {
   function agregar(clave: string, fecha: unknown, tipo: string, actor: unknown, detalles: string[], provisional = false) {
     if (typeof fecha !== "string") return;
     eventos.push({ id: clave, fecha, tipo, actor: typeof actor === "string" ? actor : undefined, detalles, provisional });
+  }
+  const contextoEntrega = await obtenerContextoEntrega(id);
+  if (contextoEntrega.observacion) {
+    const o = contextoEntrega.observacion;
+    agregar("observacion-entrega", o.fecha, "Observaciones de entrega", o.actor_id, [o.texto]);
   }
   agregar("creacion", pedido.fecha_creacion, "Creación del pedido", null, []);
   for (const e of estados) agregar(`estado-${e.id}`, e.fecha_creacion, "Cambio de estado", e.cambiado_por,
@@ -175,6 +181,7 @@ export async function obtenerHistorialPedido(id: string) {
         [`Jornada: ${fecha}`, ...cambios({ estado: anterior.estado }, { estado: nuevo.estado }), ...cambios(antes ?? {}, despues ?? {}), ...(solicitud.motivo ? [`Motivo: ${solicitud.motivo}`] : [])], solicitud.accion === "guardar" || solicitud.accion === "reabrir");
     }
   }
+  if (!contextoEntrega.disponible) avisos.push("Observaciones de entrega no disponibles: falta instalar el SQL manual.");
   const nombreResponsable = await obtenerNombresResponsables(eventos.map(e => e.actor));
   for (const evento of eventos) evento.actor = nombreResponsable(evento.actor);
   return { numeroPedido: String(pedido.numero_pedido), avisos, eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };

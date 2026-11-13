@@ -5,6 +5,9 @@ export function mensajeErrorEntrega(error: { code?: string; message?: string }, 
   }
   if (["42501", "PGRST301", "PGRST302"].includes(error.code ?? "")) return "Tu sesión o permisos no permiten esta operación. Inicia sesión nuevamente o solicita acceso.";
   const mensajes: Record<string, string> = {
+    OBSERVACION_INVALIDA: "La observación debe tener como máximo 2000 caracteres.",
+    OBSERVACION_NO_COINCIDE_CON_SOLICITUD_CONFIRMADA: "El comentario no coincide con la confirmación conservada. No vuelvas a cobrar; revisa el historial del pedido.",
+    COMPROBANTE_ENTREGA_INVALIDO: "No se pudo validar el comprobante de entrega. Conserva la misma solicitud para recuperar su resultado.",
     ENTREGA_PERSISTIDA_INCONSISTENTE: "Existe evidencia de entrega que no coincide con el pedido o su cobro. Requiere revisión contable; no vuelvas a cobrar.",
     CLIENTE_INVALIDO: "El cliente del pedido no es válido o cambió durante la operación.",
     IMPORTE_ENTREGA_INVALIDO: "Un importe definitivo de producto no es un entero CLP válido.",

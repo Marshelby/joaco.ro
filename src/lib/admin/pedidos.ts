@@ -1,3 +1,4 @@
+import { obtenerContextoEntrega, type ContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
@@ -53,6 +54,7 @@ export type ItemPreparacionPedidoAdmin = {
   cantidadPreparada: number | null;
   confirmadoExplicito: boolean;
   importeOriginal: number;
+  precioUnitarioHistorico?: number;
   importeCalculado?: string | null;
   importeOperativo: number | null;
   cantidadFaltante: number;
@@ -63,6 +65,7 @@ export type ItemPreparacionPedidoAdmin = {
 export type RevisionPreparacion = { version: number; actor_id: string; actorNombre?: string; fecha: string; item_pedido_id: string | null; motivo: string; valores_anteriores: Record<string, unknown>; valores_nuevos: Record<string, unknown> };
 
 export type PedidoEntregaAdmin = PedidoAdminListado & {
+  contextoEntrega: ContextoEntrega;
   versionPreparacion: number;
   historialPreparacion: RevisionPreparacion[];
   importeOperativoPreparacion: number | null;
@@ -169,6 +172,7 @@ type ItemPedidoEntregaFila = {
   cantidad: number | string;
   modo_cantidad_snapshot: ModoCantidadSnapshot | null;
   total_linea: number | string;
+  precio_final_unitario_snapshot: number | string;
 };
 
 type PreparacionItemFila = {
@@ -433,6 +437,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     versionPreparacion: 0,
     historialPreparacion: [],
     importeOperativoPreparacion: null,
+    contextoEntrega: { disponible: false, observacion: null, salida: null, venta: null },
     items: [],
   }));
   const importesCalculados = new Map<string, string | null>();
@@ -440,6 +445,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
     if (errorMeta) throw errorMeta;
     for (const [id, importe] of Object.entries(meta.importes ?? {})) importesCalculados.set(id, importe === null ? null : String(importe));
+    pedido.contextoEntrega = await obtenerContextoEntrega(pedido.id);
     pedido.versionPreparacion = Number(meta.version);
     pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
     pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
@@ -452,7 +458,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   if (idsPedidos.length > 0) {
     const { data: items, error: errorItems } = await leerPorIds(idsPedidos, (lote, desde, hasta) => supabase
       .from("items_pedido")
-      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot,total_linea")
+      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot,total_linea,precio_final_unitario_snapshot")
       .in("pedido_id", lote)
       .order("fecha_creacion", { ascending: true })
       .order("id", { ascending: true }).range(desde, hasta));
@@ -486,6 +492,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
         cantidadPreparada,
         confirmadoExplicito: preparacion?.confirmado_explicito ?? false,
         importeOriginal: Number(item.total_linea),
+        precioUnitarioHistorico: Number(item.precio_final_unitario_snapshot),
         importeCalculado: importesCalculados.get(item.id),
         importeOperativo: preparacion?.confirmado_explicito && preparacion.importe_linea_operativo !== null ? Number(preparacion.importe_linea_operativo) : null,
         cantidadFaltante: Number(item.cantidad) - (cantidadPreparada ?? Number(item.cantidad)),

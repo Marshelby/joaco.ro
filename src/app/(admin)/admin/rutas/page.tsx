@@ -1,3 +1,5 @@
+import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
+import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -5,7 +7,6 @@ import { notFound } from "next/navigation";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 import { obtenerDetalleEntregaAdmin, obtenerFechaLocalActual, obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha } from "@/lib/admin/pedidos";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
-import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { formatFechaEntregaCorta, formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { PageHeader } from "@/components/shared/page-header";
 import { RutaPreparacionControl } from "./ruta-preparacion-control";
@@ -108,25 +109,8 @@ export default async function AdminRoutesPage({ searchParams }: { searchParams: 
       {ruta.estado === "en_reparto" && <RutaMultipleForm comando={comando("cerrar")} etiqueta="Cerrar esta ruta" disabled={!ruta.pedidos.length || ruta.contadores.pendientes > 0}><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" required />Confirmo el cierre definitivo de esta ruta.</label></RutaMultipleForm>}
 {ruta.estado === "planificacion" && <p className="text-sm text-muted-foreground">Activa la preparación de la ruta antes del despacho.</p>}{ruta.estado === "cerrada" && <p className="text-sm font-semibold">Ruta cerrada · Consulta de paradas e historial</p>}</section> : undefined} ruta={ruta ? <RutaDiaMap key={`${ruta.id}-${ruta.version}`} fecha={fecha} rutaId={ruta.id} versionRuta={ruta.version} cerrada={!editable} paradas={pedidos.map((p, n) => ({ id: p.id, numero: n + 1, cliente: p.nombreClienteSnapshot, ubicacion: p.nombreUbicacionSnapshot, pedido: p.numeroPedido, entregado: p.estado === "entregado", fallida: p.estado === "entrega_fallida", ...(coordenadas.get(p.id) ?? { latitude: null, longitude: null }), detalle: <div className="space-y-3 border-t p-3"><details className="group/productos rounded-lg border bg-muted/20 px-3">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-semibold text-primary"><span><span className="group-open/productos:hidden">Ver productos</span><span className="hidden group-open/productos:inline">Ocultar productos</span> · {p.items.length}</span><span aria-hidden="true" className="transition-transform group-open/productos:rotate-180">⌄</span></summary>
-          <ul className="divide-y border-t">{p.items.map(i => {
-            const formato = (cantidad: number) => formatearCantidadPreparacionEntrega(cantidad, i.nombrePresentacion, i.unidad, i.modoCantidadSnapshot);
-            const enviado = ["en_reparto", "cerrada"].includes(ruta.estado) ? i.cantidadPreparada ?? 0 : 0;
-            const aparienciaEnvio = enviado === 0
-              ? { clase: "bg-red-50 text-red-900 ring-red-200", etiqueta: "Sin envío" }
-              : enviado < i.cantidad
-                ? { clase: "bg-yellow-100 text-yellow-900 ring-yellow-300", etiqueta: "Parcial" }
-                : enviado === i.cantidad
-                  ? { clase: "bg-emerald-50 text-emerald-900 ring-emerald-200", etiqueta: "Completo" }
-                  : { clase: "bg-lime-400 text-green-950 ring-lime-500", etiqueta: "Excedente" };
-            return <li key={i.id} className="space-y-2 py-3 text-sm">
-              <div><p className="break-words font-medium">{i.nombreProducto}</p>{i.nombrePresentacion && <p className="text-xs text-muted-foreground">{i.nombrePresentacion}</p>}</div>
-              <dl className="grid grid-cols-3 gap-2 text-xs tabular-nums">
-                <div className="min-w-0 rounded-md bg-muted/40 p-2"><dt className="text-muted-foreground">Solicitado</dt><dd className="mt-1 break-words font-semibold">{formato(i.cantidad)}</dd></div>
-                <div className="min-w-0 rounded-md bg-muted/40 p-2"><dt className="text-muted-foreground">Preparado</dt><dd className="mt-1 break-words font-semibold">{i.cantidadPreparada === null ? "Sin preparar" : formato(i.cantidadPreparada)}</dd></div>
-                <div className={`min-w-0 rounded-md p-2 ring-1 ring-inset ${aparienciaEnvio.clase}`}><dt className="font-semibold">Enviado</dt><dd className="mt-1 break-words"><span className="block text-sm font-extrabold">{formato(enviado)}</span><span className="mt-1 block text-[10px] font-semibold">{aparienciaEnvio.etiqueta}</span></dd></div>
-              </dl>
-            </li>;
-          })}</ul>
-        </details><div className="flex flex-wrap gap-2"><ActionLink href={`/admin/pedidos/${p.id}/historial`} variant="secondary">Ver historial</ActionLink><EntregaVisualDialog motivoBloqueo={disponibilidad[p.id]} habilitada={ruta.estado === "en_reparto" && disponibilidad[p.id] === null} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} items={p.items} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /><EntregaFallidaDialog habilitada={ruta.estado === "en_reparto" && p.estado === "en_reparto"} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} ubicacion={p.nombreUbicacionSnapshot} productos={p.items.length} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /></div></div> }))} /> : <p className="rounded-xl border bg-card p-4 text-sm">Abre una ruta para visualizar sus paradas y mapa.</p>} />
+          <ul className="divide-y border-t">{p.items.map(i => <DeliveryProductDetail key={i.id} item={i} contexto={p.contextoEntrega} />)}</ul>
+          <DeliveryOrderTotals pedido={p} />
+        </details><DeliveryObservation contexto={p.contextoEntrega} /><div className="flex flex-wrap gap-2"><ActionLink href={`/admin/pedidos/${p.id}`} variant="secondary">Ver pedido</ActionLink><ActionLink href={`/admin/pedidos/${p.id}/historial`} variant="secondary">Ver historial</ActionLink><EntregaVisualDialog motivoBloqueo={disponibilidad[p.id]} habilitada={ruta.estado === "en_reparto" && disponibilidad[p.id] === null} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} items={p.items} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /><EntregaFallidaDialog habilitada={ruta.estado === "en_reparto" && p.estado === "en_reparto"} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} ubicacion={p.nombreUbicacionSnapshot} productos={p.items.length} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /></div></div> }))} /> : <p className="rounded-xl border bg-card p-4 text-sm">Abre una ruta para visualizar sus paradas y mapa.</p>} />
   </div>;
 }

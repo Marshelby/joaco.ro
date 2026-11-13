@@ -1,3 +1,5 @@
+import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
+import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 import { OrderIdentity } from "@/components/admin/order-identity";
 import { CheckCircle2, ChevronDown } from "lucide-react";
@@ -94,6 +96,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           {operativa && !compacta ? <div className="mt-3 space-y-1 text-sm"><p>{pedido.items.filter((item) => item.confirmadoExplicito).length} de {pedido.items.length} productos confirmados</p><progress className="h-2 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={pedido.items.filter((item) => item.confirmadoExplicito).length} /></div> : null}
           {!compacta && pedido.importeOperativoPreparacion !== null ? <p className="mt-3 text-sm">Importe operativo provisional: {pedido.importeOperativoPreparacion !== null && pedido.importeOperativoPreparacion !== pedido.total ? <><s>{formatCLP(pedido.total)}</s>{" → "}</> : null}{formatCLP(pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total)}</p> : null}
           {!compacta && pedido.historialPreparacion.length > 0 ? <details className="mt-3 text-sm"><summary>Historial de preparación ({pedido.historialPreparacion.length})</summary><ol className="space-y-3 pt-3">{pedido.historialPreparacion.map((revision) => <li key={revision.version} className="break-words rounded border p-2"><p>Revisión {revision.version} · {formatDateTimeCL(revision.fecha)} · Responsable: {revision.actorNombre ?? "Responsable sin nombre disponible"}</p><p>Producto: {pedido.items.find((item) => item.id === revision.item_pedido_id)?.nombreProducto ?? "Cierre del pedido"}</p><p>{revision.motivo}</p><p>Anterior: {valoresRevision(revision.valores_anteriores)}</p><p>Nuevo: {valoresRevision(revision.valores_nuevos)}</p></li>)}</ol></details> : null}
+          <DeliveryObservation contexto={pedido.contextoEntrega} />
           <ContenedorProductos className="group/productos mt-4 border-t border-border pt-3">
             {<summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
               <span className="group-open/productos:hidden">Ver productos</span>
@@ -107,10 +110,11 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
                   {pedido.items.map((item) => (pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta ? (
                     <li key={`${item.id}-${pedido.versionPreparacion}`} className="list-none"><ul><ControlProducto item={item} version={pedido.versionPreparacion} /></ul></li>
                   ) : (
-                    rutaMultiple ? <li key={item.id} className="py-3 text-sm"><p className="font-medium">{item.nombreProducto} · {item.nombrePresentacion}</p><p>Solicitado: {item.cantidad} · Preparado: {item.cantidadPreparada ?? "Sin preparar"} · Enviado: {pedido.estado === "en_reparto" || pedido.estado === "entregado" || (pedido.estado === "entrega_fallida" && !pedido.historialPreparacion.some(h => h.valores_nuevos.origen === "sin_stock_pre_despacho")) ? item.cantidadPreparada ?? 0 : 0}</p></li> : <PreparationItemControl key={item.id} item={item} version={pedido.versionPreparacion} soloLectura cantidadEnviada={["en_reparto", "entregado", "entrega_fallida"].includes(pedido.estado) && !sinStockResuelto ? item.cantidadPreparada ?? 0 : 0} />
+                    <DeliveryProductDetail key={item.id} item={item} contexto={pedido.contextoEntrega} />
                   ))}
                 </ul>
               )}
+              <DeliveryOrderTotals pedido={pedido} />
             </div>
           </ContenedorProductos>
         </div>

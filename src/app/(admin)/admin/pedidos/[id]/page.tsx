@@ -19,6 +19,8 @@ import { getGoogleMapsLocationUrl } from "@/lib/maps";
 import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
 import { obtenerIdentidadActual } from "@/lib/account/identity";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
+import { DeliveryObservation } from "@/components/admin/delivery-observation";
+import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = { title: "Detalle de pedido" };
@@ -27,6 +29,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
+  const contextoEntrega = await obtenerContextoEntrega(id);
 
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
@@ -54,6 +57,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       {pedido.estado === "entrega_fallida" ? <UndeliveredOrderActions pedidoId={pedido.id} /> : null}
       {pedido.estado === "cancelado" ? <p className="text-sm text-muted-foreground">Pedido cancelado. Consulta el historial para revisar el motivo y el tratamiento de pagos y créditos; la cancelación no realiza devoluciones automáticas.</p> : null}
 
+      <DeliveryObservation contexto={contextoEntrega} />
       {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} /> : null}
 
       <p className="text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>

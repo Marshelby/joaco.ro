@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { guardarAvancePreparacion } from "@/app/(admin)/admin/rutas/preparacion-actions";
+import { formatCLP } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { resolverModoCantidadPreparacion } from "@/lib/order-preparation";
@@ -74,6 +75,8 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
         <div className="min-w-0 flex-1">
           <p className="break-words font-medium">{item.nombreProducto}</p>
           {item.nombrePresentacion ? <p className="text-xs text-muted-foreground">{item.nombrePresentacion}</p> : null}
+          <p className="text-xs text-muted-foreground">Precio unitario histórico de referencia: {item.precioUnitarioHistorico == null ? "Sin dato" : formatCLP(item.precioUnitarioHistorico)} · {modo === "kg_fraccionable" ? "por KG" : "por unidad / presentación"}</p>
+          <p className="text-xs text-muted-foreground">Subtotal solicitado: {formatCLP(item.importeOriginal)} · Preparación provisional: {item.importeOperativo == null ? "Sin importe confirmado" : formatCLP(item.importeOperativo)}</p>
           <p className="text-xs text-muted-foreground">Solicitado: {formato(item.cantidad)} · Preparado: {item.cantidadPreparada === null ? "Sin preparar" : formato(item.cantidadPreparada)} · Enviado: {formato(cantidadEnviada)}</p>
         </div>
         <div className="space-y-1">

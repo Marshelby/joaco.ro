@@ -8,7 +8,7 @@ export function solicitudValida(s: SolicitudEntregaTodoCorrecto) {
 }
 export function cobroValido(s: SolicitudConCobro) {
   const c = s?.p_cobro;
-  return c && [c.efectivo, c.transferencia, c.efectivo + c.transferencia].every(n => Number.isSafeInteger(n) && n >= 0) &&
+  return (s?.p_observacion === undefined || (typeof s.p_observacion === "string" && s.p_observacion.length <= 2000)) && c && [c.efectivo, c.transferencia, c.efectivo + c.transferencia].every(n => Number.isSafeInteger(n) && n >= 0) &&
     ((c.metodo === "por_pagar" && c.confirmar_por_pagar === true && c.efectivo === 0 && c.transferencia === 0) ||
     (c.confirmar_por_pagar === false && ((c.metodo === "efectivo" && c.efectivo > 0 && c.transferencia === 0) ||
     (c.metodo === "transferencia" && c.transferencia > 0 && c.efectivo === 0) || (c.metodo === "ambos" && c.efectivo > 0 && c.transferencia > 0))));

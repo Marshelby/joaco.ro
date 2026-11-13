@@ -96,7 +96,7 @@ export type CobroEntrega = {
   transferencia: number;
   confirmar_por_pagar: boolean;
 };
-export type SolicitudConCobro = SolicitudEntregaTodoCorrecto & { p_cobro: CobroEntrega };
+export type SolicitudConCobro = SolicitudEntregaTodoCorrecto & { p_cobro: CobroEntrega; p_observacion?: string };
 export type BalanceEntrega = { deuda_pendiente: number; saldo_a_favor_generado: number };
 
 export async function revisarCobroEntrega(s: SolicitudConCobro): Promise<{ balance?: BalanceEntrega; error?: string }> {

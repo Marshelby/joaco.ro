@@ -37,7 +37,7 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
       <PageHeader
         title={`Entregas del ${tituloFecha}`}
         description="Jornada derivada de los pedidos programados para esta fecha."
-        actions={<ActionLink href="/admin/pedidos?filtro=entregas" variant="secondary">Volver a próximas entregas</ActionLink>}
+        actions={<ActionLink href="/admin/pedidos" variant="secondary">Volver a pedidos</ActionLink>}
       />
 
       <p className="text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>

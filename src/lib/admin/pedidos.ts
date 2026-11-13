@@ -34,15 +34,6 @@ export type ItemPedidoAdmin = {
   totalLinea: number;
 };
 
-export type EntregaAgrupadaAdmin = {
-  fecha: string;
-  cantidadPedidos: number;
-  total: number;
-  cantidadClientes: number;
-  resumenProductos: readonly ResumenProductoEntrega[];
-  cantidadPedidosIncompletos: number;
-};
-
 export type ItemPreparacionPedidoAdmin = {
   id: string;
   pedidoId: string;
@@ -348,72 +339,6 @@ export async function obtenerCantidadPedidosRecibidos() {
   return count ?? 0;
 }
 
-export async function obtenerEntregasProximasAdmin(): Promise<EntregaAgrupadaAdmin[]> {
-  const supabase = await crearClienteSupabaseServidor();
-  const { data, error } = await leerCompleto((desde, hasta) => supabase
-    .from("pedidos")
-    .select("id,fecha_entrega,total,total_final,preparacion_estado,cliente_id,estado")
-    .not("fecha_entrega", "is", null)
-    .gte("fecha_entrega", obtenerFechaLocalActual())
-    .neq("estado", "cancelado")
-    .order("fecha_entrega", { ascending: true }).order("id").range(desde, hasta));
-
-  if (error) throw error;
-
-  const pedidos = (data ?? []) as Array<{ id: string; fecha_entrega: string; total: number | string; total_final: number | string | null; preparacion_estado: PreparacionEstado | null; cliente_id: string | null; estado: EstadoPedidoAdmin }>;
-  const entregas = new Map<string, EntregaAgrupadaAdmin>();
-  const fechaPorPedido = new Map<string, string>();
-  for (const pedido of pedidos) {
-    if (!esEstadoIncluidoEnEntrega(pedido.estado)) continue;
-    const existente = entregas.get(pedido.fecha_entrega) ?? {
-      fecha: pedido.fecha_entrega,
-      cantidadPedidos: 0,
-      total: 0,
-      cantidadClientes: 0,
-      resumenProductos: [],
-      cantidadPedidosIncompletos: 0,
-    };
-    existente.cantidadPedidos += 1;
-    existente.total += Number(pedido.total_final ?? pedido.total);
-    if (pedido.preparacion_estado === "incompleta") existente.cantidadPedidosIncompletos += 1;
-    entregas.set(pedido.fecha_entrega, existente);
-    fechaPorPedido.set(pedido.id, pedido.fecha_entrega);
-  }
-
-  const clientesPorFecha = new Map<string, Set<string>>();
-  for (const pedido of pedidos) {
-    if (!esEstadoIncluidoEnEntrega(pedido.estado)) continue;
-    if (!pedido.cliente_id) continue;
-    const clientes = clientesPorFecha.get(pedido.fecha_entrega) ?? new Set<string>();
-    clientes.add(pedido.cliente_id);
-    clientesPorFecha.set(pedido.fecha_entrega, clientes);
-  }
-
-  const itemsPorFecha = new Map<string, ItemPedidoEntregaFila[]>();
-  const idsPedidos = [...fechaPorPedido.keys()];
-  if (idsPedidos.length > 0) {
-    const { data: items, error: errorItems } = await leerPorIds(idsPedidos, (lote, desde, hasta) => supabase
-      .from("items_pedido")
-      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad")
-      .in("pedido_id", lote).order("id").range(desde, hasta));
-    if (errorItems) throw errorItems;
-
-    for (const item of (items ?? []) as ItemPedidoEntregaFila[]) {
-      const fecha = fechaPorPedido.get(item.pedido_id);
-      if (!fecha) continue;
-      const itemsEntrega = itemsPorFecha.get(fecha) ?? [];
-      itemsEntrega.push(item);
-      itemsPorFecha.set(fecha, itemsEntrega);
-    }
-  }
-
-  return [...entregas.values()].map((entrega) => ({
-    ...entrega,
-    cantidadClientes: clientesPorFecha.get(entrega.fecha)?.size ?? 0,
-    resumenProductos: consolidarItemsEntrega(itemsPorFecha.get(entrega.fecha) ?? []),
-  }));
-}
-
 export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<DetalleEntregaAdmin> {
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await leerCompleto((desde, hasta) => supabase
@@ -533,9 +458,10 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   if (error) throw error;
   if (!data) return null;
 
-  const { data: items } = await leerCompleto((desde, hasta) => supabase.from("items_pedido")
+  const { data: items, error: errorItems } = await leerCompleto((desde, hasta) => supabase.from("items_pedido")
     .select("id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen)")
     .eq("pedido_id", id).order("id").range(desde, hasta));
+  if (errorItems) throw errorItems;
   const fila = { ...data, items_pedido: items } as unknown as PedidoDetalleFila;
   const [ubicaciones, historialPrecios] = await Promise.all([
     obtenerUbicacionesSnapshot(supabase, [fila.id]),

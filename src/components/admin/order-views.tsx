@@ -1,10 +1,9 @@
 import { ActionLink } from "@/components/ui/action-link";
 
-export function OrderViews({ vista }: { vista: "recibidos" | "todos" | "entregas" | "posibles" | "no-entregados" }) {
+export function OrderViews({ vista }: { vista: "recibidos" | "todos" | "posibles" | "no-entregados" }) {
   return <nav aria-label="Filtro de pedidos" className="flex flex-wrap gap-2">
     {([
       ["recibidos", "/admin/pedidos", "Recibidos"],
-      ["entregas", "/admin/pedidos?filtro=entregas", "Próximas entregas"],
       ["no-entregados", "/admin/pedidos?filtro=no-entregados", "No entregados"],
       ["todos", "/admin/pedidos?filtro=todos", "Todos"],
       ["posibles", "/admin/pedidos?filtro=posibles", "Posibles pedidos"],

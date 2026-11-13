@@ -3,16 +3,14 @@ import { OrderIdentity } from "@/components/admin/order-identity";
 import { OrderViews } from "@/components/admin/order-views";
 import { PossibleOrdersList } from "@/components/admin/possible-orders-list";
 import type { Metadata } from "next";
-import { ChevronDown } from "lucide-react";
 
-import { DeliveryProductsSummary } from "@/components/admin/delivery-products-summary";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
-import { obtenerEtiquetaCanalPedido, obtenerCantidadPedidosRecibidos, obtenerEntregasProximasAdmin, obtenerPedidosAdmin } from "@/lib/admin/pedidos";
+import { obtenerEtiquetaCanalPedido, obtenerCantidadPedidosRecibidos, obtenerPedidosAdmin } from "@/lib/admin/pedidos";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 export const metadata: Metadata = { title: "Pedidos" };
@@ -30,12 +28,11 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     <OrderViews vista="posibles" />
     <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
   </div>;
-  const vista = filtro === "todos" || filtro === "entregas" ? filtro : "recibidos";
+  const vista = filtro === "todos" ? "todos" : "recibidos";
   const soloRecibidos = vista === "recibidos";
-  const [pedidos, cantidadRecibidos, entregas] = await Promise.all([
-    vista === "entregas" ? Promise.resolve([]) : obtenerPedidosAdmin(soloRecibidos),
+  const [pedidos, cantidadRecibidos] = await Promise.all([
+    obtenerPedidosAdmin(soloRecibidos),
     soloRecibidos ? obtenerCantidadPedidosRecibidos() : Promise.resolve(0),
-    vista === "entregas" ? obtenerEntregasProximasAdmin() : Promise.resolve([]),
   ]);
 
   return (
@@ -44,42 +41,12 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       <section className="space-y-5" aria-labelledby="lista-pedidos-title">
         <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="lista-pedidos-title" className="text-2xl font-semibold tracking-tight text-foreground">{vista === "entregas" ? "Próximas entregas" : soloRecibidos ? `Pedidos recibidos (${cantidadRecibidos})` : "Todos los pedidos"}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{vista === "entregas" ? `${entregas.length} ${entregas.length === 1 ? "jornada" : "jornadas"} programadas` : `${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"} visibles`}</p>
+            <h2 id="lista-pedidos-title" className="text-2xl font-semibold tracking-tight text-foreground">{soloRecibidos ? `Pedidos recibidos (${cantidadRecibidos})` : "Todos los pedidos"}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{`${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"} visibles`}</p>
           </div>
           <OrderViews vista={vista} />
         </div>
-        {vista === "entregas" ? entregas.length > 0 ? (
-          <ul className="grid gap-3 sm:grid-cols-2" aria-label="Próximas jornadas de entrega">
-            {entregas.map((entrega) => (
-              <li key={entrega.fecha} className="rounded-xl border border-border bg-card p-4 sm:p-5">
-                <h3 className="font-semibold tracking-tight text-foreground">{formatFechaEntregaLarga(entrega.fecha)}</h3>
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div><dt className="text-muted-foreground">Pedidos</dt><dd className="mt-1 font-semibold text-foreground">{entrega.cantidadPedidos}</dd></div>
-                  <div><dt className="text-muted-foreground">Total estimado</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(entrega.total)}</dd></div>
-                  {entrega.cantidadClientes > 0 ? <div><dt className="text-muted-foreground">Clientes</dt><dd className="mt-1 font-medium text-foreground">{entrega.cantidadClientes}</dd></div> : null}
-                  {entrega.cantidadPedidosIncompletos > 0 ? <div><dt className="text-muted-foreground">Preparación</dt><dd className="mt-1 font-medium text-destructive">{entrega.cantidadPedidosIncompletos} {entrega.cantidadPedidosIncompletos === 1 ? "pedido incompleto" : "pedidos incompletos"}</dd></div> : null}
-                </dl>
-                <details className="group mt-4 border-t border-border pt-3">
-                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-                    <span className="group-open:hidden">Ver productos necesarios</span>
-                    <span className="hidden group-open:inline">Ocultar productos necesarios</span>
-                    <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
-                  </summary>
-                  <div className="mt-2 min-w-0">
-                    <p className="text-xs text-muted-foreground">
-                      {entrega.resumenProductos.length} {entrega.resumenProductos.length === 1 ? "línea de preparación" : "líneas de preparación"}
-                    </p>
-                    <div className="mt-1">
-                      <DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" />
-                    </div>
-                  </div>
-                </details>
-                <ActionLink href={ROUTES.adminDeliveryDay(entrega.fecha)} variant="quiet" className="mt-2 -ml-3">Ver jornada</ActionLink>
-              </li>
-            ))}
-          </ul>
-        ) : <EmptyState title="No hay próximas entregas" description="Los pedidos con fecha de entrega programada aparecerán aquí." /> : pedidos.length > 0 ? (
+        {pedidos.length > 0 ? (
           <ul className="space-y-3" aria-label="Pedidos">
             {pedidos.map((pedido) => (
               <li key={pedido.id} className="rounded-xl border border-border bg-card p-4 sm:p-5">
@@ -90,7 +57,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                   </div>
                   <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
                   <div><span className="text-sm text-muted-foreground sm:sr-only">Estado</span><div className="mt-1 sm:mt-0"><OrderStatusBadge estado={pedido.estado} /></div></div>
-                  <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
+                  <ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
                 </div>
               </li>
             ))}

@@ -20,12 +20,13 @@ import { obtenerIdentidadActual } from "@/lib/account/identity";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
+import { obtenerResumenContablePedido } from "@/lib/admin/pedido-contabilidad";
 import { ExternalLink } from "lucide-react";
 
 export async function AdminOrderDetail({ id, modal = false }: { id: string; modal?: boolean }) {
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
-  const contextoEntrega = await obtenerContextoEntrega(id);
+  const [contextoEntrega, contabilidad] = await Promise.all([obtenerContextoEntrega(id), obtenerResumenContablePedido(id)]);
 
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
@@ -45,7 +46,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
         {!modal ? <ActionLink href={ROUTES.adminOrders} variant="secondary" className="shrink-0">Volver a pedidos</ActionLink> : null}
       </header>
       <div className="flex flex-wrap items-start gap-2">
-        <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
+        {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
         {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}
@@ -54,6 +55,23 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       {pedido.estado === "entrega_fallida" ? <UndeliveredOrderActions pedidoId={pedido.id} /> : null}
       {pedido.estado === "cancelado" ? <p className="text-sm text-muted-foreground">Pedido cancelado. Consulta el historial para revisar el motivo y el tratamiento de pagos y créditos; la cancelación no realiza devoluciones automáticas.</p> : null}
 
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="resumen-contable-title">
+        <h2 id="resumen-contable-title" className="text-sm font-semibold">Resumen contable de la entrega</h2>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt className="text-muted-foreground">Repartidor que confirmó la entrega</dt><dd>{contabilidad?.repartidor ? <>{contabilidad.repartidor.nombre}<span className="block break-all text-xs text-muted-foreground">ID: {contabilidad.repartidor.id}</span></> : "No registrado"}</dd></div>
+          <div><dt className="text-muted-foreground">Importe definitivo vigente</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : "No registrado"}</dd></div>
+          <div><dt className="text-muted-foreground">Cobros confirmados registrados en la entrega</dt><dd>{contabilidad?.cobros_entrega == null ? "No registrado" : contabilidad.cobros_entrega.length ? contabilidad.cobros_entrega.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin cobros confirmados"}</dd></div>
+          <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd>{contabilidad?.cobros_entrega != null ? formatCLP(contabilidad.cobros_entrega.reduce((total, c) => total + c.monto, 0)) : "No registrado"}</dd></div>
+          <div><dt className="text-muted-foreground">Pagos confirmados aplicados a este pedido</dt><dd>{contabilidad ? contabilidad.aplicaciones.length ? contabilidad.aplicaciones.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin aplicaciones confirmadas" : "No disponible"}</dd></div>
+          <div><dt className="text-muted-foreground">Total aplicado al pedido</dt><dd>{contabilidad?.total_aplicado != null ? formatCLP(contabilidad.total_aplicado) : "No disponible"}</dd></div>
+          <div><dt className="text-muted-foreground">Saldo pendiente de este pedido</dt><dd>{contabilidad?.saldo_pedido != null ? formatCLP(Math.max(0, contabilidad.saldo_pedido)) : "No disponible"}</dd></div>
+          {contabilidad?.saldo_pedido != null && contabilidad.saldo_pedido < 0 ? <div><dt>Saldo a favor en este pedido</dt><dd>{formatCLP(-contabilidad.saldo_pedido)}</dd></div> : null}
+          {(contabilidad?.saldo_favor_origen_entrega ?? 0) > 0 ? <div><dt>Crédito aún disponible de los pagos de esta entrega</dt><dd>{formatCLP(contabilidad!.saldo_favor_origen_entrega!)}</dd></div> : null}
+        </dl>
+        <p className="mt-3 text-xs text-muted-foreground">Los cobros de entrega pueden generar crédito. Las aplicaciones incluyen pagos anteriores o posteriores y sólo su parte atribuida a este pedido. El saldo mostrado no es la deuda acumulada del cliente.</p>
+        {contabilidad?.regimen === "legado" ? <p className="mt-2 text-sm text-muted-foreground">Pedido histórico: el saldo sigue el régimen contable legado; no se reconstruye una venta definitiva sin snapshot.</p> : null}
+        {!contabilidad ? <p className="mt-2 text-sm text-muted-foreground">Resumen no disponible: requiere instalar el SQL manual de resumen contable.</p> : null}
+      </section>
       <DeliveryObservation contexto={contextoEntrega} />
       {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} /> : null}
 
@@ -120,6 +138,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
 
       </div>
       <section className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="historial-precios-title">
+        <a href={`/admin/pedidos/${pedido.id}/historial`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">Ver historial de auditoría del pedido</a>
         <h2 id="historial-precios-title" className="text-sm font-semibold tracking-tight text-foreground">Historial de ajustes de precios administrativos</h2>
         <p className="mt-2 text-sm text-muted-foreground">Ajustes registrados al crear el pedido administrativo.</p>
         {pedido.historialPrecios === null ? <p className="mt-3 text-sm text-muted-foreground">El historial de ajustes administrativos todavía no está disponible en este entorno.</p> : pedido.historialPrecios.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Sin ajustes de precios administrativos registrados para este pedido. Los pedidos históricos, web o convertidos pueden no tener registros en esta auditoría.</p> : (

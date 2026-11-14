@@ -1,3 +1,4 @@
+import { JornadaControles } from "@/components/admin/jornada-controles";
 import { ROUTES } from "@/config/routes";
 import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
 import { RutasContabilidadPedido, RutasContabilidadJornada } from "@/components/admin/rutas-contabilidad";
@@ -95,13 +96,12 @@ export default async function AdminRoutesPage({ searchParams }: {
         ["Listos / en reparto", `${listos} / ${enRuta}`],
       ].map(([titulo, valor]) => <div key={titulo} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{titulo}</p><p className="mt-1 break-words text-xl font-semibold">{valor}</p></div>)}
     </section>
-    <RutasContabilidadJornada datos={contabilidad} ids={entrega.pedidos.map(p => p.id)} />
+    <JornadaControles key={fecha} productos={<DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" />} contabilidad={<RutasContabilidadJornada datos={contabilidad} pedidos={entrega.pedidos} />} />
     {entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <>
       <section aria-label="Pedidos de la fecha" className="space-y-3">
         <h2 className="text-lg font-semibold">Preparación de pedidos</h2>
         <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} resumenContable={<RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} />} operativa rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
       </section>
-      <details className="rounded-xl border bg-card p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Productos solicitados de la jornada</summary><DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" /></details>
     </>}
     {carga.estado === "preparacion" && <RutaPreparacionControl key={`${fecha}-${carga.version}-${entrega.pedidos.map(p => p.versionPreparacion).join("-")}`} fecha={fecha} ruta={{ id: "", nombre: "Ruta de la jornada", version: carga.version, pedidos: entrega.pedidos.filter(p => !["cancelado", "entrega_fallida", "entregado", "en_reparto"].includes(p.estado)).map(p => p.id) }} pedidos={entrega.pedidos.filter(p => !["cancelado", "entrega_fallida", "entregado", "en_reparto"].includes(p.estado))} habilitada={permiso.permitida} />}
     </>} salida={<section className="space-y-3 rounded-xl border bg-card p-4"><h3 className="font-semibold">Despacho efectivo</h3><JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} /></section>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">

@@ -1,3 +1,7 @@
+import { AdminCustomerDetail } from "@/components/admin/customer-detail";
+import { AdminOrderDetail } from "@/components/admin/order-detail";
+import { OrderDetailModal } from "@/components/admin/order-detail-modal";
+import { RutasDetailLink, RutasDetailProvider } from "@/components/admin/rutas-detail-link";
 import { JornadaControles } from "@/components/admin/jornada-controles";
 import { ROUTES } from "@/config/routes";
 import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
@@ -27,7 +31,7 @@ import LegacyRoutesPage from "./legacy-routes";
 import type { RutasMultiples, SolicitudRutaMultiple } from "./multiple-types";
 
 export const metadata: Metadata = { title: "Rutas" };
-async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fecha?: string | string[]; ruta?: string | string[] }> }) {
+async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fecha?: string | string[]; ruta?: string | string[]; pedido?: string | string[]; cliente?: string | string[] }> }) {
   const params = await searchParams;
   const hoy = obtenerFechaLocalActual();
   const fecha = params.fecha ?? hoy;
@@ -116,12 +120,21 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-semibold text-primary"><span><span className="group-open/productos:hidden">Ver productos</span><span className="hidden group-open/productos:inline">Ocultar productos</span> · {p.items.length}</span><span aria-hidden="true" className="transition-transform group-open/productos:rotate-180">⌄</span></summary>
           <ul className="divide-y border-t">{p.items.map(i => <DeliveryProductDetail key={i.id} item={i} contexto={p.contextoEntrega} />)}</ul>
           <DeliveryOrderTotals pedido={p} />
-        </details><RutasContabilidadPedido resumen={contabilidad?.[p.id]} /><DeliveryObservation contexto={p.contextoEntrega} /><div className="flex flex-wrap gap-2"><ActionLink href={`/admin/pedidos/${p.id}`} variant="secondary">Ver pedido</ActionLink>{p.clienteId ? <ActionLink href={ROUTES.adminCustomer(p.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}<EntregaVisualDialog motivoBloqueo={disponibilidad[p.id]} habilitada={ruta.estado === "en_reparto" && disponibilidad[p.id] === null} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} items={p.items} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /><EntregaFallidaDialog habilitada={ruta.estado === "en_reparto" && p.estado === "en_reparto"} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} ubicacion={p.nombreUbicacionSnapshot} productos={p.items.length} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /></div></div> }))} /> : <p className="rounded-xl border bg-card p-4 text-sm">Abre una ruta para visualizar sus paradas y mapa.</p>} />
+        </details><RutasContabilidadPedido resumen={contabilidad?.[p.id]} /><DeliveryObservation contexto={p.contextoEntrega} /><div className="flex flex-wrap gap-2"><RutasDetailLink tipo="pedido" id={p.id}>Ver pedido</RutasDetailLink>{p.clienteId ? <RutasDetailLink tipo="cliente" id={p.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}<EntregaVisualDialog motivoBloqueo={disponibilidad[p.id]} habilitada={ruta.estado === "en_reparto" && disponibilidad[p.id] === null} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} items={p.items} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /><EntregaFallidaDialog habilitada={ruta.estado === "en_reparto" && p.estado === "en_reparto"} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} ubicacion={p.nombreUbicacionSnapshot} productos={p.items.length} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /></div></div> }))} /> : <p className="rounded-xl border bg-card p-4 text-sm">Abre una ruta para visualizar sus paradas y mapa.</p>} />
   </div>;
 }
 
 export default async function AdminRoutesPage(props: Parameters<typeof AdminRoutesContent>[0]) {
   const params = await props.searchParams;
   const contenido = await AdminRoutesContent(props);
-  return <RutasNavigation fecha={typeof params.fecha === "string" ? params.fecha : obtenerFechaLocalActual()} ruta={typeof params.ruta === "string" ? params.ruta : ""}>{contenido}</RutasNavigation>;
+  const fecha = typeof params.fecha === "string" ? params.fecha : obtenerFechaLocalActual();
+  const ruta = typeof params.ruta === "string" ? params.ruta : "";
+  const query = new URLSearchParams({ fecha });
+  if (ruta) query.set("ruta", ruta);
+  const baseHref = `/admin/rutas?${query}`;
+  if ((params.pedido !== undefined && typeof params.pedido !== "string") || (params.cliente !== undefined && typeof params.cliente !== "string") || (params.pedido !== undefined && params.cliente !== undefined)) notFound();
+  const tipo = params.pedido !== undefined ? "pedido" : "cliente";
+  const id = params.pedido ?? params.cliente;
+  if (id !== undefined && (typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) notFound();
+  return <RutasDetailProvider baseHref={baseHref} modalAbierto={typeof id === "string"}><RutasNavigation fecha={fecha} ruta={ruta}>{contenido}</RutasNavigation>{typeof id === "string" ? <OrderDetailModal key={`${tipo}:${id}`} title={tipo === "pedido" ? "Detalle de pedido" : "Ficha de cliente"} closeHref={baseHref} pageHref={tipo === "pedido" ? ROUTES.adminOrder(id) : ROUTES.adminCustomer(id)}>{tipo === "pedido" ? <AdminOrderDetail id={id} modal /> : <AdminCustomerDetail id={id} />}</OrderDetailModal> : null}</RutasDetailProvider>;
 }

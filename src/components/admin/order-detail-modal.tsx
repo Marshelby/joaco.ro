@@ -5,16 +5,17 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, type ReactNode } from "react";
 
-export function OrderDetailModal({ children }: { children: ReactNode }) {
+export function OrderDetailModal({ children, title = "Detalle de pedido", closeHref, pageHref }: { children: ReactNode; title?: string; closeHref?: string; pageHref?: string }) {
   const router = useRouter();
   const closing = useRef(false);
 
   function close() {
     if (closing.current) return;
     closing.current = true;
-    // Interception only happens after soft navigation: the previous entry is the
-    // mounted list, including its query parameters and browser scroll position.
-    router.back();
+    // Rutas proporciona un destino seguro incluso al abrir un enlace compartido.
+    // El modal interceptado de Pedidos conserva su cierre mediante historial.
+    if (closeHref) router.replace(closeHref, { scroll: false });
+    else router.back();
   }
 
   return <Dialog.Root open onOpenChange={(open) => { if (!open) close(); }}>
@@ -23,8 +24,9 @@ export function OrderDetailModal({ children }: { children: ReactNode }) {
       <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5">
         <Dialog.Popup className="flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl outline-none sm:max-h-[calc(100dvh-2.5rem)]">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2 sm:px-5">
-            <Dialog.Title className="text-sm font-semibold text-foreground">Detalle de pedido</Dialog.Title>
-            <Dialog.Close type="button" aria-label="Cerrar detalle de pedido" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <Dialog.Title className="text-sm font-semibold text-foreground">{title}</Dialog.Title>
+            {pageHref ? <a href={pageHref} className="ml-auto text-sm font-semibold text-primary underline underline-offset-4">Abrir página original</a> : null}
+            <Dialog.Close type="button" aria-label={`Cerrar ${title.toLowerCase()}`} className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
               <X className="size-5" aria-hidden="true" />
             </Dialog.Close>
           </div>

@@ -19,6 +19,7 @@ import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
 import { obtenerIdentidadActual } from "@/lib/account/identity";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
+import { obtenerHistorialPedido } from "@/lib/admin/pedido-historial";
 import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerResumenContablePedido } from "@/lib/admin/pedido-contabilidad";
 import { ExternalLink } from "lucide-react";
@@ -26,7 +27,7 @@ import { ExternalLink } from "lucide-react";
 export async function AdminOrderDetail({ id, modal = false }: { id: string; modal?: boolean }) {
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
-  const [contextoEntrega, contabilidad] = await Promise.all([obtenerContextoEntrega(id), obtenerResumenContablePedido(id)]);
+  const [contextoEntrega, contabilidad, historial] = await Promise.all([obtenerContextoEntrega(id), obtenerResumenContablePedido(id), obtenerHistorialPedido(id)]);
 
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
@@ -48,7 +49,8 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       <div className="flex flex-wrap items-start gap-2">
         {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
-        {["confirmado", "preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
+        {pedido.estado === "confirmado" ? pedido.fechaEntrega ? <ActionLink href={`/admin/rutas?fecha=${pedido.fechaEntrega}`}>Ir a ruta</ActionLink> : <span className="text-sm text-muted-foreground">Sin fecha de entrega para ir a ruta</span> : null}
+        {["preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}
       </div>
 
@@ -138,7 +140,8 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
 
       </div>
       <section className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="historial-precios-title">
-        <a href={`/admin/pedidos/${pedido.id}/historial`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">Ver historial de auditoría del pedido</a>
+        {historial?.eventos.length ? <a href={`/admin/pedidos/${pedido.id}/historial`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">Ver historial de auditoría del pedido</a> : <p className="inline-flex min-h-11 items-center text-sm text-muted-foreground">Sin registros de auditoría</p>}
+        {historial?.avisos.length ? <p className="mb-2 text-sm text-muted-foreground">Algunas fuentes de auditoría no están disponibles.</p> : null}
         <h2 id="historial-precios-title" className="text-sm font-semibold tracking-tight text-foreground">Historial de ajustes de precios administrativos</h2>
         <p className="mt-2 text-sm text-muted-foreground">Ajustes registrados al crear el pedido administrativo.</p>
         {pedido.historialPrecios === null ? <p className="mt-3 text-sm text-muted-foreground">El historial de ajustes administrativos todavía no está disponible en este entorno.</p> : pedido.historialPrecios.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Sin ajustes de precios administrativos registrados para este pedido. Los pedidos históricos, web o convertidos pueden no tener registros en esta auditoría.</p> : (

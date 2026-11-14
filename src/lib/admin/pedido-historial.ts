@@ -46,13 +46,23 @@ export async function obtenerHistorialPedido(id: string) {
   if (error) throw error;
   if (!pedido) return null;
 
+  const avisos: string[] = [];
+  function fuenteNoDisponible(fuente: string, error: unknown) {
+    // Conservar el diagnóstico en servidor sin exponer datos técnicos al usuario.
+    console.error("[historial-pedido] Error de lectura", { pedidoId: id, fuente, error });
+    avisos.push(`No se pudo consultar ${fuente}. El historial mostrado es parcial.`);
+  }
+
   // Paginación estable: no truncar historiales al límite del API.
   async function leer(tabla: string, columnas: string, campo: string, valor: string, orden = "id"): Promise<Registro[]> {
     const filas: Registro[] = [];
     for (;;) {
       const { data, error } = await supabase.from(tabla).select(columnas).eq(campo, valor)
         .order(orden).range(filas.length, filas.length + 199);
-      if (error) throw error;
+      if (error) {
+        fuenteNoDisponible(tabla, error);
+        return filas;
+      }
       if (!data?.length) return filas;
       filas.push(...data.map(registro));
     }
@@ -64,18 +74,22 @@ export async function obtenerHistorialPedido(id: string) {
     leer("paradas_ruta", "id,ruta_id,posicion,estado_logistico,hora_inicio,hora_entrega,fecha_creacion", "pedido_id", id),
     supabase.rpc("leer_preparacion_explicita", { p_pedido_id: id }),
   ]);
-  if (preparacion.error) throw preparacion.error;
+  if (preparacion.error) fuenteNoDisponible("el historial de preparación", preparacion.error);
   const eventos: EventoPedido[] = [];
   function agregar(clave: string, fecha: unknown, tipo: string, actor: unknown, detalles: string[], provisional = false) {
-    if (typeof fecha !== "string") return;
+    if (typeof fecha !== "string" || !Number.isFinite(Date.parse(fecha))) return;
     eventos.push({ id: clave, fecha, tipo, actor: typeof actor === "string" ? actor : undefined, detalles, provisional });
   }
-  const contextoEntrega = await obtenerContextoEntrega(id);
+  const contextoEntrega = await obtenerContextoEntrega(id).catch((error: unknown) => {
+    fuenteNoDisponible("las observaciones de entrega", error);
+    return { disponible: false, observacion: null };
+  });
   if (contextoEntrega.observacion) {
     const o = contextoEntrega.observacion;
     agregar("observacion-entrega", o.fecha, "Observaciones de entrega", o.actor_id, [o.texto]);
   }
-  agregar("creacion", pedido.fecha_creacion, "Creación del pedido", null, []);
+  // La existencia del pedido no sustituye a un registro de auditoría.
+  // Su creación se acredita por el historial de estados cuando está conservado.
   for (const e of estados) agregar(`estado-${e.id}`, e.fecha_creacion, "Cambio de estado", e.cambiado_por,
     [...(e.estado_anterior == null ? [] : [`Estado anterior: ${texto(e.estado_anterior)}`]), `Estado nuevo: ${texto(e.estado_nuevo)}`, ...(e.observacion ? [String(e.observacion)] : [])]);
   const nombreItem = (itemId: unknown) => {
@@ -129,12 +143,9 @@ export async function obtenerHistorialPedido(id: string) {
       ...lista(venta.productos).map((p) => `${texto(p.nombre_producto)}${p.nombre_presentacion ? ` · ${p.nombre_presentacion}` : ""} · Unidad: ${texto(p.unidad)} · Pedido: ${texto(p.cantidad_pedida)} · Preparado: ${texto(p.cantidad_preparada)} · Entregado: ${texto(p.cantidad_entregada)} · Importe definitivo: ${dinero(p.importe_definitivo)}`)]);
 
   // Lectura Fase 3: evidencia privada expuesta únicamente por RPC administrativa.
-  const avisos: string[] = [];
   const { data: evidencia, error: errorEvidencia } = await supabase.rpc("leer_intentos_pedido_admin", { p_pedido_id: id });
   if (errorEvidencia) {
-    avisos.push(errorEvidencia.code === "PGRST202"
-      ? "Los intentos fallidos y cierres requieren instalar el SQL manual de Fase 3. El historial mostrado es parcial."
-      : "No se pudo consultar la evidencia de intentos y cierres. El historial mostrado es parcial.");
+    fuenteNoDisponible("la evidencia de intentos y cierres", errorEvidencia);
   } else {
     for (const intento of lista(registro(evidencia).intentos)) {
       agregar(`intento-fallido-${intento.id}`, intento.fecha, "Intento fallido · No entregado", intento.actor,
@@ -153,7 +164,7 @@ export async function obtenerHistorialPedido(id: string) {
 
   const { data: resolucion, error: errorResolucion } = await supabase.rpc("leer_resolucion_no_entregado_admin", { p_pedido_id: id });
   if (errorResolucion) {
-    avisos.push("No se pudieron consultar las resoluciones administrativas. Requiere SQL manual de Fase 4; el historial mostrado es parcial.");
+    fuenteNoDisponible("las resoluciones administrativas", errorResolucion);
   } else {
     for (const r of lista(registro(resolucion).resoluciones)) {
       agregar(`resolucion-${r.id}`, r.fecha, r.operacion === "cancelar_no_entregado" ? "Cancelación administrativa de no entregado" : "Reprogramación administrativa de no entregado", r.actor,
@@ -170,7 +181,10 @@ export async function obtenerHistorialPedido(id: string) {
   const fechas = [...new Set([pedido.fecha_entrega, ...rutas.flat().map((r) => r.fecha_operativa)].filter((f): f is string => typeof f === "string"))];
   for (const fecha of fechas) {
     const { data, error } = await supabase.rpc("leer_carga_jornada", { p_fecha: fecha });
-    if (error) throw error;
+    if (error) {
+      fuenteNoDisponible(`la carga de la jornada ${fecha}`, error);
+      continue;
+    }
     for (const h of lista(registro(data).historial)) {
       const anterior = registro(h.anterior), nuevo = registro(h.resultado), solicitud = registro(h.solicitud);
       const antes = lista(anterior.pedidos).find((p) => p.id === id);
@@ -181,8 +195,8 @@ export async function obtenerHistorialPedido(id: string) {
         [`Jornada: ${fecha}`, ...cambios({ estado: anterior.estado }, { estado: nuevo.estado }), ...cambios(antes ?? {}, despues ?? {}), ...(solicitud.motivo ? [`Motivo: ${solicitud.motivo}`] : [])], solicitud.accion === "guardar" || solicitud.accion === "reabrir");
     }
   }
-  if (!contextoEntrega.disponible) avisos.push("Observaciones de entrega no disponibles: falta instalar el SQL manual.");
+  if (!contextoEntrega.disponible) avisos.push("Observaciones de entrega no disponibles; el historial mostrado es parcial.");
   const nombreResponsable = await obtenerNombresResponsables(eventos.map(e => e.actor));
   for (const evento of eventos) evento.actor = nombreResponsable(evento.actor);
-  return { numeroPedido: String(pedido.numero_pedido), avisos, eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };
+  return { numeroPedido: String(pedido.numero_pedido), avisos: [...new Set(avisos)], eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };
 }

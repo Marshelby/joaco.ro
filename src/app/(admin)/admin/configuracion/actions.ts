@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type EstadoDiaEntrega = { error?: string; exito?: string; diagnostico?: string };
+export type ResultadoDiaEntrega = EstadoDiaEntrega & { activo?: boolean };
 
 // Los detalles de Postgres pueden contener filas completas. Nunca devolverlos al navegador.
 function errorHoraCorte(error: { code?: string; message: string; hint?: string }, etapa: string): EstadoDiaEntrega {
@@ -49,8 +50,9 @@ function texto(datos: FormData, campo: string) {
 export async function guardarDiaEntregaAdministrativo(
   _: EstadoDiaEntrega,
   datos: FormData,
-): Promise<EstadoDiaEntrega> {
+): Promise<ResultadoDiaEntrega> {
   const diaSemana = Number(texto(datos, "diaSemana"));
+  const activo = datos.get("activo") === "on";
 
   if (!Number.isInteger(diaSemana) || diaSemana < 1 || diaSemana > 7) {
     return { error: mensajesRpc.DIA_SEMANA_INVALIDO };
@@ -62,14 +64,14 @@ export async function guardarDiaEntregaAdministrativo(
 
   const { error } = await supabase.rpc("guardar_dia_entrega_administrativo", {
     p_dia_semana: diaSemana,
-    p_activo: datos.get("activo") === "on",
+    p_activo: activo,
     p_hora_corte: null,
     p_dias_anticipacion_corte: 0,
   });
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar este día de entrega." };
 
   revalidatePath("/admin/configuracion");
-  return { exito: "Día de entrega actualizado." };
+  return { exito: "Día de entrega actualizado.", activo };
 }
 
 export async function guardarHoraCorteAdministrativa(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState, type FormEvent } from "react";
 
 import { guardarDiaEntregaAdministrativo, guardarHoraCorteAdministrativa, type EstadoDiaEntrega } from "@/app/(admin)/admin/configuracion/actions";
 import { PendingButton } from "@/components/ui/pending-button";
@@ -11,12 +11,40 @@ const estadoInicial: EstadoDiaEntrega = {};
 
 function DeliveryDayRow({ dia }: { dia: DiaEntregaAdministrativo }) {
   const [activo, setActivo] = useState(dia.activo);
-  const [estado, accion, pendiente] = useActionState(guardarDiaEntregaAdministrativo, estadoInicial);
+  const confirmado = useRef(dia.activo);
+  const guardando = useRef(false);
+  const [estado, setEstado] = useState<EstadoDiaEntrega>(estadoInicial);
+  const [pendiente, setPendiente] = useState(false);
   const diaSemana = esDiaSemanaEntrega(dia.diaSemana) ? dia.diaSemana : 1;
   const nombre = nombreDiaSemana(diaSemana);
 
+  async function guardar(event: FormEvent<HTMLFormElement>) {
+    // El envío explícito evita el reset automático de las acciones de formulario.
+    event.preventDefault();
+    if (guardando.current) return;
+    const datos = new FormData(event.currentTarget);
+    guardando.current = true;
+    setPendiente(true);
+    setEstado(estadoInicial);
+    try {
+      const resultado = await guardarDiaEntregaAdministrativo(estadoInicial, datos);
+      if (!resultado.error && typeof resultado.activo === "boolean") {
+        confirmado.current = resultado.activo;
+        setEstado(resultado);
+      } else {
+        setEstado({ error: resultado.error ?? "No fue posible guardar este día de entrega." });
+      }
+    } catch {
+      setEstado({ error: "No fue posible guardar este día de entrega. Inténtalo nuevamente." });
+    } finally {
+      setActivo(confirmado.current);
+      guardando.current = false;
+      setPendiente(false);
+    }
+  }
+
   return (
-    <form action={accion} className="grid gap-4 rounded-xl border border-border bg-background p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-5">
+    <form onSubmit={guardar} className="grid gap-4 rounded-xl border border-border bg-background p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-5">
       <input type="hidden" name="diaSemana" value={diaSemana} />
       <div className="min-w-0 space-y-1">
         <h3 className="font-semibold text-foreground">{nombre}</h3>
@@ -24,7 +52,11 @@ function DeliveryDayRow({ dia }: { dia: DiaEntregaAdministrativo }) {
       </div>
 
       <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-foreground">
-        <input name="activo" type="checkbox" checked={activo} onChange={(event) => setActivo(event.target.checked)} className="size-4 accent-primary" />
+        <input name="activo" type="checkbox" checked={activo} disabled={pendiente} onChange={(event) => {
+          if (guardando.current) return;
+          setActivo(event.target.checked);
+          setEstado(estadoInicial);
+        }} className="size-4 accent-primary" />
         {activo ? "Activo" : "Inactivo"}
       </label>
 

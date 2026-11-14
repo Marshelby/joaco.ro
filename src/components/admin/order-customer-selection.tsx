@@ -27,7 +27,7 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
   const carga = useRef(0);
   const consulta = useRef(0);
   const apartadoEntrega = useRef<HTMLDivElement>(null);
-  const desplazarEntrega = useRef(false);
+  const desplazarEntrega = useRef(Boolean(inicial));
   const ubicacion = seleccion?.ubicaciones.find((item) => item.id === ubicacionId);
   const saldo = seleccion ? describirSaldoCuenta(seleccion.saldoActual) : null;
 
@@ -48,13 +48,18 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
   }
 
   useEffect(() => {
-    if (!seleccion || !desplazarEntrega.current) return;
+    if (!seleccion || cargando || activo !== 0 || !desplazarEntrega.current) return;
     const frame = requestAnimationFrame(() => {
+      const apartado = apartadoEntrega.current;
+      if (!desplazarEntrega.current || !apartado) return;
       desplazarEntrega.current = false;
-      apartadoEntrega.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      apartado.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        block: "start",
+      });
     });
     return () => cancelAnimationFrame(frame);
-  }, [seleccion]);
+  }, [seleccion, cargando, activo]);
 
   useEffect(() => {
     const version = ++consulta.current;

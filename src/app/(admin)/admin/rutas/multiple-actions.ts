@@ -7,14 +7,13 @@ import type { SolicitudRutaMultiple } from "./multiple-types";
 export async function operarRutaMultiple(s: SolicitudRutaMultiple): Promise<{ ok?: boolean; error?: string }> {
   const db = await exigirAdminReparto();
   if (!s || typeof s !== "object" || JSON.stringify(s).length > 100000 || !Number.isSafeInteger(s.version) || s.version < 0) return { error: "Solicitud inválida." };
+  if (!["crear", "seleccionar", "asignar", "preparar", "salir", "cerrar", "ordenar"].includes(s.accion)) return { error: "Operación no disponible. Asigna los pedidos nuevos a otra ruta independiente." };
   try {
     const { data, error } = await db.rpc("operar_ruta_multiple", { p_solicitud: s });
     if (error) {
       const mensajes: Record<string, string> = {
         REGIMEN_CONTABLE_NO_COMPATIBLE: "Un pedido usa un régimen contable incompatible. No se despachó la ruta; requiere gestión administrativa.",
-        INCORPORACION_REQUIERE_LISTO: "Solo se incorporan pedidos completamente preparados. Los parciales se preparan y confirman en una ruta antes de su salida.",
-        SELECCION_INVALIDA: "Selecciona pedidos disponibles, finalizados y de esta fecha. No se retiran pedidos ya despachados.",
-        MOTIVO_REQUERIDO: "Registra un motivo para esta operación administrativa.",
+        SELECCION_INVALIDA: "Selecciona pedidos disponibles de esta fecha en una ruta en planificación o preparación.",
         VERSION_RUTA_CONFLICTO: "La ruta cambió. Actualiza antes de continuar.",
         VERSION_OPERATIVA_CONFLICTO: "La preparación cambió. Actualiza y revisa las cantidades.",
         PEDIDO_YA_ASIGNADO: "Un pedido ya pertenece a otra ruta. Actualiza la selección.",

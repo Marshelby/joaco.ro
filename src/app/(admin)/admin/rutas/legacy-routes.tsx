@@ -1,3 +1,5 @@
+import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
+import { RutasContabilidadPedido, RutasContabilidadJornada } from "@/components/admin/rutas-contabilidad";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { CierreRutaDialog } from "./cierre-ruta-dialog";
@@ -20,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { leerCargaJornada } from "@/lib/admin/cargas";
 import { obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha, obtenerDetalleEntregaAdmin, obtenerFechaLocalActual } from "@/lib/admin/pedidos";
 import { formatFechaEntregaCorta, formatFechaEntregaLarga } from "@/lib/delivery-date";
-import { formatCLP } from "@/lib/formatters";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 
 
@@ -62,11 +63,11 @@ export default async function AdminRoutesPage({ searchParams }: {
   const permiso = obtenerPermisoTemporalPreparacion(fecha);
   const productos = entrega.pedidos.flatMap((pedido) => pedido.items);
   const confirmados = productos.filter((item) => item.confirmadoExplicito).length;
-  const totalProvisional = entrega.pedidos.reduce((total, pedido) => total + (pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total), 0);
+  const contabilidad = await obtenerContabilidadRutas(fecha, entrega.pedidos.map(p => p.id));
   const listos = entrega.pedidos.filter((pedido) => pedido.estado === "listo_despacho").length;
   const enRuta = entrega.pedidos.filter((pedido) => pedido.estado === "en_reparto").length;
 
-  return <div className="space-y-6">
+  return <div className="space-y-4">
     <PageHeader title="Rutas" description="Preparación y reparto · Hidro Leufú" actions={<ActionLink href="/admin/pedidos" variant="secondary">Ver pedidos</ActionLink>} />
     <section className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label="Fecha de operación">
       <nav className="flex gap-2 overflow-x-auto pb-2" aria-label="Próximos siete días">
@@ -83,21 +84,21 @@ export default async function AdminRoutesPage({ searchParams }: {
       </RutasFechaForm>
     </section>
     {(carga.estado === "en_ruta" && carga.salida_en) || carga.estado === "cerrada" ? <CierreRutaDialog key={fecha} fecha={fecha} cerrada={carga.estado === "cerrada"} /> : null}
-    <div data-rutas-destino="fecha" className="scroll-mt-24 space-y-6">
+    <div data-rutas-destino="fecha" className="scroll-mt-24 space-y-4">
     <JornadaModos key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen operativo">
       {[
         ["Pedidos", String(entrega.pedidos.length)],
         ["Productos confirmados", `${confirmados} / ${productos.length}`],
-        ["Total provisional", formatCLP(totalProvisional)],
+        ["Entregados", String(entrega.pedidos.filter(p => p.estado === "entregado").length)],
         ["Listos / en reparto", `${listos} / ${enRuta}`],
       ].map(([titulo, valor]) => <div key={titulo} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{titulo}</p><p className="mt-1 break-words text-xl font-semibold">{valor}</p></div>)}
     </section>
-    <p className="text-xs text-muted-foreground">Los importes son provisionales; las líneas pendientes conservan su importe original en el total. La fecha corresponde a la entrega efectiva, en America/Santiago.</p>
+    <RutasContabilidadJornada datos={contabilidad} ids={entrega.pedidos.map(p => p.id)} />
     {entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <>
       <section aria-label="Pedidos de la fecha" className="space-y-3">
         <h2 className="text-lg font-semibold">Preparación de pedidos</h2>
-        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} operativa rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
+        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} resumenContable={<RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} />} operativa rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
       </section>
       <details className="rounded-xl border bg-card p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Productos solicitados de la jornada</summary><DeliveryProductsSummary productos={entrega.resumenProductos} variant="compact" /></details>
     </>}
@@ -117,7 +118,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                   <ul className="divide-y divide-border">{pedido.items.map(item => <DeliveryProductDetail key={item.id} item={item} contexto={pedido.contextoEntrega} coloresLegacy />)}</ul>
                   <DeliveryOrderTotals pedido={pedido} />
                 </details>
-                <DeliveryObservation contexto={pedido.contextoEntrega} />
+                <RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} /><DeliveryObservation contexto={pedido.contextoEntrega} />
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
                   <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
                   <Button type="button" variant="outline" disabled>Contactar</Button>

@@ -28,7 +28,6 @@ export function RutaMultipleForm({ comando, children, etiqueta, disabled = false
         ...(f.has("nombre") ? { nombre: String(f.get("nombre")) } : {}),
         ...(f.has("seleccionPedidos") ? { pedidos: f.getAll("pedidos").map(String) } : {}),
         ...(f.has("seleccionRepartidores") ? { repartidores: f.getAll("repartidores").map(String) } : {}),
-        ...(f.has("motivo") ? { motivo: String(f.get("motivo")) } : {}),
       };
     }
     bloqueo.current = true;

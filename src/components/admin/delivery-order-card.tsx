@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
@@ -23,7 +24,7 @@ function valoresRevision(valores: Record<string, unknown>) {
   return `${valores.confirmado_explicito ? "LISTO" : "PENDIENTE"} · Cantidad preparada: ${cantidad == null ? "sin confirmación" : String(cantidad)} · Importe operativo: ${typeof importe === "number" ? formatCLP(importe) : "sin confirmación"}`;
 }
 
-export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean }) {
+export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false, resumenContable }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean; resumenContable?: ReactNode }) {
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
@@ -45,7 +46,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
     <li data-preparacion-pedido={pedido.id} className={compacta ? "overflow-hidden rounded-xl border border-border bg-card" : "rounded-xl border border-border bg-card p-4 sm:p-5"}>
       {/* El desplegable oculta el contenido sin desmontar los controles en edición. */}
       <Contenedor className={compacta ? "group/preparacion" : undefined}>
-        {compacta ? <summary className="grid min-h-20 cursor-pointer list-none grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 md:grid-cols-[2rem_minmax(0,1fr)_auto_9rem_auto] [&::-webkit-details-marker]:hidden">
+        {compacta ? <summary className="grid min-h-16 cursor-pointer list-none grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 md:grid-cols-[2rem_minmax(0,1fr)_auto_9rem_auto] [&::-webkit-details-marker]:hidden">
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">{numeroPreparacion}</span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold" title={pedido.nombreClienteSnapshot}>{pedido.nombreClienteSnapshot}</span>
@@ -119,6 +120,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           </ContenedorProductos>
         </div>
       </Contenedor>
+      {resumenContable}
     </li>
   );
 }

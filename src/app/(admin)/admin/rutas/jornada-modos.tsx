@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
 type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: ReactNode; salida?: ReactNode };
@@ -9,10 +9,24 @@ export function JornadaModos({ titulo, mensaje, preparacion, ruta, salida }: Pro
   const [modo, setModo] = useState<"preparacion" | "ruta">("preparacion");
   const encabezado = useRef<HTMLDivElement>(null);
 
+  const desplazar = useRef(false);
+
+  useEffect(() => {
+    if (!desplazar.current) return;
+    const frame = requestAnimationFrame(() => {
+      desplazar.current = false;
+      encabezado.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        block: "start",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [modo]);
+
   function cambiarModo(siguiente: typeof modo) {
     if (siguiente === modo) return;
+    desplazar.current = true;
     setModo(siguiente);
-    encabezado.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return <>

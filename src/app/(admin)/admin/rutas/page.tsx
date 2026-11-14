@@ -2,7 +2,7 @@ import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/d
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { RutasNavigation, RutasLink as Link, RutasFechaForm } from "./rutas-navigation";
 import { notFound } from "next/navigation";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 import { obtenerDetalleEntregaAdmin, obtenerFechaLocalActual, obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha } from "@/lib/admin/pedidos";
@@ -23,7 +23,7 @@ import LegacyRoutesPage from "./legacy-routes";
 import type { RutasMultiples, SolicitudRutaMultiple } from "./multiple-types";
 
 export const metadata: Metadata = { title: "Rutas" };
-export default async function AdminRoutesPage({ searchParams }: { searchParams: Promise<{ fecha?: string | string[]; ruta?: string | string[] }> }) {
+async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fecha?: string | string[]; ruta?: string | string[] }> }) {
   const params = await searchParams;
   const hoy = obtenerFechaLocalActual();
   const fecha = params.fecha ?? hoy;
@@ -32,7 +32,7 @@ export default async function AdminRoutesPage({ searchParams }: { searchParams: 
   const { data, error } = await db.rpc("leer_rutas_multiples", { p_fecha: fecha });
   if (error || data?.contrato !== 3 || !Array.isArray(data.rutas) || !Array.isArray(data.repartidores)) {
     const consulta = await obtenerDetalleEntregaAdmin(fecha);
-    return <div className="space-y-4"><PageHeader title="Rutas" description="Preparación y reparto · Hidro Leufú" /><p role="alert" className="rounded-xl border bg-card p-4">Rutas múltiples no disponibles. Falta instalar el SQL manual de Fase 3 o no se pudo verificar el contrato. La operación de rutas permanece bloqueada hasta verificar la instalación.</p><form action="/admin/rutas" className="flex flex-wrap gap-3"><label>Fecha<input type="date" name="fecha" required defaultValue={fecha} className="ml-2 min-h-11 rounded-lg border bg-background p-2" /></label><button className="min-h-11 rounded-lg border px-3">Consultar</button></form><h2 className="font-semibold">{formatFechaEntregaLarga(fecha)} · {consulta.pedidos.length} pedidos</h2><ul className="space-y-3">{consulta.pedidos.map((p, n) => <DeliveryOrderCard key={p.id} pedido={p} operativa numeroPreparacion={n + 1} rutaMultiple soloLecturaRuta />)}</ul><ActionLink href="/admin/pedidos" variant="secondary">Ver pedidos</ActionLink></div>;
+    return <div className="space-y-4"><PageHeader title="Rutas" description="Preparación y reparto · Hidro Leufú" /><p role="alert" className="rounded-xl border bg-card p-4">Rutas múltiples no disponibles. Falta instalar el SQL manual de Fase 3 o no se pudo verificar el contrato. La operación de rutas permanece bloqueada hasta verificar la instalación.</p><RutasFechaForm className="flex flex-wrap gap-3"><label>Fecha<input type="date" name="fecha" required defaultValue={fecha} key={fecha} className="ml-2 min-h-11 rounded-lg border bg-background p-2" /></label><button className="min-h-11 rounded-lg border px-3">Consultar</button></RutasFechaForm><h2 data-rutas-destino="fecha" className="scroll-mt-24 font-semibold">{formatFechaEntregaLarga(fecha)} · {consulta.pedidos.length} pedidos</h2><ul className="space-y-3">{consulta.pedidos.map((p, n) => <DeliveryOrderCard key={p.id} pedido={p} operativa numeroPreparacion={n + 1} rutaMultiple soloLecturaRuta />)}</ul><ActionLink href="/admin/pedidos" variant="secondary">Ver pedidos</ActionLink></div>;
   }
   const modelo = data as RutasMultiples;
   if (modelo.legado) return <><p className="mb-4 rounded-xl border bg-card p-4 text-sm">Esta fecha conserva una jornada del sistema anterior. Se mantiene su historial y su operación original; las rutas múltiples se habilitan en fechas sin carga previa.</p><LegacyRoutesPage searchParams={Promise.resolve({ fecha })} /></>;
@@ -66,8 +66,8 @@ export default async function AdminRoutesPage({ searchParams }: { searchParams: 
     <PageHeader title="Rutas" description="Preparación y reparto · Hidro Leufú" actions={<ActionLink href="/admin/pedidos" variant="secondary">Ver pedidos</ActionLink>} />
     <section className="space-y-4 rounded-xl border bg-card p-4">
       <nav className="flex gap-2 overflow-x-auto pb-2" aria-label="Próximos siete días">{dias.map(d => <Link key={d} prefetch={false} href={`/admin/rutas?fecha=${d}`} aria-current={d === fecha ? "date" : undefined} className={`min-w-28 flex-1 rounded-lg border p-3 text-center text-sm ${d === fecha ? "border-primary bg-primary/10 text-primary" : "border-border"}`}><span className="block font-semibold">{d === hoy ? "Hoy" : formatFechaEntregaCorta(d)}</span><span>{conteo[d] ?? 0} pedidos</span></Link>)}</nav>
-      <form action="/admin/rutas" className="flex flex-wrap items-end gap-3"><label className="text-sm">Consultar fecha<input name="fecha" type="date" required defaultValue={fecha} className="mt-1 block min-h-11 rounded-lg border bg-background px-3" /></label><button className="min-h-11 rounded-lg border px-4">Consultar</button></form>
-      <h2 className="font-semibold">{formatFechaEntregaLarga(fecha)}</h2>
+      <RutasFechaForm className="flex flex-wrap items-end gap-3"><label className="text-sm">Consultar fecha<input name="fecha" type="date" required defaultValue={fecha} key={fecha} className="mt-1 block min-h-11 rounded-lg border bg-background px-3" /></label><button className="min-h-11 rounded-lg border px-4">Consultar</button></RutasFechaForm>
+      <h2 data-rutas-destino="fecha" className="scroll-mt-24 font-semibold">{formatFechaEntregaLarga(fecha)}</h2>
       <p className="text-sm">{entrega.pedidos.length} pedidos del día · {disponibles.length} disponibles para asignación</p>
       <details><summary className="min-h-11 cursor-pointer py-3 font-semibold">Crear ruta</summary><RutaMultipleForm key={`crear-${modelo.rutas.length}`} comando={{ accion: "crear", ruta: "", fecha, version: 0 }} etiqueta="Crear ruta"><label className="block text-sm">Nombre o número de ruta<input name="nombre" required maxLength={100} placeholder="Ruta 1 · Centro" className="mt-1 min-h-11 w-full rounded-lg border bg-background p-2" /></label></RutaMultipleForm></details>
     </section>
@@ -76,7 +76,7 @@ export default async function AdminRoutesPage({ searchParams }: { searchParams: 
       {modelo.rutas.map(r => <Link key={r.id} href={`/admin/rutas?fecha=${fecha}&ruta=${r.id}`} aria-current={r.id === ruta?.id ? "page" : undefined} className={`space-y-2 rounded-xl border bg-card p-4 ${r.id === ruta?.id ? "border-primary ring-1 ring-primary" : ""}`}><span className="block font-semibold">{r.nombre} · {r.estado.replaceAll("_", " ")}</span><span className="block text-xs">{r.pedidos.length} pedidos · Preparación · Sin preparar: {r.contadores.sin_preparar} · Parcial: {r.contadores.parciales} · Listo: {r.contadores.preparados} · Pendientes de entrega: {r.contadores.pendientes_entrega} · En reparto: {r.contadores.en_reparto} · Entregados: {r.contadores.entregados} · No entregados: {r.contadores.no_entregados} · Sin resolver: {r.contadores.pendientes}</span></Link>)}
     </nav>
     {ruta && <section className="space-y-4 rounded-xl border bg-card p-4">
-      <h2 className="text-lg font-semibold">{ruta.nombre}</h2>
+      <h2 data-rutas-destino="ruta" className="scroll-mt-24 text-lg font-semibold">{ruta.nombre}</h2>
       <ol className="grid grid-cols-2 gap-2 text-sm lg:grid-cols-4" aria-label="Etapas de la ruta">{[
         { nombre: "Preparación", actual: editable, detalle: `${ruta.contadores.preparados} preparados · ${ruta.contadores.parciales} parciales` },
         { nombre: "Ruta lista", actual: ruta.estado === "preparacion" && rutaLista, detalle: "Preparación confirmada y repartidores asignados" },
@@ -113,4 +113,10 @@ export default async function AdminRoutesPage({ searchParams }: { searchParams: 
           <DeliveryOrderTotals pedido={p} />
         </details><DeliveryObservation contexto={p.contextoEntrega} /><div className="flex flex-wrap gap-2"><ActionLink href={`/admin/pedidos/${p.id}`} variant="secondary">Ver pedido</ActionLink><ActionLink href={`/admin/pedidos/${p.id}/historial`} variant="secondary">Ver historial</ActionLink><EntregaVisualDialog motivoBloqueo={disponibilidad[p.id]} habilitada={ruta.estado === "en_reparto" && disponibilidad[p.id] === null} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} items={p.items} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /><EntregaFallidaDialog habilitada={ruta.estado === "en_reparto" && p.estado === "en_reparto"} pedidoId={p.id} versionEsperada={p.versionPreparacion} numero={p.numeroPedido} cliente={p.nombreClienteSnapshot} ubicacion={p.nombreUbicacionSnapshot} productos={p.items.length} totalReferencia={p.importeOperativoPreparacion ?? p.totalFinal ?? p.total} /></div></div> }))} /> : <p className="rounded-xl border bg-card p-4 text-sm">Abre una ruta para visualizar sus paradas y mapa.</p>} />
   </div>;
+}
+
+export default async function AdminRoutesPage(props: Parameters<typeof AdminRoutesContent>[0]) {
+  const params = await props.searchParams;
+  const contenido = await AdminRoutesContent(props);
+  return <RutasNavigation fecha={typeof params.fecha === "string" ? params.fecha : obtenerFechaLocalActual()} ruta={typeof params.ruta === "string" ? params.ruta : ""}>{contenido}</RutasNavigation>;
 }

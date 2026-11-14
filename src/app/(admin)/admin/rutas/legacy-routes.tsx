@@ -6,7 +6,7 @@ import { JornadaModos } from "./jornada-modos";
 import { EntregaFallidaDialog } from "./entrega-fallida-dialog";
 import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
 import { EntregaVisualDialog } from "./entrega-visual-dialog";
-import Link from "next/link";
+import { RutasLink as Link, RutasFechaForm } from "./rutas-navigation";
 import { notFound } from "next/navigation";
 
 import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
@@ -77,12 +77,13 @@ export default async function AdminRoutesPage({ searchParams }: {
           <span className={`mt-2 block text-xs ${conteo[dia] ? "font-semibold text-primary" : "text-muted-foreground"}`}>{conteo[dia] ? `${conteo[dia]} pedidos` : "Sin pedidos"}</span>
         </Link>)}
       </nav>
-      <form action="/admin/rutas" method="get" className="flex flex-wrap items-end gap-3">
+      <RutasFechaForm method="get" className="flex flex-wrap items-end gap-3">
         <label className="min-w-0 text-sm font-medium" htmlFor="fecha-ruta">Consultar otra fecha<input id="fecha-ruta" name="fecha" type="date" required defaultValue={fecha} key={fecha} className="mt-1 block min-h-11 rounded-lg border border-input bg-background px-3" /></label>
         <Button type="submit" variant="secondary">Consultar</Button>
-      </form>
+      </RutasFechaForm>
     </section>
     {(carga.estado === "en_ruta" && carga.salida_en) || carga.estado === "cerrada" ? <CierreRutaDialog key={fecha} fecha={fecha} cerrada={carga.estado === "cerrada"} /> : null}
+    <div data-rutas-destino="fecha" className="scroll-mt-24 space-y-6">
     <JornadaModos key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen operativo">
       {[
@@ -127,5 +128,6 @@ export default async function AdminRoutesPage({ searchParams }: {
         ),
       }))} />
     </section>} />
+    </div>
   </div>;
 }

@@ -32,6 +32,10 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   useEffect(() => { incorporando.current = false; }, [lineas]);
 
   useEffect(() => {
+    if (!productoId) buscador.current?.focus();
+  }, [productoId]);
+
+  useEffect(() => {
     let vigente = true;
     setCatalogo(null);
     setError("");
@@ -83,7 +87,6 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
     setPresentacionId("");
     setCantidad("");
     setBusqueda("");
-    buscador.current?.focus();
   }
 
   const { activo } = useOrderWizard();
@@ -98,6 +101,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
     {listo && !items.length ? <p role="status" className="mt-4 text-sm">No hay presentaciones disponibles con precio vigente.</p> : null}
     <fieldset disabled={!listo} className="mt-5 space-y-4">
       <legend className="sr-only">Agregar productos al borrador administrativo</legend>
+      <div hidden={Boolean(elegida)} className="space-y-4">
       <label className="block text-sm font-medium">Buscar producto por nombre<input ref={buscador} className={campo} value={busqueda} onChange={(event) => setBusqueda(event.target.value)} /></label>
       {listo && items.length > 0 && !productos.length ? <p role="status" className="text-sm">No hay productos que coincidan con la búsqueda.</p> : null}
       <div className="max-h-80 overflow-y-auto overscroll-contain rounded-lg border border-border" role="group" aria-label="Productos disponibles" tabIndex={0}>
@@ -118,6 +122,19 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
           </button>;
         })}
       </div>
+      </div>
+      {elegida ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-primary/5 p-3 text-sm">
+        <div className="min-w-0 flex-1 break-words">
+          <p className="font-semibold">{elegida.nombre}</p>
+          <p className="mt-1 text-muted-foreground">{elegida.presentacionNombre} · {elegida.cantidadPresentacion} {elegida.unidad} · {formatCLP(elegida.precioFinalReferencia)}</p>
+        </div>
+        <button type="button" className={buttonVariants({ variant: "outline" })} onClick={() => {
+          setProductoId("");
+          setPresentacionId("");
+          setCantidad("");
+          setResultadoAgregar(null);
+        }}>Cambiar producto</button>
+      </div> : null}
       {presentaciones.length > 1 ? <label className="block text-sm font-medium">Presentación de {elegida?.nombre}<select className={`${campo} sm:max-w-sm`} value={elegida?.presentacionId ?? ""} onChange={(event) => {
         const siguiente = presentaciones.find((item) => item.presentacionId === event.target.value);
         if (!siguiente) return;
@@ -139,7 +156,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
         {isValidCartQuantity(elegida, Number(cantidad)) && totalLineaPedido(elegida, cantidad, elegida.precioFinalReferencia) === null ? <p role="alert" className="text-sm text-destructive">No se puede agregar la línea: el importe está fuera de rango. Revisa la cantidad; tu selección se conserva.</p> : null}
       </> : null}
       {duplicada ? <p role="status" className="text-sm">Esta presentación ya está agregada. Modifica su cantidad en la línea existente.</p> : null}
-      <button type="button" className={buttonVariants({ variant: "secondary" })} disabled={!puedeAgregar} onClick={agregarLinea}>Agregar línea</button>
+      {elegida ? <button type="button" className={buttonVariants({ variant: "secondary" })} disabled={!puedeAgregar} onClick={agregarLinea}>Agregar producto</button> : null}
       {resultadoAgregar ? <p role={resultadoAgregar.tipo === "error" ? "alert" : "status"} className={`text-sm ${resultadoAgregar.tipo === "error" ? "text-destructive" : "text-muted-foreground"}`}>{resultadoAgregar.mensaje}</p> : null}
     </fieldset>
     <div className="mt-5 space-y-3" aria-label="Líneas del pedido">

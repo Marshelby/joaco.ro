@@ -22,6 +22,10 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
 }) {
   const [fechas, setFechas] = useState<FechaEntregaDisponible[]>([]);
   const [fecha, setFecha] = useState("");
+  const [editandoFecha, setEditandoFecha] = useState(true);
+  const pagosTitulo = useRef<HTMLLegendElement>(null);
+  const opcionesFecha = useRef<HTMLFieldSetElement>(null);
+  const desplazarAPagos = useRef(false);
   const [metodos, setMetodos] = useState<MetodoPagoPrevisto[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -86,6 +90,36 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
   const resumen = bloqueado ? pedidoEnviado ?? borrador : borrador;
   const elegida = fechas.find((item) => item.fecha === resumen?.fechaEntrega);
 
+  const fechaSeleccionada = fechas.find((item) => item.fecha === fecha);
+  const mostrarFechas = editandoFecha || !fechaSeleccionada || Boolean(error);
+
+  // Solo una elección explícita mueve el foco; las revalidaciones y los
+  // cambios de paso conservan la posición y las preferencias del borrador.
+  useEffect(() => {
+    if (!desplazarAPagos.current || mostrarFechas || !enEntrega) return;
+    desplazarAPagos.current = false;
+    const cuadro = window.requestAnimationFrame(() => {
+      const titulo = pagosTitulo.current;
+      if (!titulo) return;
+      titulo.focus({ preventScroll: true });
+      const posicion = titulo.getBoundingClientRect();
+      if (posicion.top < 16 || posicion.bottom > window.innerHeight - 16) {
+        titulo.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+          block: "nearest",
+        });
+      }
+    });
+    return () => window.cancelAnimationFrame(cuadro);
+  }, [fecha, mostrarFechas, enEntrega]);
+
+  function seleccionarFecha(valor: string) {
+    if (error || !fechas.some((item) => item.fecha === valor)) return;
+    desplazarAPagos.current = true;
+    setFecha(valor);
+    setEditandoFecha(false);
+  }
+
   function confirmar() {
     if (!CONFIRMACION_ADMINISTRATIVA_HABILITADA || bloqueoEnvio.current || destinoCreado) return;
     // Un resultado incierto solo permite recuperar el documento original,
@@ -137,18 +171,35 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
       {cargando ? <p role="status" className="mt-3 text-sm">Verificando disponibilidad…</p> : null}
       {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}
       {!cargando && !error && fecha && !fechas.some((item) => item.fecha === fecha) ? <p role="alert" className="mt-3 text-sm text-destructive">La fecha elegida ({formatFechaEntregaLarga(fecha)}) ya no está disponible según el corte, los días habilitados o el horizonte vigente. Se conserva como referencia; selecciona otra fecha para continuar.</p> : null}
-      <button type="button" className="mt-3 text-sm underline" disabled={cargando} onClick={() => void actualizar()}>Actualizar fechas disponibles</button>
-      <fieldset disabled={!fechas.length || Boolean(error)} className="mt-4 space-y-3">
-        <legend className="font-medium">Fecha de entrega (obligatoria)</legend>
-        {!cargando && !error && !fechas.length ? <p role="status" className="text-sm">No hay fechas disponibles en el horizonte de entrega vigente.</p> : null}
-        {fechas.map((item) => <label key={item.fecha} className="flex items-start gap-3 rounded-lg border border-border p-3 text-sm">
-          <input type="radio" name="fecha_entrega" required value={item.fecha} checked={fecha === item.fecha} onChange={() => setFecha(item.fecha)} />
-          <span><span className="block font-medium">{item.etiquetaLarga}</span>{item.textoCorte}</span>
-        </label>)}
-        {!fecha ? <p className="text-sm text-muted-foreground">Debes seleccionar una fecha disponible.</p> : null}
-      </fieldset>
+      {fechaSeleccionada && !mostrarFechas ? <div className="mt-4 flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 text-sm">
+          <p className="text-muted-foreground">Fecha de entrega seleccionada</p>
+          <p className="font-semibold">{fechaSeleccionada.etiquetaLarga}</p>
+          <p className="text-muted-foreground">{fechaSeleccionada.textoCorte}</p>
+        </div>
+        <button type="button" aria-expanded={false} aria-controls="opciones-fecha-entrega" className={`${buttonVariants({ variant: "secondary" })} shrink-0 self-start sm:self-auto`} onClick={() => {
+          setEditandoFecha(true);
+          window.requestAnimationFrame(() => {
+            opcionesFecha.current?.querySelector<HTMLInputElement>("input:checked")?.focus({ preventScroll: true });
+          });
+        }}>Cambiar fecha</button>
+      </div> : null}
+      <div id="opciones-fecha-entrega" hidden={!mostrarFechas}>
+        <button type="button" className="mt-3 text-sm underline" disabled={cargando} onClick={() => void actualizar()}>Actualizar fechas disponibles</button>
+        <fieldset ref={opcionesFecha} disabled={!fechas.length || Boolean(error)} className="mt-4 space-y-3">
+          <legend className="font-medium">Fecha de entrega (obligatoria)</legend>
+          {fechaSeleccionada ? <p className="text-sm text-muted-foreground">Tu fecha actual es {fechaSeleccionada.etiquetaLarga}. Se conserva hasta que elijas otra.</p> : null}
+          {!cargando && !error && !fechas.length ? <p role="status" className="text-sm">No hay fechas disponibles en el horizonte de entrega vigente.</p> : null}
+          {fechas.map((item) => <label key={item.fecha} className={`flex items-start gap-3 rounded-lg border p-3 text-sm ${fecha === item.fecha ? "border-primary/30 bg-primary/5" : "border-border"}`}>
+            <input type="radio" name="fecha_entrega" required value={item.fecha} checked={fecha === item.fecha} onChange={() => seleccionarFecha(item.fecha)} onClick={() => { if (fecha === item.fecha) seleccionarFecha(item.fecha); }} />
+            <span><span className="block font-medium">{item.etiquetaLarga}</span>{item.textoCorte}</span>
+          </label>)}
+          {!fecha ? <p className="text-sm text-muted-foreground">Debes seleccionar una fecha disponible.</p> : null}
+          {fechaSeleccionada ? <button type="button" className="text-sm underline" onClick={() => seleccionarFecha(fecha)}>Mantener fecha seleccionada</button> : null}
+        </fieldset>
+      </div>
       <fieldset className="mt-5 space-y-3">
-        <legend className="font-medium">Métodos previstos de pago (al menos uno)</legend>
+        <legend ref={pagosTitulo} tabIndex={-1} className="scroll-mt-6 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">Métodos previstos de pago (al menos uno)</legend>
         {PAYMENT_INTENT_OPTIONS.map((metodo) => <label key={metodo} className="flex items-center gap-3 text-sm">
           <input type="checkbox" name="metodos_pago_previstos" value={metodo} checked={metodos.includes(metodo)} onChange={(event) => { const marcado = event.target.checked; setMetodos((previos) => marcado ? [...previos, metodo] : previos.filter((item) => item !== metodo)); }} />
           {PAYMENT_INTENT_LABELS[metodo]}

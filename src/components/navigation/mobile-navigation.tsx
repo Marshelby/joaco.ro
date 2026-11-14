@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { NavigationIcon } from "@/components/navigation/icon";
 import { NavigationLink } from "@/components/navigation/navigation-link";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/config/routes";
 import type { NavigationItem } from "@/types/navigation";
 
 type MobileNavigationProps = {
@@ -37,8 +38,8 @@ export function MobileNavigation({ items, label, title, authenticated = false, c
             <nav className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3" aria-label={label}>
               <ul className="max-w-full min-w-0 space-y-1">
                 {items.map((item) => (
-                  <li key={item.href} className="max-w-full min-w-0">
-                    <Dialog.Close nativeButton={false} render={<NavigationLink href={item.href} exact={item.href === "/"} />} className="box-border flex min-h-11 w-full max-w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground outline-none transition-[background-color,color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted hover:text-foreground active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground">
+                  <li key={item.href} className={cn("max-w-full min-w-0", item.href === ROUTES.adminProduction && "mt-4! border-t border-sidebar-border pt-4")}>
+                    <Dialog.Close nativeButton={false} render={<NavigationLink href={item.href} exact={item.href === "/"} />} className={cn("box-border flex min-h-11 w-full max-w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground outline-none transition-[background-color,color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted hover:text-foreground active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground", item.href === ROUTES.adminProduction && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20 hover:text-sidebar-primary focus-visible:ring-sidebar-ring data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground")}>
                       <NavigationIcon name={item.icon} className="size-4 shrink-0" />
                       <span className="min-w-0 flex-1"><span className="block truncate">{item.label}</span>{item.description ? <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">{item.description}</span> : null}</span>
                       {badges[item.href] ? <span aria-label={`${badges[item.href]} mensajes sin leer`} className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{badges[item.href]}</span> : null}

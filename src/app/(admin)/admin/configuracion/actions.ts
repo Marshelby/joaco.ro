@@ -71,6 +71,7 @@ export async function guardarDiaEntregaAdministrativo(
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar este día de entrega." };
 
   revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/gestor-interno");
   return { exito: "Día de entrega actualizado.", activo };
 }
 
@@ -99,6 +100,7 @@ export async function guardarHoraCorteAdministrativa(
     return errorHoraCorte({ code: "PERSISTENCIA", message: "La lectura posterior no confirma la hora en todos los días de entrega." }, "verificar persistencia (RPC completada)");
   }
   revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/gestor-interno");
   revalidatePath("/checkout");
   return { exito: "Hora límite actualizada para todos los días de entrega." };
 }

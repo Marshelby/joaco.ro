@@ -17,6 +17,7 @@ export const ROUTES = {
   accountMessages: "/mi-cuenta/mensajes",
   admin: "/admin",
   adminProduction: "/admin/produccion",
+  adminInternalManager: "/admin/gestor-interno",
   adminPublicManager: "/admin/gestor-publico",
   adminProducts: "/admin/productos",
   adminCategories: "/admin/categorias",

@@ -21,11 +21,9 @@ export const CUSTOMER_NAVIGATION = [
 export const ADMIN_NAVIGATION = [
   { label: "Dashboard", href: ROUTES.admin, icon: "home" },
   { label: "Gestor público", href: ROUTES.adminPublicManager, icon: "catalog" },
+  { label: "Gestor interno", href: ROUTES.adminInternalManager, icon: "settings" },
   { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
   { label: "Rutas", href: ROUTES.adminRoutes, icon: "routes" },
-  { label: "Repartidores", href: "/admin/repartidores", icon: "account" },
   { label: "Producción", href: ROUTES.adminProduction, icon: "box" },
-  { label: "Configuración", href: ROUTES.adminSettings, icon: "settings" },
-  { label: "Personal Hidro Leufú", href: ROUTES.adminStaff, icon: "account" },
 ] as const satisfies readonly NavigationItem[];

@@ -1,18 +1,13 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { DeliveryDaysSettings } from "@/components/admin/delivery-days-settings";
-import { PageHeader } from "@/components/shared/page-header";
-import { obtenerDiasEntregaAdministrativos } from "@/lib/admin/dias-entrega";
-
-export const metadata: Metadata = { title: "Configuración" };
-
-export default async function AdminSettingsPage() {
-  const diasEntrega = await obtenerDiasEntregaAdministrativos();
-
-  return (
-    <div className="space-y-8">
-      <PageHeader title="Configuración" description="Centraliza las definiciones que acompañan la operación de la tienda." />
-      <DeliveryDaysSettings dias={diasEntrega} />
-    </div>
-  );
+export default async function LegacyPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (Array.isArray(value)) value.forEach((item) => params.append(key, item));
+    else if (value !== undefined) params.set(key, value);
+  }
+  params.set("seccion", "fechas");
+  redirect(`/admin/gestor-interno?${params}#fechas`);
 }

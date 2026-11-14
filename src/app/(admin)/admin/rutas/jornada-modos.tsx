@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useSeleccionListado } from "./rutas-navigation";
 import { Button } from "@/components/ui/button";
 
 type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: ReactNode; salida?: ReactNode };
@@ -8,8 +9,12 @@ type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: Re
 export function JornadaModos({ titulo, mensaje, preparacion, ruta, salida }: Props) {
   const [modo, setModo] = useState<"preparacion" | "ruta">("preparacion");
   const encabezado = useRef<HTMLDivElement>(null);
-
   const desplazar = useRef(false);
+  const seleccionListado = useSeleccionListado();
+  useEffect(() => {
+    setModo("preparacion");
+    desplazar.current = false;
+  }, [seleccionListado]);
 
   useEffect(() => {
     if (!desplazar.current) return;
@@ -30,7 +35,7 @@ export function JornadaModos({ titulo, mensaje, preparacion, ruta, salida }: Pro
   }
 
   return <>
-    <div ref={encabezado} className="scroll-mt-24 space-y-2">
+    <div ref={encabezado} data-rutas-destino="pedidos" className="scroll-mt-24 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">{titulo}</h2>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Modo de la jornada">

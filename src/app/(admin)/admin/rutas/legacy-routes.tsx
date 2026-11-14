@@ -1,3 +1,4 @@
+import { ROUTES } from "@/config/routes";
 import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
 import { RutasContabilidadPedido, RutasContabilidadJornada } from "@/components/admin/rutas-contabilidad";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
@@ -120,7 +121,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                 </details>
                 <RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} /><DeliveryObservation contexto={pedido.contextoEntrega} />
                 <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
-                  <ActionLink href={`/admin/pedidos/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>
+                  {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
                   <Button type="button" variant="outline" disabled>Contactar</Button>
                   <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
                   <EntregaFallidaDialog habilitada={carga.estado !== "cerrada" && pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />

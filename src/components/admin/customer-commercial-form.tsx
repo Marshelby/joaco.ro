@@ -169,18 +169,19 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
   </form>;
 }
 
-export function CustomerCommercialAddresses({ ficha, zonas }: { ficha: FichaComercial; zonas: Props["zonas"] }) {
+export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean }) {
   const [editando, setEditando] = useState(false);
   return <section className="space-y-4" aria-labelledby="direcciones-comerciales-title">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 id="direcciones-comerciales-title" className="text-2xl font-semibold tracking-tight">Ubicaciones comerciales</h2>
-      {!editando && <Button type="button" variant="secondary" onClick={() => setEditando(true)}>Agregar ubicación</Button>}
+      {!readOnly && !editando && <Button type="button" variant="secondary" onClick={() => setEditando(true)}>Agregar ubicación</Button>}
     </div>
     <p className="text-sm text-muted-foreground">Hasta 50 ubicaciones por cliente, con nombre único y punto confirmado en el mapa. Las ubicaciones históricas pueden conservar sus datos actuales.</p>
     {!editando && (ficha.direcciones.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">Sin ubicaciones comerciales registradas.</p> : <div className="grid gap-4 sm:grid-cols-2">{ficha.direcciones.map((d, i) => <article key={d.id} className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6">
       <ResumenUbicacion ubicacion={d} indice={i} />
+      {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{[d.destinatario, d.telefono_contacto, d.referencia].filter(Boolean).join(" · ")}</p>}
       <p className="text-sm text-muted-foreground">{zonas.find((zona) => zona.id === d.zona_entrega_id)?.nombre ?? (d.zona_entrega_id ? "Zona asignada" : "Sin zona asignada")}</p>
-      {!editando && <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setEditando(true)}>Editar ubicación</Button>}
+      {!readOnly && !editando && <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setEditando(true)}>Editar ubicación</Button>}
     </article>)}</div>)}
     {editando && <Formulario ficha={ficha} zonas={zonas} soloDirecciones cerrar={() => setEditando(false)} />}
   </section>;

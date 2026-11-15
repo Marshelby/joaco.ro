@@ -4,7 +4,7 @@ import { formatHoraMensaje } from "@/lib/chat-formatters";
 import { ROUTES } from "@/config/routes";
 import type { MensajeConversacion } from "@/types/chat";
 
-export function MessageBubble({ mensaje, tipoPropio = "cliente", hrefPedido }: { mensaje: MensajeConversacion; tipoPropio?: "cliente" | "admin"; hrefPedido?: (id: string) => string }) {
+export function MessageBubble({ mensaje, tipoPropio = "cliente", hrefPedido, disableOrderLinks = false }: { mensaje: MensajeConversacion; tipoPropio?: "cliente" | "admin"; hrefPedido?: (id: string) => string; disableOrderLinks?: boolean }) {
   const esPropio = mensaje.remitenteTipo === tipoPropio;
   const emisor = esPropio ? "Tú" : mensaje.remitenteNombreSnapshot || "Hidro Leufú";
 
@@ -14,7 +14,7 @@ export function MessageBubble({ mensaje, tipoPropio = "cliente", hrefPedido }: {
         {!esPropio ? <p className="mb-1 text-xs font-semibold text-primary">{emisor}</p> : null}
         <p className="whitespace-pre-wrap break-words text-sm leading-6">{mensaje.contenido}</p>
         <div className={esPropio ? "mt-2 flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs text-primary-foreground/75" : "mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"}>
-          {mensaje.pedido ? <Link href={hrefPedido?.(mensaje.pedido.id) ?? ROUTES.customerOrder(mensaje.pedido.id)} className={esPropio ? "font-medium underline underline-offset-2 hover:text-primary-foreground" : "font-medium text-primary underline underline-offset-2 hover:text-primary/80"}>Pedido {mensaje.pedido.numeroPedido}</Link> : null}
+          {mensaje.pedido ? disableOrderLinks ? <span>Pedido {mensaje.pedido.numeroPedido}</span> : <Link href={hrefPedido?.(mensaje.pedido.id) ?? ROUTES.customerOrder(mensaje.pedido.id)} className={esPropio ? "font-medium underline underline-offset-2 hover:text-primary-foreground" : "font-medium text-primary underline underline-offset-2 hover:text-primary/80"}>Pedido {mensaje.pedido.numeroPedido}</Link> : null}
           <time dateTime={mensaje.fechaCreacion}>{formatHoraMensaje(mensaje.fechaCreacion)}</time>
         </div>
       </article>

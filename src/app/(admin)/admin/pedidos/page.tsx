@@ -1,3 +1,4 @@
+import { CreateOrderLink } from "@/components/admin/create-order-link";
 import { UndeliveredOrders } from "@/components/admin/undelivered-orders";
 import { OrderIdentity } from "@/components/admin/order-identity";
 import { OrderViews } from "@/components/admin/order-views";
@@ -24,7 +25,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     <UndeliveredOrders filtros={params} />
   </div>;
   if (filtro === "posibles") return <div className="space-y-8">
-    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<ActionLink href={ROUTES.adminNewOrder()}>Crear pedido</ActionLink>} />
+    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<CreateOrderLink />} />
     <OrderViews vista="posibles" />
     <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
   </div>;
@@ -37,7 +38,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<ActionLink href={ROUTES.adminNewOrder()}>Crear pedido</ActionLink>} />
+      <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<CreateOrderLink />} />
       <section className="space-y-5" aria-labelledby="lista-pedidos-title">
         <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

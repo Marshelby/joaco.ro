@@ -1,3 +1,5 @@
+import { AdminChat } from "@/components/admin/messages/admin-chat";
+import { obtenerDetalleChatAdmin } from "@/lib/admin/mensajes";
 import { AdminCustomerDetail } from "@/components/admin/customer-detail";
 import { OrderCustomerLink, OrderCustomerViews } from "@/components/admin/order-customer-navigation";
 import { UndeliveredOrderActions } from "@/components/admin/undelivered-order-actions";
@@ -169,5 +171,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
     </div>
   );
 
-  return modal && pedido.clienteId ? <OrderCustomerViews customer={<AdminCustomerDetail id={pedido.clienteId} />}>{detail}</OrderCustomerViews> : detail;
+  if (!modal || !pedido.clienteId) return detail;
+  const chat = await obtenerDetalleChatAdmin(pedido.clienteId);
+  return <OrderCustomerViews customer={<AdminCustomerDetail id={pedido.clienteId} readOnly />} messages={chat ? <AdminChat embedded cliente={chat.cliente} conversacionInicial={chat.conversacion} mensajesIniciales={chat.mensajes} tieneMensajesAnterioresInicial={chat.tieneMensajesAnteriores} /> : <p role="status">No fue posible cargar la conversación.</p>}>{detail}</OrderCustomerViews>;
 }

@@ -29,10 +29,16 @@ export async function prepararResolucionNoEntregado(id: string, reprogramar = fa
     const fechas = await db.rpc("leer_fechas_reprogramacion_admin", { p_pedido_id: id });
     if (fechas.error) {
       const motivos: Record<string, string> = {
+        ASIGNACION_MULTI_REQUERIDA: "Falta la pertenencia original del pedido a una ruta múltiple; revisa su trazabilidad.",
+        CIERRE_MULTI_REQUERIDO: "Falta cerrar la ruta múltiple del intento fallido. No se puede reprogramar todavía.",
+        SNAPSHOT_MULTI_INVALIDO: "El snapshot del cierre multi no coincide con el pedido, su preparación o su posición original.",
+        FALLO_MULTI_NO_AUDITADO: "Falta un fallo auditado consistente con el historial y la versión del cierre multi.",
+        EVENTO_FALLO_MULTI_INVALIDO: "El evento multi del fallo no coincide en ruta, pedido, actor, motivo, clave o versión.",
+        EVENTO_CIERRE_MULTI_INVALIDO: "Falta un evento de cierre multi consistente con la ruta y posterior al fallo.",
         NO_AUTORIZADO: "Solo un administrador puede consultar estas fechas.",
         PEDIDO_NO_ENCONTRADO: "El pedido ya no está disponible.",
-        PEDIDO_NO_REPROGRAMABLE: "Este pedido no es elegible: requiere preparación terminada e intento fallido incluido en una carga, sin venta definitiva. Revisa su historial.",
-        CIERRE_REQUERIDO: "Primero debes cerrar la carga del intento fallido.",
+        PEDIDO_NO_REPROGRAMABLE: "Este pedido requiere preparación terminada y un intento fallido con cierre auditado legacy o multi, sin venta definitiva. Revisa su historial.",
+        CIERRE_REQUERIDO: "Primero debes cerrar la ruta del intento fallido.",
         TRAZABILIDAD_INTENTO_INVALIDA: "La evidencia del pedido no coincide con el intento cerrado. Revisa su historial antes de reprogramar.",
       };
       return { error: fechas.error.code === "PGRST202"
@@ -66,10 +72,16 @@ export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: 
       const mensajes: Record<string, string> = {
         FECHA_ENTREGA_NO_DISPONIBLE: "La fecha ya no está habilitada o pasó la hora límite. Actualiza las fechas y elige otra.",
         REQUIERE_RUTA_INDIVIDUAL: "La fecha pertenece a rutas individuales y no admite esta reprogramación. Revisa la planificación de rutas.",
+        ASIGNACION_MULTI_REQUERIDA: "Falta la pertenencia original del pedido a una ruta múltiple; revisa su trazabilidad.",
+        CIERRE_MULTI_REQUERIDO: "Falta cerrar la ruta múltiple del intento fallido. No se puede reprogramar todavía.",
+        SNAPSHOT_MULTI_INVALIDO: "El snapshot del cierre multi no coincide con el pedido, su preparación o su posición original.",
+        FALLO_MULTI_NO_AUDITADO: "Falta un fallo auditado consistente con el historial y la versión del cierre multi.",
+        EVENTO_FALLO_MULTI_INVALIDO: "El evento multi del fallo no coincide en ruta, pedido, actor, motivo, clave o versión.",
+        EVENTO_CIERRE_MULTI_INVALIDO: "Falta un evento de cierre multi consistente con la ruta y posterior al fallo.",
         NO_AUTORIZADO: "Solo un administrador puede resolver pedidos no entregados.",
         VERSION_OPERATIVA_CONFLICTO: "El pedido cambió. Revisa su detalle y abre una nueva solicitud.",
         CLAVE_IDEMPOTENCIA_EN_USO: "La clave pertenece a otra solicitud. Revisa el historial antes de continuar.",
-        PEDIDO_NO_REPROGRAMABLE: "Requiere un intento fallido auditado, preparación finalizada y carga cerrada, sin venta definitiva.",
+        PEDIDO_NO_REPROGRAMABLE: "Requiere un intento fallido auditado, preparación finalizada y cierre legacy o multi consistente, sin venta definitiva.",
         PEDIDO_NO_CANCELABLE: "Solo se puede cancelar un intento fallido incluido en una carga cerrada y sin venta definitiva.",
         CIERRE_REQUERIDO: "Primero debes cerrar la ruta del intento fallido.",
         RUTA_CERRADA: "La barrera de cierre impidió la operación. Revisa el pedido y su evidencia.",

@@ -28,6 +28,7 @@ export const ROUTES = {
     : "/admin/pedidos/nuevo",
   adminRecycleOrder: (id: string) => `/admin/pedidos/nuevo?${new URLSearchParams({ reciclar: id })}`,
   adminCustomers: "/admin/clientes",
+  adminSuppliers: "/admin/proveedores",
   adminStaff: "/admin/personal",
   adminDeliveries: "/admin/entregas",
   adminRoutes: "/admin/rutas",

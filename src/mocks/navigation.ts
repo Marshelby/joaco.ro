@@ -23,6 +23,7 @@ export const ADMIN_NAVIGATION = [
   { label: "Gestor público", href: ROUTES.adminPublicManager, icon: "catalog" },
   { label: "Gestor interno", href: ROUTES.adminInternalManager, icon: "settings" },
   { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
+  { label: "Proveedores", href: ROUTES.adminSuppliers, icon: "box" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
   { label: "Rutas", href: ROUTES.adminRoutes, icon: "routes" },
   { label: "Producción", href: ROUTES.adminProduction, icon: "box" },

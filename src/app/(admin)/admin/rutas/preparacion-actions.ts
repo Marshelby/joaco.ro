@@ -43,7 +43,7 @@ export async function guardarAvancePreparacion(datos: FormData): Promise<{ error
   }
   revalidatePath("/admin/rutas");
   revalidatePath("/admin/pedidos");
-  revalidatePath(`/admin/pedidos/${item.pedido_id}`);
+  revalidatePath(`/admin/pedidos/detalle/${item.pedido_id}`);
   revalidatePath("/admin/pedidos/entregas/[fecha]", "page");
   return { guardado: true };
 }
@@ -84,8 +84,8 @@ export async function confirmarPreparacionRuta(datos: FormData): Promise<{ error
   }
   if (data?.ok !== true || data?.preparacion_confirmada !== true) return { error: "No se pudo verificar la confirmación. Consulta el estado actualizado de la ruta." };
   revalidatePath("/admin/rutas"); revalidatePath("/admin/pedidos"); revalidatePath("/reparto");
-  revalidatePath("/admin/pedidos/[id]", "page");
-  revalidatePath("/admin/pedidos/[id]/historial", "page");
+  revalidatePath("/admin/pedidos/detalle/[id]", "page");
+  revalidatePath("/admin/pedidos/detalle/[id]/historial", "page");
   revalidatePath("/admin/pedidos/entregas/[fecha]", "page");
   return { confirmado: true };
 }

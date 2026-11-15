@@ -22,7 +22,7 @@ export async function operarPosiblePedido(_: EstadoOperacionPosible, form: FormD
     revalidatePath("/admin/pedidos");
     revalidatePath(`/admin/posibles-pedidos/${validado.data.id}`);
     if (data.pedido_id) {
-      revalidatePath("/admin"); revalidatePath("/admin/pedidos"); revalidatePath(`/admin/pedidos/${data.pedido_id}`);
+      revalidatePath("/admin"); revalidatePath("/admin/pedidos"); revalidatePath(`/admin/pedidos/detalle/${data.pedido_id}`);
       revalidatePath("/admin/clientes"); revalidatePath("/mi-cuenta/pedidos");
     }
     return { exito: validado.data.tipo === "convertir" ? "Pedido oficial creado en estado recibido. No se registró ningún pago." : "Solicitud actualizada.", pedidoId: data.pedido_id ?? undefined };

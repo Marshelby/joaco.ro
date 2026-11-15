@@ -39,7 +39,8 @@ export const ROUTES = {
   customerOrder: (id: string) => `/mi-cuenta/pedidos/${id}`,
   newCustomerAddress: "/mi-cuenta/direcciones/nueva",
   editCustomerAddress: (id: string) => `/mi-cuenta/direcciones/${id}/editar`,
-  adminOrder: (id: string) => `/admin/pedidos/${id}`,
+  // El segmento estático detalle mantiene nuevo fuera de los interceptores dinámicos.
+  adminOrder: (id: string) => `/admin/pedidos/detalle/${id}`,
   adminDeliveryDay: (fecha: string) => `/admin/pedidos/entregas/${fecha}`,
   adminCustomer: (id: string) => `/admin/clientes/${id}`,
   adminCustomerMessages: (id: string) => `/admin/mensajes/${id}`,

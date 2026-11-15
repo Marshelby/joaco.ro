@@ -144,7 +144,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
 
       </div>
       <section className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="historial-precios-title">
-        {historial?.eventos.length ? <a href={`/admin/pedidos/${pedido.id}/historial`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">Ver historial de auditoría del pedido</a> : <p className="inline-flex min-h-11 items-center text-sm text-muted-foreground">Sin registros de auditoría</p>}
+        {historial?.eventos.length ? <a href={`/admin/pedidos/detalle/${pedido.id}/historial`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">Ver historial de auditoría del pedido</a> : <p className="inline-flex min-h-11 items-center text-sm text-muted-foreground">Sin registros de auditoría</p>}
         {historial?.avisos.length ? <p className="mb-2 text-sm text-muted-foreground">Algunas fuentes de auditoría no están disponibles.</p> : null}
         <h2 id="historial-precios-title" className="text-sm font-semibold tracking-tight text-foreground">Historial de ajustes de precios administrativos</h2>
         <p className="mt-2 text-sm text-muted-foreground">Ajustes registrados al crear el pedido administrativo.</p>

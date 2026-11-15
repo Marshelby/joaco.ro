@@ -14,7 +14,7 @@ export function UndeliveredHistoryLink({ pedidoId, retorno }: { pedidoId: string
     if (actual) setDestino(actual);
   }, []);
   return <a className={actionLinkVariants({ variant: "quiet" })}
-    href={`/admin/pedidos/${pedidoId}/historial?volver=${encodeURIComponent(destino)}`}
+    href={`/admin/pedidos/detalle/${pedidoId}/historial?volver=${encodeURIComponent(destino)}`}
     onClick={(event) => {
       const url = destinoNoEntregados(`${window.location.pathname}${window.location.search}`) ?? listado;
       const section = event.currentTarget.closest("section");
@@ -22,7 +22,7 @@ export function UndeliveredHistoryLink({ pedidoId, retorno }: { pedidoId: string
         sessionStorage.setItem(storageKey, JSON.stringify({ url, y: window.scrollY,
           abiertos: Array.from(section?.querySelectorAll("details") ?? []).flatMap((d, i) => d.open ? [i] : []) }));
       } catch { /* La navegación sigue disponible si el almacenamiento está bloqueado. */ }
-      event.currentTarget.href = `/admin/pedidos/${pedidoId}/historial?volver=${encodeURIComponent(url)}`;
+      event.currentTarget.href = `/admin/pedidos/detalle/${pedidoId}/historial?volver=${encodeURIComponent(url)}`;
     }}>Historial operativo</a>;
 }
 

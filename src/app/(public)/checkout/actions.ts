@@ -105,7 +105,7 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
 
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
-  revalidatePath(`/admin/pedidos/${pedido.pedido_id}`);
+  revalidatePath(`/admin/pedidos/detalle/${pedido.pedido_id}`);
   revalidatePath(`/pedido/confirmacion/${pedido.pedido_id}`);
 
   return { pedidoId: pedido.pedido_id, numeroPedido: pedido.numero_pedido };

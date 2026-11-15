@@ -57,7 +57,7 @@ async function actualizarEstadoPedido(
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/rutas");
-  revalidatePath(`/admin/pedidos/${pedidoId}`);
+  revalidatePath(`/admin/pedidos/detalle/${pedidoId}`);
   if (pedido?.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${pedido.fecha_entrega}`);
   revalidatePath("/admin/clientes");
   if (pedido?.cliente_id) revalidatePath(`/admin/clientes/${pedido.cliente_id}`);
@@ -80,7 +80,7 @@ export async function aceptarPedidoAdmin(_: EstadoAceptacionPedido, datos: FormD
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/rutas");
-  revalidatePath(`/admin/pedidos/${pedidoId}`);
+  revalidatePath(`/admin/pedidos/detalle/${pedidoId}`);
   return { aceptado: true };
 }
 
@@ -99,7 +99,7 @@ export async function cancelarPedidoAdmin(_: EstadoCancelacionPedido, datos: For
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/rutas");
-  revalidatePath(`/admin/pedidos/${pedidoId}`);
+  revalidatePath(`/admin/pedidos/detalle/${pedidoId}`);
   return { cancelado: true };
 }
 

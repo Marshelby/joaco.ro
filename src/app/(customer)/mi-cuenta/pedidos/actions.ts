@@ -71,7 +71,7 @@ export async function cancelarPedidoCliente(
   revalidatePath(`/pedido/confirmacion/${resultado.pedido_id}`);
   revalidatePath("/admin");
   revalidatePath("/admin/pedidos");
-  revalidatePath(`/admin/pedidos/${resultado.pedido_id}`);
+  revalidatePath(`/admin/pedidos/detalle/${resultado.pedido_id}`);
   revalidatePath("/admin/clientes");
   if (resultado.cliente_id) revalidatePath(`/admin/clientes/${resultado.cliente_id}`);
   if (resultado.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${resultado.fecha_entrega}`);

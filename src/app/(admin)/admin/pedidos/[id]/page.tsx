@@ -1,9 +1,7 @@
-import type { Metadata } from "next";
-import { AdminOrderDetail } from "@/components/admin/order-detail";
+import { redirect } from "next/navigation";
+import { ROUTES } from "@/config/routes";
 
-export const metadata: Metadata = { title: "Detalle de pedido" };
-
-export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LegacyOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <AdminOrderDetail id={id} />;
+  redirect(ROUTES.adminOrder(id));
 }

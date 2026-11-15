@@ -1,3 +1,5 @@
+import { AdminCustomerDetail } from "@/components/admin/customer-detail";
+import { OrderCustomerLink, OrderCustomerViews } from "@/components/admin/order-customer-navigation";
 import { UndeliveredOrderActions } from "@/components/admin/undelivered-order-actions";
 import { AdministrativeCorrection } from "@/components/admin/administrative-correction";
 import { notFound } from "next/navigation";
@@ -36,7 +38,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
   const telefonoEntrega = pedido.telefonoContactoEntrega ?? pedido.telefonoClienteSnapshot;
   const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
 
-  return (
+  const detail = (
     <div className="min-w-0 space-y-4 [overflow-wrap:anywhere]">
       <header className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-3">
@@ -47,7 +49,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
         {!modal ? <ActionLink href={ROUTES.adminOrders} variant="secondary" className="shrink-0">Volver a pedidos</ActionLink> : null}
       </header>
       <div className="flex flex-wrap items-start gap-2">
-        {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
+        {pedido.clienteId ? <OrderCustomerLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</OrderCustomerLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
         {pedido.estado === "confirmado" ? pedido.fechaEntrega ? <ActionLink href={`/admin/rutas?fecha=${pedido.fechaEntrega}`}>Ir a ruta</ActionLink> : <span className="text-sm text-muted-foreground">Sin fecha de entrega para ir a ruta</span> : null}
         {["preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
@@ -88,7 +90,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
             {pedido.telefonoClienteSnapshot ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1 text-foreground">{pedido.telefonoClienteSnapshot}</dd></div> : null}
             {pedido.emailClienteSnapshot ? <div><dt className="text-muted-foreground">Email</dt><dd className="mt-1 break-words text-foreground">{pedido.emailClienteSnapshot}</dd></div> : null}
           </dl>
-          {pedido.clienteId ? <ActionLink href={`${ROUTES.adminCustomer(pedido.clienteId)}#cuenta-corriente-title`} variant="quiet" className="mt-3">Consultar cuenta corriente</ActionLink> : <p className="mt-3 text-sm text-muted-foreground">Sin cliente asociado para consultar cuenta corriente.</p>}
+          {pedido.clienteId ? <OrderCustomerLink href={`${ROUTES.adminCustomer(pedido.clienteId)}#cuenta-corriente-title`} variant="quiet" className="mt-3">Consultar cuenta corriente</OrderCustomerLink> : <p className="mt-3 text-sm text-muted-foreground">Sin cliente asociado para consultar cuenta corriente.</p>}
         </section>
 
         <section className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -166,4 +168,6 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       {pedido.observacionGeneral ? <section className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm"><h2 className="text-sm font-semibold tracking-tight text-foreground">Observación</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{pedido.observacionGeneral}</p></section> : null}
     </div>
   );
+
+  return modal && pedido.clienteId ? <OrderCustomerViews customer={<AdminCustomerDetail id={pedido.clienteId} />}>{detail}</OrderCustomerViews> : detail;
 }

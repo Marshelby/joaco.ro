@@ -1,34 +1,26 @@
-# Reprogramación de No entregados
+# Selector de reprogramación de No entregados
 
-Revisión estática de las fuentes locales, sin consultar ni modificar la base de datos.
+Revisión estática de fuentes locales. No se consultó producción ni se ejecutó SQL.
 
-## Causas demostrables
+## Causa identificada
 
-- El formulario enviaba una fecha libre; la acción sólo comprobaba formato y la RPC de Fase 2 sólo exigía una fecha posterior al intento y no pasada. No aplicaban días habilitados, corte comercial ni horizonte del creador. Una jornada destino no editable se conocía recién al enviar.
-- Cualquier error conservaba la solicitud y deshabilitaba los campos: un rechazo conocido por fecha, jornada o versión impedía corregir los datos sin cerrar todo el formulario. Las respuestas inciertas sí necesitan conservar clave y contenido.
-- El historial no recibía contexto de origen y su enlace siempre volvía al detalle del pedido, sujeto a la interceptación modal de Pedidos.
-- La variante de rutas múltiples anteponía `exigir_fecha_legacy` al retorno idempotente. Una ruta individual creada posteriormente en el destino podía impedir recuperar una respuesta ya confirmada.
+`leer_fechas_reprogramacion_admin(uuid)` mezclaba elegibilidad y disponibilidad en un único SELECT: sus INNER JOIN con `carga_pedidos` incluido y `cargas` cerrada, más los filtros de preparación y venta, devolvían `[]` si el pedido no era elegible. `leer_resolucion_no_entregado_admin` solo devuelve versión e historial, no certifica elegibilidad. La acción aceptaba esa versión y el componente mostraba «No hay fechas habilitadas» para ambos casos.
 
-No hay evidencia del error concreto de una sesión de producción ni del SQL efectivamente instalado. No se atribuyen a datos reales las condiciones deducidas del código.
+La lista No entregados usa `estado='entrega_fallida'`, que no significa necesariamente intento físico cerrado: `preparacion_sin_stock_y_parciales.sql` registra ese mismo estado con origen `sin_stock_pre_despacho`, puede excluir la selección de carga y retira pertenencia multi; los fallos de rutas múltiples tampoco generan la selección y el cierre legacy que exige esta reprogramación. Son casos no elegibles bajo el contrato vigente, incluso con días comerciales disponibles. No se inventó una conversión de esos casos ni se relajó su evidencia histórica. Sin datos y definiciones instaladas no se puede afirmar cuál de esas condiciones corresponde al pedido reportado.
 
-## Cambios
+## Corrección y auditoría del flujo
 
-- Formulario compacto, ancho acotado, texto cotidiano, selector nativo accesible y explicación de que el pedido debe agregarse al nuevo reparto. Se conserva motivo obligatorio, límite de longitud y confirmación explícita. Controles adaptables y estados de consulta, envío, éxito, error y ausencia de fechas.
-- Reutiliza `obtenerFechasEntregaDisponibles`, la misma fuente del creador. Interseca sus fechas con una nueva lectura administrativa que aplica las restricciones del pedido y de la jornada destino; muestra las primeras diez como máximo. La acción verifica sesión y permisos, y rechaza respuestas de disponibilidad con formato inesperado.
-- La RPC valida pertenencia a esas fechas después de resolver reintentos confirmados; conserva locks, control de versión, capacidades exactas, auditoría y snapshots originales. Vuelve a comprobar el corte con `clock_timestamp()` antes de retornar, revirtiendo toda la operación si venció durante la espera. La barrera multi se conserva después del retorno idempotente.
-- Sólo los rechazos conocidos permiten editar una nueva solicitud. Fallos de transporte o resultados no verificables conservan clave y contenido. Se mantienen el bloqueo simultáneo por referencia y los controles de duplicación del servidor.
-- Historial abierto desde No entregados recibe la URL de origen validada; muestra “Volver a no entregados”. Navegación documental mediante enlaces nativos para evitar interceptación y modales. Guarda URL, scroll y productos desplegados en `sessionStorage`, y restaura al volver. Los demás accesos conservan “Volver al pedido”. No se cambia el contenido de auditoría del historial.
+- La RPC de lectura valida primero existencia, estado, preparación, ausencia de venta y entrega definitiva, selección incluida, carga anterior cerrada y evidencia exacta del intento/fallo/historial. Devuelve errores de dominio distintos; solo un pedido elegible puede recibir `[]` por falta real de fechas.
+- La confirmación llama al mismo auxiliar después del retorno idempotente. Mantiene además sus comprobaciones originales bajo locks, versión esperada, capacidades privadas exactas, snapshots, historial, protecciones contables y comprobación final del corte. Una respuesta ya confirmada se recupera aunque después cambie la disponibilidad.
+- Parámetro conservado: `p_pedido_id: id`, validado como UUID. Lectura y escritura mantienen `auth.uid()` y `es_admin()`. Lectura SECURITY DEFINER, search_path fijo, propietario postgres y EXECUTE solo para authenticated; auxiliares sin acceso para roles API. No se usan credenciales service_role.
+- Se reutiliza `obtenerFechasEntregaDisponibles`, igual que `admin/pedidos/nuevo/actions.ts`, y se interseca con la lectura de disponibilidad operativa. La configuración compartida rechaza respuestas nulas/malformadas como error técnico. `[]` de días activos sigue siendo configuración realmente sin días habilitados.
+- TypeScript y `fecha_entrega_disponible` usan America/Santiago, días activos, corte exclusivo y horizonte hasta hoy +14 inclusive; hoy solo antes del corte. La configuración vigente en migraciones fija anticipación cero y 16:00. No se agregan fechas para completar diez opciones. Se conserva máximo diez y fecha posterior al intento.
+- El destino legacy admite ausencia de carga o carga en preparación. El destino multi admite rutas en planificación/preparación; en reparto requiere una versión reconocida con incorporación, fecha de hoy y repartidor activo asignado, conforme a `operar_ruta_multiple`. Un cierre individual no cierra toda la fecha si otra ruta admite pedidos. Se conserva la barrera ante coexistencia incompatible de carga legacy y rutas multi.
+- En destino multi no se crea carga ni selección legacy: se retira solo la selección viva de origen mediante capacidad exacta y el pedido queda listo_despacho sin asignación automática. Seleccionar/incorporar exige su operación posterior con permisos y validaciones propios. No se habilitan orígenes multi por este cambio.
+- Errores de consulta, RPC ausente y respuesta inválida muestran error; rechazo de elegibilidad muestra su causa; únicamente consulta exitosa con lista vacía muestra ausencia real. La versión permanece indefinida ante error y bloquea confirmar. Los fallos de configuración ya no se atribuyen automáticamente a sesión. El mensaje al confirmar jornada incompatible ahora refleja también rutas múltiples.
 
-## SQL manual necesario
+## SQL pendiente y límites
 
-Aplicar por separado `supabase/manual/corregir_reprogramacion_no_entregados.sql`, después de Fases 2, 3 y 4. No se ejecutó. Añade una lectura administrativa y un auxiliar privado; parchea exclusivamente cuerpos reconocidos de la RPC (base o variante multi, normalizando CRLF). Si difieren firma, propietario, configuración o huella esperada, aborta la transacción. No actualiza pedidos históricos ni cierres. No cambia concesiones de la RPC existente.
+Archivo: `supabase/manual/corregir_reprogramacion_no_entregados.sql`, actualizado, **no ejecutado**. Instalación manual después de Fases 2, 3 y 4. Ahora permite actualizar también la revisión anterior de este complemento mediante sus huellas explícitas; usa CREATE OR REPLACE para la lectura existente. Contratos desconocidos abortan la transacción. No reinstalar Fase 4 sobre este complemento: aquella verifica cuerpos anteriores. Aplicación y SQL deben desplegarse coordinadamente; con la lectura antigua todavía instalada persiste su ambigüedad.
 
-Instalar este complemento después del resto de fases: Fase 4 valida la huella anterior de la RPC. No reinstalar Fase 4 sobre la función ya parcheada. La aplicación exige la nueva lectura para abrir la reprogramación; no recurre a fechas manuales si falta SQL.
-
-## Límites y revisión final
-
-- Se conserva el horizonte comercial de **14 días** presente tanto en TypeScript como en `fecha_entrega_disponible`. Si hay menos de diez fechas habilitadas dentro de él, se muestran menos: completar diez requeriría ampliar una regla de negocio, prohibido en esta intervención.
-- La lectura de fechas es orientativa; las comprobaciones transaccionales siguen siendo autoritativas ante cambios concurrentes. No se evita una espera legítima por locks ni se habilitan pedidos históricos sin evidencia, repartos sin cerrar o jornadas incompatibles.
-- Scroll depende del almacenamiento de sesión disponible y de que el contenido siga teniendo altura suficiente; sin almacenamiento queda la restauración nativa del navegador. No se guardan motivos ni datos de formularios administrativos en el navegador.
-- Revisados estáticamente imports, contratos RPC, orden de validación e idempotencia, restricciones de fechas, enlaces, parámetros de retorno, cleanup de restauración y estados responsive/accesibles. `git diff --check` sin errores.
-- Por instrucción expresa no se ejecutaron SQL, migraciones, Supabase CLI, tests, builds, ESLint, TypeScript CLI, commits ni push. No se verificó comportamiento visual en navegador ni ejecución contra PostgreSQL. Cambios ajenos preexistentes permanecen sin intervención.
+Revisados estáticamente contratos, permisos, dependencias opcionales de rutas multi, condiciones de fechas, orden de idempotencia y locks, errores y controles del formulario. No se ejecutaron tests, builds, ESLint, TypeScript CLI, SQL, migraciones, Supabase CLI, commits ni push. No se verificó ejecución PostgreSQL, zona horaria del servidor desplegado, configuración o estado del pedido en producción ni interfaz en navegador. Los cambios ajenos preexistentes en navegación/detalle de clientes y pedidos se conservaron.

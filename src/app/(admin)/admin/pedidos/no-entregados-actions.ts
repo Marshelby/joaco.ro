@@ -13,7 +13,8 @@ async function clienteAdmin() {
   const db = await crearClienteSupabaseServidor();
   const { data, error } = await db.auth.getUser();
   const admin = await db.rpc("es_admin");
-  if (error || !data.user || admin.error || admin.data !== true) throw new Error("NO_AUTORIZADO");
+  if (error || admin.error) throw new Error("CONSULTA_ADMIN_FALLIDA");
+  if (!data.user || admin.data !== true) throw new Error("NO_AUTORIZADO");
   return db;
 }
 export async function prepararResolucionNoEntregado(id: string, reprogramar = false): Promise<{ version?: number; fechas?: FechaEntregaDisponible[]; error?: string }> {
@@ -25,13 +26,28 @@ export async function prepararResolucionNoEntregado(id: string, reprogramar = fa
     const version = Number(data?.version);
     if (data?.version == null || !Number.isSafeInteger(version) || version < 0 || version >= Number.MAX_SAFE_INTEGER) return { error: "La versión del pedido no es válida." };
     if (!reprogramar) return { version };
-    const disponibles = await obtenerFechasEntregaDisponibles();
     const fechas = await db.rpc("leer_fechas_reprogramacion_admin", { p_pedido_id: id });
-    if (fechas.error) return { error: "No se pudieron verificar las fechas. Revisa que esté instalado el SQL manual de reprogramación." };
-    if (!Array.isArray(fechas.data) || !fechas.data.every((f: unknown) => typeof f === "string")) return { error: "No se pudo verificar la disponibilidad. Actualiza las fechas para continuar." };
+    if (fechas.error) {
+      const motivos: Record<string, string> = {
+        NO_AUTORIZADO: "Solo un administrador puede consultar estas fechas.",
+        PEDIDO_NO_ENCONTRADO: "El pedido ya no está disponible.",
+        PEDIDO_NO_REPROGRAMABLE: "Este pedido no es elegible: requiere preparación terminada e intento fallido incluido en una carga, sin venta definitiva. Revisa su historial.",
+        CIERRE_REQUERIDO: "Primero debes cerrar la carga del intento fallido.",
+        TRAZABILIDAD_INTENTO_INVALIDA: "La evidencia del pedido no coincide con el intento cerrado. Revisa su historial antes de reprogramar.",
+      };
+      return { error: fechas.error.code === "PGRST202"
+        ? "Falta instalar el SQL manual de reprogramación. No se pudieron consultar las fechas."
+        : motivos[fechas.error.message] ?? "Error al consultar las fechas en la base de datos. Actualiza e intenta nuevamente." };
+    }
+    if (!Array.isArray(fechas.data) || !fechas.data.every((f: unknown) => typeof f === "string" && /^\d{4}-\d{2}-\d{2}$/.test(f))) return { error: "No se pudo verificar la disponibilidad. Actualiza las fechas para continuar." };
+    // Misma configuración y presentación que el creador administrativo.
+    // Un fallo al leerla debe propagarse como error, nunca como lista vacía.
+    const disponibles = await obtenerFechasEntregaDisponibles();
     const permitidas = new Set<string>(fechas.data);
     return { version, fechas: disponibles.filter(f => permitidas.has(f.fecha)).slice(0, 10) };
-  } catch { return { error: "No se pudo verificar la sesión administrativa." }; }
+  } catch (error) { return { error: error instanceof Error && error.message === "NO_AUTORIZADO"
+    ? "No se pudo verificar la sesión administrativa."
+    : "No se pudieron consultar el pedido y la configuración de fechas. Actualiza e intenta nuevamente." }; }
 }
 export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: boolean): Promise<{ exito?: boolean; error?: string; rechazada?: boolean }> {
   if (!s || confirmado !== true || !uuid(s.pedido) || !uuid(s.clave) || !Number.isSafeInteger(s.version) || s.version < 0 || s.version >= Number.MAX_SAFE_INTEGER ||
@@ -61,7 +77,7 @@ export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: 
         SALDO_HISTORICO_REQUIERE_TRATAMIENTO: "Este pedido pertenece al régimen legado. Su cancelación requiere resolver explícitamente los cargos históricos fuera de esta fase; no se modificó ningún saldo.",
         TRAZABILIDAD_INTENTO_INVALIDA: "El pedido no coincide con el intento cerrado. Revisa el historial; no se modificó el cierre.",
         FECHA_REPROGRAMACION_INVALIDA: "Selecciona una fecha posterior al intento original y que no esté en el pasado en Chile.",
-        CARGA_NO_EDITABLE: "La nueva jornada debe estar en preparación, sin salida ni cierre.",
+        CARGA_NO_EDITABLE: "La jornada ya no admite pedidos. Actualiza las fechas y revisa la planificación del reparto.",
         TRATAMIENTO_ADMINISTRATIVO_REQUERIDO: "Registra el tratamiento explícito de pagos y créditos (máximo 2000 caracteres).",
         PEDIDO_NO_ENCONTRADO: "El pedido ya no está disponible.",
       };

@@ -69,7 +69,7 @@ export function UndeliveredOrderActions({ pedidoId, historico = false }: { pedid
           <option value="" disabled>Elige una fecha</option>
           {fechas.map(f => <option key={f.fecha} value={f.fecha}>{f.etiquetaLarga}</option>)}
         </select><span className="mt-1 block text-xs text-muted-foreground">Hasta 10 próximas fechas habilitadas, según el horario de Chile y la disponibilidad del reparto.</span>
-        {!fechas.length && version !== undefined ? <span role="status" className="mt-1 block">No hay fechas habilitadas dentro del plazo vigente. Verifica que el reparto anterior esté cerrado y la preparación terminada; luego actualiza las fechas.</span> : null}</label> : null}
+        {!fechas.length && version !== undefined ? <span role="status" className="mt-1 block">No hay fechas habilitadas dentro de los próximos 14 días que sean posteriores al intento y admitan pedidos. Revisa los días habilitados, el corte horario y las jornadas de reparto.</span> : null}</label> : null}
         <label className="block text-sm">Motivo administrativo<textarea name="motivo" required maxLength={2000} rows={2} className={`${campo} mt-1 resize-y`} /></label>
         {accion === "cancelar" ? <label className="block text-sm">Tratamiento administrativo de pagos y créditos<textarea name="tratamiento" required maxLength={2000} className={campo} /><span>Indica la revisión realizada y la gestión pendiente o su referencia. Si no existen pagos ni créditos, indícalo expresamente. Esta constancia no ejecuta ajustes ni devoluciones.</span></label> : null}
       </fieldset>

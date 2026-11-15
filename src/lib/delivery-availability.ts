@@ -77,8 +77,15 @@ export async function obtenerFechasEntregaDisponibles(): Promise<FechaEntregaDis
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase.rpc("obtener_dias_entrega_activos");
   if (error) throw new Error("No fue posible cargar las fechas de entrega disponibles.");
+  if (!Array.isArray(data) || !data.every((dia: DiaEntregaActivoFila) => dia &&
+    Number.isInteger(dia.dia_semana) && dia.dia_semana >= 1 && dia.dia_semana <= 7 &&
+    Number.isSafeInteger(Number(dia.dias_anticipacion_corte)) && dia.dias_anticipacion_corte !== null &&
+    Number(dia.dias_anticipacion_corte) >= 0 &&
+    typeof dia.hora_corte === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d(?::00(?:\.0+)?)?$/.test(dia.hora_corte))) {
+    throw new Error("La configuración de fechas de entrega no es válida.");
+  }
 
-  const dias = ((data ?? []) as DiaEntregaActivoFila[]).map((dia) => ({
+  const dias = (data as DiaEntregaActivoFila[]).map((dia) => ({
     diaSemana: dia.dia_semana as DiaSemanaEntrega,
     diasAnticipacionCorte: Number(dia.dias_anticipacion_corte),
     horaCorte: String(dia.hora_corte),

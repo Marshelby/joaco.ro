@@ -1,0 +1,948 @@
+[
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.carga_pedidos.fecha",
+    "contrato": {
+      "tipo": "date",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.carga_pedidos.incluido",
+    "contrato": {
+      "tipo": "boolean",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.carga_pedidos.motivo",
+    "contrato": {
+      "tipo": "text",
+      "defecto": null,
+      "no_nulo": false,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.carga_pedidos.pedido_id",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.actor",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.pedido_antes",
+    "contrato": {
+      "tipo": "jsonb",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.pedido_despues",
+    "contrato": {
+      "tipo": "jsonb",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.pedido_id",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.seleccion_antes",
+    "contrato": {
+      "tipo": "jsonb",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.seleccion_despues",
+    "contrato": {
+      "tipo": "jsonb",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.permiso_reprogramacion.transaccion",
+    "contrato": {
+      "tipo": "bigint",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_capacidad.accion",
+    "contrato": {
+      "tipo": "text",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_capacidad.actor",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_capacidad.pedido_id",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": false,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_capacidad.ruta_id",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_capacidad.transaccion",
+    "contrato": {
+      "tipo": "bigint",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_pedidos.pedido_id",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_pedidos.posicion",
+    "contrato": {
+      "tipo": "integer",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "columna",
+    "identidad": "operativo_privado.ruta_multi_pedidos.ruta_id",
+    "contrato": {
+      "tipo": "uuid",
+      "defecto": null,
+      "no_nulo": true,
+      "generada": ""
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "actualizar_fecha_actualizacion()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.actualizar_fecha_actualizacion()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nbegin\n  new.fecha_actualizacion = now();\n  return new;\nend;\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=public"
+      ],
+      "security_definer": false
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "fecha_entrega_disponible(date,timestamp with time zone)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.fecha_entrega_disponible(p_fecha_entrega date, p_momento timestamp with time zone DEFAULT now())\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_dia public.dias_entrega%rowtype;\n  v_ahora_local timestamp;\n  v_fecha_local date;\n  v_deadline timestamp;\nbegin\n  if p_fecha_entrega is null then\n    return false;\n  end if;\n\n  v_ahora_local := p_momento at time zone 'America/Santiago';\n  v_fecha_local := v_ahora_local::date;\n\n  if p_fecha_entrega < v_fecha_local\n    or p_fecha_entrega > v_fecha_local + 14 then\n    return false;\n  end if;\n\n  select * into v_dia\n  from public.dias_entrega d\n  where d.dia_semana = extract(isodow from p_fecha_entrega)::smallint\n    and d.activo = true;\n\n  if not found then\n    return false;\n  end if;\n\n  v_deadline := (p_fecha_entrega - v_dia.dias_anticipacion_corte) + v_dia.hora_corte;\n  return v_ahora_local < v_deadline;\nend;\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=public"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.completar_operacion(uuid,bigint,uuid,text,jsonb,uuid,text,jsonb,jsonb,jsonb)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.completar_operacion(p_pedido_id uuid, p_version_esperada bigint, p_clave uuid, p_operacion text, p_solicitud jsonb, p_item_pedido_id uuid, p_motivo text, p_anteriores jsonb, p_nuevos jsonb, p_resultado jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare\r\n  v_inicio jsonb;\r\n  v_version bigint;\r\nbegin\r\n  v_inicio := operativo_privado.iniciar_operacion(p_pedido_id, p_version_esperada,\r\n    p_clave, p_operacion, p_solicitud);\r\n  if (v_inicio ->> 'reintento')::boolean then return v_inicio; end if;\r\n  if p_motivo is null or btrim(p_motivo) = '' or length(p_motivo) > 2000\r\n    or p_anteriores is null or jsonb_typeof(p_anteriores) <> 'object'\r\n    or p_nuevos is null or jsonb_typeof(p_nuevos) <> 'object'\r\n    or p_resultado is null or jsonb_typeof(p_resultado) <> 'object' then\r\n    raise exception 'AUDITORIA_OPERATIVA_INVALIDA';\r\n  end if;\r\n  if p_item_pedido_id is not null then\r\n    perform 1 from public.items_pedido i\r\n      where i.id = p_item_pedido_id and i.pedido_id = p_pedido_id for share;\r\n    if not found then raise exception 'ITEM_PEDIDO_NO_CORRESPONDE_AL_PEDIDO'; end if;\r\n  end if;\r\n  update operativo_privado.versiones_pedido v set version = v.version + 1\r\n    where v.pedido_id = p_pedido_id and v.version = p_version_esperada\r\n    returning v.version into v_version;\r\n  if not found then raise exception 'VERSION_OPERATIVA_CONFLICTO'; end if;\r\n  insert into operativo_privado.historial_operativo (\r\n    pedido_id, item_pedido_id, operacion, actor_id, motivo, valores_anteriores,\r\n    valores_nuevos, version, clave_idempotencia, version_esperada, solicitud, resultado\r\n  ) values (p_pedido_id, p_item_pedido_id, p_operacion, auth.uid(), p_motivo,\r\n    p_anteriores, p_nuevos, v_version, p_clave, p_version_esperada, p_solicitud, p_resultado);\r\n  return jsonb_build_object('reintento', false, 'resultado', p_resultado, 'version', v_version);\r\nend;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": false
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.evidencia_reprogramacion_multi(uuid)",
+    "contrato": {
+      "acl": null,
+      "existe": false,
+      "bypassrls": null,
+      "definicion": null,
+      "propietario": null,
+      "superusuario": null,
+      "configuracion": null,
+      "security_definer": null
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.exigir_pedido_reprogramable(uuid)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.exigir_pedido_reprogramable(p_pedido_id uuid)\n RETURNS date\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare p public.pedidos%rowtype; cp operativo_privado.carga_pedidos%rowtype;\r\n c operativo_privado.cargas%rowtype; intento jsonb;\r\n fallo operativo_privado.historial_operativo%rowtype; version_actual bigint;\r\nbegin\r\n select * into p from public.pedidos where id=p_pedido_id;\r\n if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;\r\n if p.estado is distinct from 'entrega_fallida' or p.preparacion_finalizada_en is null\r\n or p.venta_definitiva_snapshot is not null or p.venta_reconocida_en is not null\r\n or exists(select 1 from operativo_privado.entregas_definitivas where pedido_id=p.id) then\r\n raise exception 'PEDIDO_NO_REPROGRAMABLE'; end if;\r\n select * into cp from operativo_privado.carga_pedidos where pedido_id=p.id;\r\n if not found or not cp.incluido then raise exception 'PEDIDO_NO_REPROGRAMABLE'; end if;\r\n select * into c from operativo_privado.cargas where fecha=cp.fecha;\r\n if not found or c.estado is distinct from 'cerrada' then raise exception 'CIERRE_REQUERIDO'; end if;\r\n select coalesce((select version from operativo_privado.versiones_pedido where pedido_id=p.id),0) into version_actual;\r\n -- No trasladar una selección sin su intento cerrado y evento de fallo exactos.\r\n -- La versión del cierre puede preceder otras operaciones auditadas sin cambio\r\n -- de estado; se enlaza el fallo por su propia versión, no por la versión actual.\r\n select x into intento from jsonb_array_elements(c.resumen_cierre->'intentos') x\r\n where x->'pedido'->>'id'=p.id::text;\r\n select * into fallo from operativo_privado.historial_operativo\r\n where pedido_id=p.id and operacion='entrega_fallida' order by version desc limit 1;\r\n if intento is null or fallo.pedido_id is null\r\n or intento->'pedido' is distinct from to_jsonb(p)\r\n or intento->'seleccion' is distinct from to_jsonb(cp)\r\n or intento->'fallo' is distinct from to_jsonb(fallo)\r\n or jsonb_typeof(intento->'version') is distinct from 'number'\r\n or (intento->>'version')::bigint>version_actual\r\n or intento->'motivo' is distinct from to_jsonb(fallo.motivo)\r\n or fallo.version>(intento->>'version')::bigint\r\n or fallo.valores_nuevos->>'estado' is distinct from 'entrega_fallida'\r\n or not exists(select 1 from operativo_privado.historial_cargas h\r\n where h.fecha=cp.fecha and h.version=c.version and h.resultado=c.resumen_cierre\r\n and h.solicitud->>'accion'='cerrar') then\r\n raise exception 'TRAZABILIDAD_INTENTO_INVALIDA'; end if;\r\n return cp.fecha;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.fecha_reprogramacion_admite_pedidos(date)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.fecha_reprogramacion_admite_pedidos(p_fecha date)\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare abierta boolean; incorpora boolean;\r\nbegin\r\n if operativo_privado.fecha_reprogramacion_tiene_rutas_multi(p_fecha) then\r\n if exists(select 1 from operativo_privado.cargas where fecha=p_fecha) then return false; end if;\r\n -- Fase 2 no ofrece incorporar en reparto; no prometer esa posibilidad.\r\n select md5(replace(prosrc,chr(13)||chr(10),chr(10))) in ('3258c2545d0c9dd5960f60bf1d0d103b','d8c2db86f702c3a1174dd1374207009d') into incorpora\r\n from pg_proc where oid=to_regprocedure('public.operar_ruta_multiple(jsonb)');\r\n execute 'select exists(select 1 from operativo_privado.rutas_multi where fecha=$1 and (estado in (''planificacion'',''preparacion'') or (estado=''en_reparto'' and $2 and fecha=(statement_timestamp() at time zone ''America/Santiago'')::date and exists(select 1 from operativo_privado.ruta_multi_repartidores a join operativo_privado.repartidores rp on rp.usuario_id=a.usuario_id and rp.activo where a.ruta_id=rutas_multi.id))))'\r\n into abierta using p_fecha,coalesce(incorpora,false);\r\n return abierta;\r\n end if;\r\n return not exists(select 1 from operativo_privado.cargas where fecha=p_fecha and estado<>'preparacion');\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.fecha_reprogramacion_tiene_rutas_multi(date)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.fecha_reprogramacion_tiene_rutas_multi(p_fecha date)\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare existe boolean;\r\nbegin\r\n if to_regclass('operativo_privado.rutas_multi') is null then return false; end if;\r\n execute 'select exists(select 1 from operativo_privado.rutas_multi where fecha=$1)' into existe using p_fecha;\r\n return existe;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.impedir_mutacion_historial()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.impedir_mutacion_historial()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\r\nbegin\r\n  raise exception 'AUDITORIA_OPERATIVA_INMUTABLE';\r\nend;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": false
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.impedir_truncado_fase2()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.impedir_truncado_fase2()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\nbegin raise exception 'TRUNCADO_NO_PERMITIDO_FASE2'; end; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.iniciar_operacion(uuid,bigint,uuid,text,jsonb)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.iniciar_operacion(p_pedido_id uuid, p_version_esperada bigint, p_clave uuid, p_operacion text, p_solicitud jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare\r\n  v_actor uuid := auth.uid();\r\n  v_evento operativo_privado.historial_operativo%rowtype;\r\n  v_version bigint;\r\nbegin\r\n  -- Defensa adicional: el permiso de negocio no sustituye las ACL privadas.\r\n  -- Se limita la infraestructura inicial a operaciones administrativas futuras.\r\n  if v_actor is null or not coalesce((public.es_admin() or operativo_privado.permiso_reparto(p_pedido_id,null)), false) then\r\n    raise exception 'NO_AUTORIZADO';\r\n  end if;\r\n  if p_pedido_id is null or p_clave is null or p_version_esperada is null\r\n    or p_version_esperada < 0 or p_operacion is null\r\n    or btrim(p_operacion) = '' or length(p_operacion) > 100\r\n    or p_solicitud is null or jsonb_typeof(p_solicitud) <> 'object' then\r\n    raise exception 'OPERACION_INVALIDA';\r\n  end if;\r\n  -- Lock común por pedido, incluso cuando todavía no hay versión privada.\r\n  perform 1 from public.pedidos p where p.id = p_pedido_id for update;\r\n  if not found then raise exception 'PEDIDO_NO_ENCONTRADO'; end if;\r\n\r\n  select h.* into v_evento from operativo_privado.historial_operativo h\r\n    where h.pedido_id = p_pedido_id and h.clave_idempotencia = p_clave;\r\n  if found then\r\n    if v_evento.actor_id is distinct from v_actor\r\n      or v_evento.operacion is distinct from p_operacion\r\n      or v_evento.solicitud is distinct from p_solicitud\r\n      or v_evento.version_esperada is distinct from p_version_esperada then\r\n      raise exception 'CLAVE_IDEMPOTENCIA_EN_USO';\r\n    end if;\r\n    -- Reintento antes de comparar versión actual: respuesta original estable.\r\n    return jsonb_build_object('reintento', true, 'resultado', v_evento.resultado,\r\n      'version', v_evento.version);\r\n  end if;\r\n  insert into operativo_privado.versiones_pedido (pedido_id) values (p_pedido_id)\r\n    on conflict (pedido_id) do nothing;\r\n  select v.version into v_version from operativo_privado.versiones_pedido v\r\n    where v.pedido_id = p_pedido_id for update;\r\n  if v_version <> p_version_esperada then raise exception 'VERSION_OPERATIVA_CONFLICTO'; end if;\r\n  return jsonb_build_object('reintento', false, 'version', v_version);\r\nend;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": false
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.permite_reprogramacion(oid,jsonb,jsonb)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.permite_reprogramacion(p_tabla oid, p_antes jsonb, p_despues jsonb)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\ndeclare r operativo_privado.permiso_reprogramacion%rowtype; omitidas text[];\r\nbegin\r\n select * into r from operativo_privado.permiso_reprogramacion\r\n where pedido_id=coalesce(p_antes->>'pedido_id',p_antes->>'id')::uuid\r\n and transaccion=txid_current() and actor=auth.uid();\r\n if not found or auth.uid() is null or not coalesce(public.es_admin(),false) then return false; end if;\r\n if p_tabla='public.pedidos'::regclass then\r\n select array['fecha_actualizacion']::text[] || coalesce(array_agg(attname::text),array[]::text[])\r\n into omitidas from pg_attribute where attrelid=p_tabla and attnum>0 and not attisdropped and attgenerated<>'';\r\n return (p_antes-omitidas)=(r.pedido_antes-omitidas)\r\n and (p_despues-omitidas)=(r.pedido_despues-omitidas);\r\n elsif p_tabla='operativo_privado.carga_pedidos'::regclass then\r\n return p_antes=r.seleccion_antes and p_despues=r.seleccion_despues;\r\n end if;\r\n return false;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_cierre_carga()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_cierre_carga()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\nbegin\r\n -- Una snapshot REPEATABLE READ anterior al cierre podría ocultarlo en triggers.\r\n if current_setting('transaction_isolation')<>'read committed' then raise exception 'AISLAMIENTO_NO_COMPATIBLE'; end if;\r\n if TG_TABLE_NAME='cargas' then\r\n if old.estado='cerrada' then raise exception 'RUTA_CERRADA'; end if;\r\n else\r\n -- Bloquea AMBAS jornadas, en orden, al trasladar una selección.\r\n perform 1 from operativo_privado.cargas\r\n where fecha in (case when TG_OP='INSERT' then new.fecha else old.fecha end,\r\n case when TG_OP='DELETE' then old.fecha else new.fecha end) order by fecha for update;\r\n if TG_OP='DELETE' and operativo_privado.permite_reprogramacion(TG_RELID,to_jsonb(old),'null'::jsonb) then return old; end if;\r\n if TG_OP='UPDATE' and operativo_privado.permite_reprogramacion(TG_RELID,to_jsonb(old),to_jsonb(new)) then return new; end if;\r\n if exists(select 1 from operativo_privado.cargas where estado='cerrada'\r\n and (fecha=case when TG_OP='INSERT' then new.fecha else old.fecha end\r\n or fecha=case when TG_OP='DELETE' then old.fecha else new.fecha end)) then raise exception 'RUTA_CERRADA'; end if;\r\n end if;\r\n if TG_OP='DELETE' then return old; end if;\r\n return new;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_contratos_multi()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_contratos_multi()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare j jsonb; viejo jsonb;\r\nbegin\r\n if TG_OP<>'DELETE' then j:=to_jsonb(new); end if;\r\n if TG_OP<>'INSERT' then viejo:=to_jsonb(old); end if;\r\n if TG_TABLE_NAME in ('cargas','carga_pedidos') then\r\n perform operativo_privado.exigir_fecha_legacy((coalesce(j,viejo)->>'fecha')::date);\r\n if viejo is not null then perform operativo_privado.exigir_fecha_legacy((viejo->>'fecha')::date); end if;\r\n elsif TG_TABLE_NAME='rutas' then\r\n if exists(select 1 from operativo_privado.rutas_multi where id in ((j->>'id')::uuid,(viejo->>'id')::uuid)) then raise exception 'REQUIERE_RUTA_INDIVIDUAL'; end if;\r\n elsif TG_TABLE_NAME='paradas_ruta' then\r\n if exists(select 1 from operativo_privado.rutas_multi where id in ((j->>'ruta_id')::uuid,(viejo->>'ruta_id')::uuid))\r\n or exists(select 1 from operativo_privado.ruta_multi_pedidos where pedido_id in ((j->>'pedido_id')::uuid,(viejo->>'pedido_id')::uuid)) then raise exception 'REQUIERE_RUTA_INDIVIDUAL'; end if;\r\n elsif TG_TABLE_NAME='reparto_asignaciones' then\r\n perform operativo_privado.exigir_fecha_legacy((coalesce(j,viejo)->>'fecha')::date);\r\n end if;\r\n if TG_OP='DELETE' then return old; else return new; end if;\r\nend $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_entrega_fallida()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_entrega_fallida()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\nbegin\r\n  if TG_OP='UPDATE' and new.estado='en_reparto' and old.estado is distinct from new.estado then\r\n    if old.estado<>'listo_despacho' or new.preparacion_finalizada_en is null then raise exception 'PEDIDO_NO_LISTO'; end if;\r\n    if not exists(select 1 from public.items_pedido where pedido_id=new.id)\r\n    or not exists(select 1 from public.preparacion_items_pedido where pedido_id=new.id and cantidad_preparada>0) then raise exception 'SIN_PREPARAR'; end if;\r\n    if exists(select 1 from public.items_pedido i left join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id\r\n      where i.pedido_id=new.id and (pi.pedido_id is distinct from i.pedido_id or not coalesce(pi.confirmado_explicito,false) or pi.cantidad_preparada is null or pi.importe_linea_operativo is null or (pi.cantidad_preparada=0 and pi.importe_linea_operativo<>0))) then raise exception 'PRODUCTOS_PENDIENTES'; end if;\r\n    if exists(select 1 from public.items_pedido i join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id\r\n      where i.pedido_id=new.id and pi.cantidad_preparada<>i.cantidad)\r\n    and not exists(select 1 from operativo_privado.historial_operativo h\r\n      where h.pedido_id=new.id and h.operacion='cerrar_preparacion'\r\n      and h.valores_nuevos->>'parcial_autorizado'='true'\r\n      and h.valores_nuevos->'cantidades'=operativo_privado.cantidades_ruta_multi(new.id)\r\n      and not exists(select 1 from operativo_privado.historial_operativo posterior where posterior.pedido_id=h.pedido_id\r\n        and posterior.version>h.version and posterior.operacion in ('preparar_producto','cerrar_preparacion','carga_reabrir'))) then raise exception 'PARCIAL_NO_AUTORIZADO'; end if;\r\n  end if;\r\n  if TG_OP = 'UPDATE' then\r\n    if operativo_privado.permite_reprogramacion(TG_RELID,to_jsonb(old),to_jsonb(new)) then return new; end if;\r\n    if old.estado = 'entrega_fallida' and new.estado is distinct from old.estado\r\n      and exists (select 1 from operativo_privado.historial_operativo\r\n        where pedido_id = old.id and operacion = 'entrega_fallida') then\r\n      raise exception 'ENTREGA_FALLIDA_SIN_REPROGRAMACION';\r\n    end if;\r\n    if new.estado is not distinct from old.estado then return new; end if;\r\n  end if;\r\n  if new.estado = 'entrega_fallida' then\r\n    if TG_OP = 'INSERT' then raise exception 'ENTREGA_FALLIDA_REQUIERE_OPERACION'; end if;\r\n    if old.estado in ('preparando','listo_despacho') and new.regimen_contable='entrega_v1'\r\n      and new.venta_definitiva_snapshot is null and new.venta_reconocida_en is null\r\n      and auth.uid() is not null and coalesce(public.es_admin(),false)\r\n      and exists(select 1 from operativo_privado.historial_operativo h\r\n        join operativo_privado.versiones_pedido v on v.pedido_id=h.pedido_id and v.version=h.version\r\n        where h.pedido_id=new.id and h.operacion='entrega_fallida' and h.actor_id=auth.uid()\r\n        and h.valores_anteriores->>'estado'=old.estado::text\r\n        and h.valores_nuevos->>'estado'='entrega_fallida'\r\n        and h.valores_nuevos->>'origen'='sin_stock_pre_despacho'\r\n        and h.valores_nuevos->>'motivo'='Sin stock' and h.solicitud->>'confirmado'='true')\r\n      and not exists(select 1 from operativo_privado.entregas_definitivas where pedido_id=new.id)\r\n      and not exists(select 1 from public.aplicaciones_pago where pedido_id=new.id and activa)\r\n      and exists(select 1 from public.items_pedido where pedido_id=new.id)\r\n      and not exists(select 1 from public.items_pedido i left join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id\r\n        where i.pedido_id=new.id and (pi.pedido_id is distinct from i.pedido_id or not coalesce(pi.confirmado_explicito,false) or pi.cantidad_preparada is distinct from 0::numeric or pi.importe_linea_operativo is distinct from 0::bigint))\r\n      then return new; end if;\r\n    if old.estado <> 'en_reparto'\r\n      or new.venta_definitiva_snapshot is not null or new.venta_reconocida_en is not null\r\n      or not exists (\r\n        select 1 from operativo_privado.historial_operativo h\r\n        join operativo_privado.versiones_pedido v\r\n          on v.pedido_id = h.pedido_id and v.version = h.version\r\n        where h.pedido_id = new.id and h.operacion = 'entrega_fallida'\r\n          and h.actor_id = auth.uid()\r\n          and h.valores_anteriores->>'estado' = 'en_reparto'\r\n          and h.valores_nuevos->>'estado' = 'entrega_fallida'\r\n      ) then raise exception 'ENTREGA_FALLIDA_REQUIERE_OPERACION'; end if;\r\n  end if;\r\n  return new;\r\nend;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_pedido_cargado()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_pedido_cargado()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare e text; omitidas text[];\r\nbegin\r\n select c.estado into e from operativo_privado.cargas c join operativo_privado.carga_pedidos cp on cp.fecha=c.fecha where cp.pedido_id=old.id and cp.incluido;\r\n select array['estado','fecha_actualizacion']::text[] || coalesce(array_agg(a.attname::text),array[]::text[])\r\n into omitidas from pg_catalog.pg_attribute a\r\n where a.attrelid=TG_RELID and a.attnum>0 and not a.attisdropped and a.attgenerated<>'';\r\n if e='en_ruta' and old.estado='en_reparto' and new.estado='entregado'\r\n and exists(select 1 from operativo_privado.entregas_definitivas d where d.pedido_id=old.id\r\n   and d.snapshot=new.venta_definitiva_snapshot and d.instante=new.venta_reconocida_en) then\r\n   omitidas:=omitidas || array['venta_definitiva_snapshot','venta_reconocida_en']::text[];\r\n end if;\r\n if e in ('lista','en_ruta') and (to_jsonb(new)-omitidas) is distinct from (to_jsonb(old)-omitidas) then raise exception 'CARGA_CONFIRMADA'; end if;\r\n if e='lista' and new.estado not in ('listo_despacho','en_reparto') then raise exception 'CARGA_CONFIRMADA'; end if;\r\n if e='en_ruta' and new.estado in ('recibido','en_revision','programado','confirmado','preparando','listo_despacho') then raise exception 'CARGA_YA_SALIO'; end if;\r\n return new;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_pedido_ruta_cerrada()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_pedido_ruta_cerrada()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\nbegin\r\n -- Una snapshot REPEATABLE READ anterior al cierre podría ocultarlo en triggers.\r\n if current_setting('transaction_isolation')<>'read committed' then raise exception 'AISLAMIENTO_NO_COMPATIBLE'; end if;\r\n if TG_OP='UPDATE' and operativo_privado.permite_reprogramacion(TG_RELID,to_jsonb(old),to_jsonb(new)) then return new; end if;\r\n if exists(select 1 from operativo_privado.carga_pedidos cp join operativo_privado.cargas c using(fecha)\r\n where cp.pedido_id=old.id and cp.incluido and c.estado='cerrada') then raise exception 'RUTA_CERRADA'; end if;\r\n if TG_OP='DELETE' then return old; end if;\r\n return new;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_ruta_multi()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_ruta_multi()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare pid uuid; r operativo_privado.rutas_multi%rowtype; omitidas text[];\r\nbegin\r\n if TG_TABLE_NAME<>'pedidos' and TG_OP='UPDATE' then\r\n if old.pedido_id is distinct from new.pedido_id and exists(select 1 from operativo_privado.ruta_multi_pedidos where pedido_id in (old.pedido_id,new.pedido_id)) then raise exception 'PERTENENCIA_INMUTABLE'; end if;\r\n end if;\r\n if TG_TABLE_NAME='pedidos' then pid:=old.id;\r\n elsif TG_OP='DELETE' then pid:=old.pedido_id;\r\n else pid:=new.pedido_id; end if;\r\n -- Lock común del pedido también para INSERT/DELETE de líneas, sin invertir\r\n -- el orden de RPC legacy: abortar ante contención y reintentar la operación.\r\n perform 1 from public.pedidos where id=pid for update nowait;\r\n select rm.* into r from operativo_privado.ruta_multi_pedidos m join operativo_privado.rutas_multi rm on rm.id=m.ruta_id where m.pedido_id=pid;\r\n if not found then\r\n if TG_OP='DELETE' then return old; else return new; end if;\r\n end if;\r\n if TG_TABLE_NAME<>'pedidos' then\r\n if TG_OP='UPDATE' and old.pedido_id is distinct from new.pedido_id then raise exception 'PERTENENCIA_INMUTABLE'; end if;\r\n if r.estado in ('en_reparto','cerrada') or (TG_TABLE_NAME='preparacion_items_pedido' and r.estado<>'preparacion') then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n elsif TG_OP='DELETE' then raise exception 'PEDIDO_ASIGNADO_A_RUTA';\r\n else\r\n if r.estado='planificacion' and new.estado='preparando' and old.estado is distinct from new.estado then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n if new.fecha_entrega is distinct from old.fecha_entrega then raise exception 'PEDIDO_ASIGNADO_A_RUTA'; end if;\r\n if r.estado='cerrada' and to_jsonb(new) is distinct from to_jsonb(old) then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n if new.estado='en_reparto' and old.estado is distinct from new.estado and not exists(\r\n select 1 from operativo_privado.ruta_multi_capacidad c where c.transaccion=txid_current() and c.actor=auth.uid() and c.ruta_id=r.id and c.pedido_id=pid and c.accion='salir') then raise exception 'SALIDA_REQUIERE_RUTA'; end if;\r\n if r.estado='en_reparto' then\r\n select array['estado','fecha_actualizacion','venta_definitiva_snapshot','venta_reconocida_en']::text[] || coalesce(array_agg(attname::text),array[]::text[]) into omitidas\r\n from pg_attribute where attrelid=TG_RELID and attnum>0 and not attisdropped and attgenerated<>'';\r\n if (to_jsonb(new)-omitidas) is distinct from (to_jsonb(old)-omitidas) or new.estado not in ('en_reparto','entregado','entrega_fallida') then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n end if;\r\n end if;\r\n if TG_OP='DELETE' then return old; else return new; end if;\r\nend $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.proteger_venta_definitiva()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.proteger_venta_definitiva()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\nbegin\r\n if TG_OP='UPDATE' then\r\n   if old.venta_definitiva_snapshot is not null and\r\n     (new.venta_definitiva_snapshot is distinct from old.venta_definitiva_snapshot\r\n      or new.venta_reconocida_en is distinct from old.venta_reconocida_en\r\n      or new.estado is distinct from old.estado) then\r\n     raise exception 'VENTA_DEFINITIVA_INMUTABLE';\r\n   end if;\r\n end if;\r\n if new.venta_definitiva_snapshot is not null or new.venta_reconocida_en is not null\r\n   or (new.regimen_contable='entrega_v1' and new.estado='entregado'\r\n     and (TG_OP='INSERT' or old.estado is distinct from new.estado)) then\r\n   if not exists(select 1 from operativo_privado.entregas_definitivas e\r\n     where e.pedido_id=new.id and e.snapshot=new.venta_definitiva_snapshot\r\n       and e.instante=new.venta_reconocida_en and new.estado='entregado'\r\n       and new.regimen_contable='entrega_v1') then\r\n     raise exception 'ENTREGA_REQUIERE_SNAPSHOT_DEFINITIVO';\r\n   end if;\r\n end if;\r\n return new;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "operativo_privado.snapshot_ruta_multi(uuid)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION operativo_privado.snapshot_ruta_multi(p_ruta uuid)\n RETURNS jsonb\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\n select jsonb_build_object('ruta',to_jsonb(r),\r\n 'pedidos',coalesce((select jsonb_agg(jsonb_build_object('pedido',to_jsonb(p),'posicion',m.posicion,\r\n 'version',coalesce(v.version,0),'cantidades',operativo_privado.cantidades_ruta_multi(p.id),\r\n 'preparacion',coalesce((select jsonb_agg(to_jsonb(pi) order by item_pedido_id) from public.preparacion_items_pedido pi where pi.pedido_id=p.id),'[]'::jsonb),\r\n 'historial',coalesce((select jsonb_agg(to_jsonb(h) order by version) from operativo_privado.historial_operativo h where h.pedido_id=p.id),'[]'::jsonb)) order by m.posicion,p.id)\r\n from operativo_privado.ruta_multi_pedidos m join public.pedidos p on p.id=m.pedido_id left join operativo_privado.versiones_pedido v on v.pedido_id=p.id where m.ruta_id=r.id),'[]'::jsonb),\r\n 'repartidores',coalesce((select jsonb_agg(usuario_id order by usuario_id) from operativo_privado.ruta_multi_repartidores where ruta_id=r.id),'[]'::jsonb),\r\n 'autorizaciones',coalesce((select jsonb_agg(to_jsonb(a) order by pedido_id) from operativo_privado.ruta_multi_autorizaciones a where ruta_id=r.id),'[]'::jsonb))\r\n from operativo_privado.rutas_multi r where r.id=p_ruta;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "otorgar_beneficio_al_entregar_pedido()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.otorgar_beneficio_al_entregar_pedido()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nbegin\n  if old.estado is distinct from new.estado\n    and new.estado = 'entregado'::public.estado_pedido\n    and old.estado is distinct from 'entregado'::public.estado_pedido then\n    perform public.procesar_beneficio_pedido_entregado(new.id);\n  end if;\n\n  return new;\nend;\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=public"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "proteger_regimen_contable_pedido()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.proteger_regimen_contable_pedido()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\r\nbegin\r\n  if new.regimen_contable is distinct from old.regimen_contable then\r\n    raise exception 'REGIMEN_CONTABLE_INMUTABLE';\r\n  end if;\r\n  return new;\r\nend;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": false
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.leer_fechas_reprogramacion_admin(uuid)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.leer_fechas_reprogramacion_admin(p_pedido_id uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare fechas jsonb; fecha_origen date;\r\nbegin\r\n if auth.uid() is null or not coalesce(public.es_admin(),false) then raise exception 'NO_AUTORIZADO'; end if;\r\n fecha_origen:=operativo_privado.exigir_pedido_reprogramable(p_pedido_id);\r\n select coalesce(jsonb_agg(x.fecha order by x.fecha),'[]'::jsonb) into fechas from (\r\n select (statement_timestamp() at time zone 'America/Santiago')::date + n as fecha\r\n from generate_series(0,14) n\r\n where (statement_timestamp() at time zone 'America/Santiago')::date+n>fecha_origen\r\n and public.fecha_entrega_disponible((statement_timestamp() at time zone 'America/Santiago')::date+n,statement_timestamp())\r\n and operativo_privado.fecha_reprogramacion_admite_pedidos((statement_timestamp() at time zone 'America/Santiago')::date+n)\r\n order by fecha limit 10) x;\r\n return fechas;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.leer_intentos_pedido_admin(uuid)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.leer_intentos_pedido_admin(p_pedido_id uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\nbegin\r\n if auth.uid() is null or not coalesce(public.es_admin(),false) then raise exception 'NO_AUTORIZADO'; end if;\r\n return jsonb_build_object(\r\n 'intentos',coalesce((select jsonb_agg(jsonb_build_object('id',h.id,'fecha',h.fecha,'actor',h.actor_id,\r\n 'motivo',h.motivo,'observaciones',h.valores_nuevos->>'observaciones','version',h.version) order by h.version)\r\n from operativo_privado.historial_operativo h where h.pedido_id=p_pedido_id and h.operacion='entrega_fallida'),'[]'::jsonb),\r\n 'cierres',coalesce((select jsonb_agg(jsonb_build_object('fecha',c.fecha,'cerrada_en',c.cerrada_en,\r\n 'actor',c.cerrada_por,'version',c.version,'intento',x.intento) order by c.fecha)\r\n from operativo_privado.cargas c cross join lateral jsonb_array_elements(c.resumen_cierre->'intentos') x(intento)\r\n where c.estado='cerrada' and x.intento->'pedido'->>'id'=p_pedido_id::text),'[]'::jsonb));\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.leer_mi_reparto()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.leer_mi_reparto()\n RETURNS jsonb\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\n select case when public.acceso_repartidor() then operativo_privado.leer_mi_reparto() || coalesce((\r\n select jsonb_agg(jsonb_build_object('ruta',r.id,'nombre',r.nombre,'fecha',r.fecha,'asignacion',r.version,'estado','en_ruta',\r\n 'pedidos',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'numero',p.numero_pedido,'cliente',p.nombre_cliente_snapshot,\r\n 'direccion',concat_ws(', ',p.direccion_snapshot,p.comuna_snapshot,p.region_snapshot),'telefono',p.telefono_cliente_snapshot,'referencia',p.referencia_direccion_snapshot,\r\n 'estado',p.estado,'preparacion',operativo_privado.estado_preparacion_multi(p.id),'version',coalesce(v.version,0),'posicion',m.posicion,\r\n 'productos',coalesce((select jsonb_agg(jsonb_build_object('nombre',i.nombre_producto_snapshot,'cantidad',pi.cantidad_preparada,'enviada',pi.cantidad_preparada,'importe_operativo',pi.importe_linea_operativo,'solicitada',i.cantidad,'faltante',greatest(i.cantidad-pi.cantidad_preparada,0),'unidad',i.unidad_snapshot) order by i.id)\r\n from public.items_pedido i join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id where i.pedido_id=p.id),'[]'::jsonb)) order by m.posicion,p.id)\r\n from operativo_privado.ruta_multi_pedidos m join public.pedidos p on p.id=m.pedido_id left join operativo_privado.versiones_pedido v on v.pedido_id=p.id where m.ruta_id=r.id),'[]'::jsonb)) order by r.fecha,r.nombre,r.id)\r\n from operativo_privado.rutas_multi r join operativo_privado.ruta_multi_repartidores a on a.ruta_id=r.id\r\n join operativo_privado.repartidores rp on rp.usuario_id=a.usuario_id and rp.activo\r\n where a.usuario_id=auth.uid() and r.estado='en_reparto'),'[]'::jsonb) else '[]'::jsonb end;\r\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.leer_rutas_multiples(date)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.leer_rutas_multiples(p_fecha date)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\nbegin\r\n if auth.uid() is null or not coalesce(public.es_admin(),false) then raise exception 'NO_AUTORIZADO'; end if;\r\n if p_fecha is null or not isfinite(p_fecha) then raise exception 'FECHA_INVALIDA'; end if;\r\n return jsonb_build_object('contrato',3,'legado',exists(select 1 from operativo_privado.cargas where fecha=p_fecha),\r\n 'rutas',coalesce((select jsonb_agg(jsonb_build_object('id',r.id,'nombre',r.nombre,'estado',r.estado,'version',r.version,\r\n 'pedidos',coalesce((select jsonb_agg(pedido_id order by posicion,pedido_id) from operativo_privado.ruta_multi_pedidos where ruta_id=r.id),'[]'::jsonb),\r\n 'repartidores',coalesce((select jsonb_agg(usuario_id order by usuario_id) from operativo_privado.ruta_multi_repartidores where ruta_id=r.id),'[]'::jsonb),\r\n 'autorizaciones',coalesce((select jsonb_agg(jsonb_build_object('pedido',pedido_id,'version',version,'motivo',motivo,'actor',actor,'cantidades',cantidades) order by pedido_id) from operativo_privado.ruta_multi_autorizaciones where ruta_id=r.id),'[]'::jsonb),\r\n 'historial',coalesce((select jsonb_agg(jsonb_build_object('clave',e.clave,'actor',e.actor,'instante',e.instante,'accion',e.solicitud->>'accion','motivo',e.solicitud->>'motivo','pedido',e.solicitud->>'pedido','resultado',e.resultado-'snapshot') order by e.instante,e.clave) from operativo_privado.ruta_multi_eventos e where e.ruta_id=r.id),'[]'::jsonb),\r\n 'contadores',(select jsonb_build_object('sin_preparar',count(*) filter(where operativo_privado.estado_preparacion_multi(p.id)='sin_preparar'),\r\n 'parciales',count(*) filter(where operativo_privado.estado_preparacion_multi(p.id)='parcial'),\r\n 'pendientes_entrega',count(*) filter(where p.estado not in ('en_reparto','entregado','entrega_fallida')),\r\n 'preparados',count(*) filter(where operativo_privado.estado_preparacion_multi(p.id)='listo'),\r\n 'en_reparto',count(*) filter(where p.estado='en_reparto'),'entregados',count(*) filter(where p.estado='entregado'),\r\n 'no_entregados',count(*) filter(where p.estado='entrega_fallida'),'pendientes',count(*) filter(where p.estado not in ('entregado','entrega_fallida')))\r\n from operativo_privado.ruta_multi_pedidos m join public.pedidos p on p.id=m.pedido_id where m.ruta_id=r.id)) order by r.nombre,r.id)\r\n from operativo_privado.rutas_multi r where r.fecha=p_fecha),'[]'::jsonb),\r\n 'repartidores',coalesce((select jsonb_agg(jsonb_build_object('usuario_id',rp.usuario_id,'nombre',coalesce(p.nombre,'Repartidor')) order by p.nombre,rp.usuario_id)\r\n from operativo_privado.repartidores rp join public.perfiles p on p.usuario_id=rp.usuario_id where rp.activo and p.rol<>'admin'),'[]'::jsonb));\r\nend $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.operar_carga_jornada(date,bigint,uuid,text,jsonb,text)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.operar_carga_jornada(p_fecha date, p_version bigint, p_clave uuid, p_accion text, p_pedidos jsonb, p_motivo text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\r\ndeclare\r\n c operativo_privado.cargas%rowtype; h operativo_privado.historial_cargas%rowtype;\r\n s jsonb; anterior jsonb; resultado jsonb; e jsonb; p public.pedidos%rowtype;\r\n pv bigint; inicio jsonb;\r\nbegin perform operativo_privado.exigir_fecha_legacy(p_fecha);\r\n if auth.uid() is null or not coalesce(public.es_admin(),false) then raise exception 'NO_AUTORIZADO'; end if;\r\n if p_fecha is null or not isfinite(p_fecha) or p_version is null or p_version<0 or p_clave is null\r\n or p_accion is null or p_accion not in ('guardar','confirmar','salir','reabrir') then raise exception 'OPERACION_INVALIDA'; end if;\r\n -- Antes de cualquier lock de fila/advisory: estabiliza el universo de la fecha\r\n -- frente a INSERT y cambios legacy que no participan del lock de jornada.\r\n -- EXCLUSIVE también espera SELECT FOR UPDATE legacy antes de tomar el\r\n -- lock: evita retenerlo esperando una fila cuyo dueño aún necesita UPDATE.\r\n -- SELECT ordinarios siguen permitidos. El coste es serializar escrituras.\r\n lock table public.pedidos in exclusive mode;\r\n perform pg_advisory_xact_lock(hashtextextended('carga:'||p_fecha::text,0));\r\n s:=jsonb_build_object('accion',p_accion,'pedidos',p_pedidos,'motivo',p_motivo,'version',p_version);\r\n select * into h from operativo_privado.historial_cargas where fecha=p_fecha and clave=p_clave;\r\n if found then\r\n if h.actor<>auth.uid() or h.solicitud<>s then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;\r\n return h.resultado;\r\n end if;\r\n if p_fecha is distinct from (clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'PREPARACION_FECHA_NO_HABILITADA'; end if;\r\n insert into operativo_privado.cargas(fecha) values(p_fecha) on conflict do nothing;\r\n select * into c from operativo_privado.cargas where fecha=p_fecha for update;\r\n if c.version<>p_version then raise exception 'VERSION_CARGA_CONFLICTO'; end if;\r\n if c.estado='en_ruta' then raise exception 'CARGA_YA_SALIO'; end if;\r\n anterior:=public.leer_carga_jornada(p_fecha);\r\n if p_accion='guardar' then\r\n if c.estado<>'preparacion' then raise exception 'CARGA_NO_EDITABLE'; end if;\r\n if p_pedidos is null or jsonb_typeof(p_pedidos)<>'array' or jsonb_array_length(p_pedidos)=0 then raise exception 'SELECCION_REQUERIDA'; end if;\r\n if exists(select 1 from jsonb_array_elements(p_pedidos) x where jsonb_typeof(x)<>'object'\r\n or x->>'id' is null or jsonb_typeof(x->'incluido') is distinct from 'boolean')\r\n or (select count(distinct x->>'id') from jsonb_array_elements(p_pedidos) x)<>jsonb_array_length(p_pedidos) then raise exception 'SELECCION_INVALIDA'; end if;\r\n -- Bloqueo común con las RPC individuales; orden determinista.\r\n perform 1 from public.pedidos where id in (select (x->>'id')::uuid from jsonb_array_elements(p_pedidos) x) order by id for update;\r\n if (select count(*) from public.pedidos pe where pe.id in (select (x->>'id')::uuid from jsonb_array_elements(p_pedidos) x)\r\n and (pe.fecha_entrega=p_fecha or exists(select 1 from operativo_privado.carga_pedidos cp where cp.pedido_id=pe.id and cp.fecha=p_fecha)))<>jsonb_array_length(p_pedidos) then raise exception 'SELECCION_INVALIDA'; end if;\r\n -- Cancelados/terminales o miembros desplazados sólo admiten exclusión explícita.\r\n if exists(select 1 from jsonb_array_elements(p_pedidos) x join public.pedidos pe on pe.id=(x->>'id')::uuid\r\n where (x->>'incluido')::boolean and (pe.fecha_entrega is distinct from p_fecha\r\n or pe.estado not in ('recibido','en_revision','programado','confirmado','preparando','listo_despacho'))) then raise exception 'SELECCION_INVALIDA'; end if;\r\n if exists(select 1 from jsonb_array_elements(p_pedidos) x where not (x->>'incluido')::boolean\r\n and (nullif(btrim(x->>'motivo'),'') is null or length(x->>'motivo')>2000)) then raise exception 'EXCLUSION_REQUIERE_MOTIVO'; end if;\r\n -- No permite omitir silenciosamente miembros persistidos: excluir con motivo.\r\n if exists(select 1 from operativo_privado.carga_pedidos cp where cp.fecha=p_fecha and not exists(select 1 from jsonb_array_elements(p_pedidos) x where (x->>'id')::uuid=cp.pedido_id)) then raise exception 'EXCLUSION_REQUIERE_MOTIVO'; end if;\r\n for e in select value from jsonb_array_elements(p_pedidos) loop\r\n insert into operativo_privado.carga_pedidos(fecha,pedido_id,incluido,motivo)\r\n values(p_fecha,(e->>'id')::uuid,(e->>'incluido')::boolean,nullif(btrim(e->>'motivo'),''))\r\n on conflict(pedido_id) do update set incluido=excluded.incluido,motivo=excluded.motivo\r\n where operativo_privado.carga_pedidos.fecha=p_fecha;\r\n if not found then raise exception 'PEDIDO_EN_OTRA_CARGA'; end if;\r\n end loop;\r\n else\r\n if p_accion in ('confirmar','salir') and not exists(select 1 from operativo_privado.carga_pedidos where fecha=p_fecha and incluido) then raise exception 'CARGA_VACIA'; end if;\r\n if (p_accion='confirmar' and c.estado<>'preparacion') or (p_accion in ('salir','reabrir') and c.estado<>'lista') then raise exception 'ESTADO_CARGA_INVALIDO'; end if;\r\n if p_accion='reabrir' and (nullif(btrim(p_motivo),'') is null or length(p_motivo)>2000) then raise exception 'MOTIVO_REQUERIDO'; end if;\r\n -- Confirmar exige una decisión persistida para CADA pedido que existe ahora.\r\n -- Los creados después de esta transacción quedan fuera; salir no los incorpora.\r\n if p_accion='confirmar' and exists(select 1 from public.pedidos pe where pe.fecha_entrega=p_fecha\r\n and not exists(select 1 from operativo_privado.carga_pedidos cp where cp.fecha=p_fecha and cp.pedido_id=pe.id)) then raise exception 'DECISIONES_PENDIENTES'; end if;\r\n -- Lista congela los pedidos incluidos. Reabrir libera el cierre sin borrar líneas.\r\n if p_accion='reabrir' then update operativo_privado.cargas set estado='preparacion',confirmada_en=null where fecha=p_fecha; end if;\r\n for p in select pe.* from public.pedidos pe join operativo_privado.carga_pedidos cp on cp.pedido_id=pe.id\r\n where cp.fecha=p_fecha and cp.incluido order by pe.id for update of pe loop\r\n if p.estado<>'listo_despacho' or p.fecha_entrega is distinct from p_fecha then raise exception 'PEDIDO_NO_LISTO'; end if;\r\n if p_accion in ('confirmar','salir') then\r\n perform 1 from public.items_pedido where pedido_id=p.id order by id for update;\r\n perform 1 from public.preparacion_items_pedido where pedido_id=p.id order by item_pedido_id for update;\r\n if p.preparacion_finalizada_en is null or not exists(select 1 from public.items_pedido where pedido_id=p.id)\r\n or exists(select 1 from public.items_pedido i left join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id\r\n where i.pedido_id=p.id and (not coalesce(pi.confirmado_explicito,false) or pi.importe_linea_operativo is null)) then raise exception 'PRODUCTOS_PENDIENTES'; end if;\r\n end if;\r\n if p_accion in ('salir','reabrir') then\r\n select coalesce((select version from operativo_privado.versiones_pedido where pedido_id=p.id),0) into pv;\r\n inicio:=operativo_privado.iniciar_operacion(p.id,pv,p_clave,'carga_'||p_accion,s);\r\n update public.pedidos set estado=case when p_accion='salir' then 'en_reparto'::public.estado_pedido else 'preparando'::public.estado_pedido end,\r\n preparacion_finalizada_en=case when p_accion='reabrir' then null else preparacion_finalizada_en end,\r\n preparacion_finalizada_por=case when p_accion='reabrir' then null else preparacion_finalizada_por end,\r\n preparacion_estado=case when p_accion='reabrir' then 'pendiente' else preparacion_estado end where id=p.id;\r\n perform operativo_privado.completar_operacion(p.id,pv,p_clave,'carga_'||p_accion,s,null,\r\n coalesce(nullif(btrim(p_motivo),''),'Salida global de carga confirmada'),to_jsonb(p),\r\n jsonb_build_object('estado',case when p_accion='salir' then 'en_reparto' else 'preparando' end),jsonb_build_object('fecha',p_fecha));\r\n end if;\r\n end loop;\r\n -- Evaluación tras todos los locks, también si se cruzó medianoche.\r\n if p_fecha is distinct from (clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'PREPARACION_FECHA_NO_HABILITADA'; end if;\r\n update operativo_privado.cargas set estado=case p_accion when 'confirmar' then 'lista' when 'salir' then 'en_ruta' else 'preparacion' end,\r\n confirmada_en=case when p_accion='confirmar' then clock_timestamp() else confirmada_en end,\r\n salida_en=case when p_accion='salir' then clock_timestamp() else salida_en end where fecha=p_fecha;\r\n end if;\r\n -- También guardar revalida el reloj después de todos sus locks/escrituras.\r\n if p_fecha is distinct from (clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'PREPARACION_FECHA_NO_HABILITADA'; end if;\r\n update operativo_privado.cargas set version=version+1 where fecha=p_fecha;\r\n resultado:=public.leer_carga_jornada(p_fecha)-'historial';\r\n insert into operativo_privado.historial_cargas(fecha,version,clave,actor,solicitud,anterior,resultado)\r\n values(p_fecha,p_version+1,p_clave,auth.uid(),s,anterior-'historial',resultado);\r\n return resultado;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.operar_ruta_multiple(jsonb)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.operar_ruta_multiple(p_solicitud jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\ndeclare s jsonb:=p_solicitud; accion text:=s->>'accion'; rid uuid:=(s->>'ruta')::uuid;\r\n f date:=(s->>'fecha')::date; clave uuid:=(s->>'clave')::uuid; ver bigint:=(s->>'version')::bigint;\r\n r operativo_privado.rutas_multi%rowtype; h operativo_privado.ruta_multi_eventos%rowtype;\r\n p public.pedidos%rowtype; pv bigint; antes jsonb; resultado jsonb; cantidades jsonb; prep text; ids uuid[]; us uuid[];\r\n esadmin boolean; it jsonb; hist operativo_privado.historial_operativo%rowtype;\r\nbegin\r\n if current_setting('transaction_isolation')<>'read committed' then raise exception 'AISLAMIENTO_NO_COMPATIBLE'; end if;\r\n esadmin:=auth.uid() is not null and coalesce(public.es_admin(),false);\r\n if auth.uid() is null or (not esadmin and not public.acceso_repartidor()) then raise exception 'NO_AUTORIZADO'; end if;\r\n if s is null or jsonb_typeof(s)<>'object' or rid is null or f is null or not isfinite(f) or clave is null or ver is null or ver<0\r\n or accion is null or accion not in ('crear','seleccionar','asignar','preparar','salir','cerrar','ordenar','entregar','fallida','incorporar') then raise exception 'OPERACION_INVALIDA'; end if;\r\n -- Serializa con RPC anteriores y preparación. NOWAIT evita ciclos cliente ->\r\n -- pedido de las RPC contables: un conflicto revierte sin efectos parciales.\r\n lock table public.pedidos in exclusive mode nowait;\r\n perform pg_advisory_xact_lock(582051005);\r\n if not esadmin and (accion not in ('entregar','fallida','cerrar') or not exists(\r\n select 1 from operativo_privado.ruta_multi_repartidores a join operativo_privado.repartidores rp on rp.usuario_id=a.usuario_id and rp.activo\r\n join operativo_privado.rutas_multi rm on rm.id=a.ruta_id where a.ruta_id=rid and a.usuario_id=auth.uid() and rm.fecha=f)) then raise exception 'NO_AUTORIZADO'; end if;\r\n select e.* into h from operativo_privado.ruta_multi_eventos e where e.clave=(s->>'clave')::uuid;\r\n if found then\r\n if h.actor<>auth.uid() or h.solicitud<>s then raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;\r\n return h.resultado - 'snapshot';\r\n end if;\r\n if exists(select 1 from operativo_privado.cargas where fecha=f) then raise exception 'JORNADA_LEGACY'; end if;\r\n if accion='crear' then\r\n if ver<>0 or nullif(btrim(s->>'nombre'),'') is null or length(btrim(s->>'nombre'))>100 then raise exception 'NOMBRE_INVALIDO'; end if;\r\n insert into public.rutas(id,fecha_operativa,nombre,creada_por) values(rid,f,btrim(s->>'nombre'),auth.uid());\r\n insert into operativo_privado.rutas_multi(id,fecha,nombre) values(rid,f,btrim(s->>'nombre'));\r\n end if;\r\n select * into r from operativo_privado.rutas_multi where id=rid for update;\r\n if not found or r.fecha<>f then raise exception 'RUTA_NO_ENCONTRADA'; end if;\r\n -- También consumir versión de ruta para invalidar asignaciones revocadas.\r\n if r.version<>ver then raise exception 'VERSION_RUTA_CONFLICTO'; end if;\r\n if r.estado='cerrada' or (r.estado='en_reparto' and accion not in ('cerrar','entregar','fallida','incorporar')) then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n antes:=operativo_privado.snapshot_ruta_multi(rid);\r\n if accion='incorporar' then\r\n if not esadmin or r.estado<>'en_reparto' then raise exception 'NO_AUTORIZADO'; end if;\r\n if nullif(btrim(s->>'motivo'),'') is null or length(s->>'motivo')>2000 then raise exception 'MOTIVO_REQUERIDO'; end if;\r\n if f is distinct from (clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'PREPARACION_FECHA_NO_HABILITADA'; end if;\r\n if jsonb_typeof(s->'pedidos') is distinct from 'array' or jsonb_array_length(s->'pedidos')=0 then raise exception 'SELECCION_INVALIDA'; end if;\r\n select array_agg(value::uuid) into ids from jsonb_array_elements_text(s->'pedidos');\r\n if cardinality(ids)<>(select count(distinct x) from unnest(ids) x)\r\n or exists(select 1 from operativo_privado.ruta_multi_pedidos where pedido_id=any(ids))\r\n or exists(select 1 from operativo_privado.carga_pedidos where pedido_id=any(ids))\r\n or (select count(*) from public.pedidos where id=any(ids) and fecha_entrega=f and estado='listo_despacho' and regimen_contable='entrega_v1')<>cardinality(ids) then raise exception 'SELECCION_INVALIDA'; end if;\r\n if not exists(select 1 from operativo_privado.ruta_multi_repartidores a join operativo_privado.repartidores rp on rp.usuario_id=a.usuario_id and rp.activo where a.ruta_id=rid) then raise exception 'REPARTIDORES_REQUERIDOS'; end if;\r\n -- Sólo agrega: no elimina miembros, no cambia asignaciones ni reabre entregas.\r\n insert into operativo_privado.ruta_multi_pedidos(pedido_id,ruta_id,posicion)\r\n select x,rid,(select coalesce(max(posicion),0) from operativo_privado.ruta_multi_pedidos where ruta_id=rid)+n::integer\r\n from unnest(ids) with ordinality q(x,n);\r\n for p in select pe.* from public.pedidos pe join operativo_privado.ruta_multi_pedidos m on m.pedido_id=pe.id where m.ruta_id=rid and pe.id=any(ids) order by pe.id for update of pe loop\r\n if p.regimen_contable<>'entrega_v1' then raise exception 'REGIMEN_CONTABLE_NO_COMPATIBLE'; end if;\r\n if p.fecha_entrega<>f or p.estado<>'listo_despacho' or p.preparacion_finalizada_en is null then raise exception 'PEDIDO_NO_LISTO'; end if;\r\n perform 1 from public.items_pedido where pedido_id=p.id order by id for update;\r\n perform 1 from public.preparacion_items_pedido where pedido_id=p.id order by item_pedido_id for update;\r\n if not exists(select 1 from public.items_pedido where pedido_id=p.id) or exists(select 1 from public.items_pedido i left join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id\r\n where i.pedido_id=p.id and (not coalesce(pi.confirmado_explicito,false) or pi.cantidad_preparada is null or pi.importe_linea_operativo is null)) then raise exception 'PRODUCTOS_PENDIENTES'; end if;\r\n prep:=operativo_privado.estado_preparacion_multi(p.id);\r\n if prep<>'listo' then raise exception 'INCORPORACION_REQUIERE_LISTO'; end if;\r\n select coalesce((select version from operativo_privado.versiones_pedido where pedido_id=p.id),0) into pv;\r\n perform operativo_privado.iniciar_operacion(p.id,pv,clave,'ruta_multiple_incorporar',s);\r\n insert into operativo_privado.ruta_multi_capacidad values(txid_current(),auth.uid(),rid,p.id,'salir');\r\n update public.pedidos set estado='en_reparto' where id=p.id;\r\n delete from operativo_privado.ruta_multi_capacidad where transaccion=txid_current();\r\n perform operativo_privado.completar_operacion(p.id,pv,clave,'ruta_multiple_incorporar',s,null,btrim(s->>'motivo'),to_jsonb(p),\r\n jsonb_build_object('estado','en_reparto','preparacion',prep,'cantidades',operativo_privado.cantidades_ruta_multi(p.id)),jsonb_build_object('ruta',rid,'estado','en_reparto'));\r\n end loop;\r\n elsif accion in ('seleccionar','ordenar') then\r\n if jsonb_typeof(s->'pedidos') is distinct from 'array' then raise exception 'SELECCION_INVALIDA'; end if;\r\n select coalesce(array_agg(value::uuid),array[]::uuid[]) into ids from jsonb_array_elements_text(s->'pedidos');\r\n if cardinality(ids)<>(select count(distinct x) from unnest(ids) x) then raise exception 'SELECCION_INVALIDA'; end if;\r\n if accion='ordenar' and (select coalesce(array_agg(pedido_id order by pedido_id),array[]::uuid[]) from operativo_privado.ruta_multi_pedidos where ruta_id=rid)\r\n is distinct from (select coalesce(array_agg(x order by x),array[]::uuid[]) from unnest(ids) x) then raise exception 'SELECCION_INVALIDA'; end if;\r\n if exists(select 1 from operativo_privado.ruta_multi_pedidos where pedido_id=any(ids) and ruta_id<>rid) then raise exception 'PEDIDO_YA_ASIGNADO'; end if;\r\n if (select count(*) from public.pedidos where id=any(ids) and fecha_entrega=f and estado in ('recibido','en_revision','programado','confirmado','preparando','listo_despacho'))<>cardinality(ids)\r\n or exists(select 1 from operativo_privado.carga_pedidos where pedido_id=any(ids)) then raise exception 'SELECCION_INVALIDA'; end if;\r\n delete from operativo_privado.ruta_multi_autorizaciones where ruta_id=rid and not(pedido_id=any(ids));\r\n delete from operativo_privado.ruta_multi_pedidos where ruta_id=rid;\r\n insert into operativo_privado.ruta_multi_pedidos(pedido_id,ruta_id,posicion) select x,rid,n::integer from unnest(ids) with ordinality u(x,n);\r\n elsif accion='asignar' then\r\n if jsonb_typeof(s->'repartidores') is distinct from 'array' then raise exception 'REPARTIDOR_NO_HABILITADO'; end if;\r\n select coalesce(array_agg(value::uuid),array[]::uuid[]) into us from jsonb_array_elements_text(s->'repartidores');\r\n if cardinality(us)<>(select count(*) from operativo_privado.repartidores rp join public.perfiles pf on pf.usuario_id=rp.usuario_id where rp.usuario_id=any(us) and rp.activo and pf.rol<>'admin') then raise exception 'REPARTIDOR_NO_HABILITADO'; end if;\r\n delete from operativo_privado.ruta_multi_repartidores where ruta_id=rid;\r\n insert into operativo_privado.ruta_multi_repartidores select rid,x from unnest(us) x;\r\n elsif accion='preparar' then\r\n if f is distinct from (clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'PREPARACION_FECHA_NO_HABILITADA'; end if;\r\n if r.estado<>'planificacion' then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n update operativo_privado.rutas_multi set estado='preparacion' where id=rid;\r\n elsif accion='salir' then\r\n if r.estado<>'preparacion' then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n if not exists(select 1 from operativo_privado.ruta_multi_pedidos where ruta_id=rid) then raise exception 'RUTA_VACIA'; end if;\r\n if not exists(select 1 from operativo_privado.ruta_multi_repartidores where ruta_id=rid) then raise exception 'REPARTIDORES_REQUERIDOS'; end if;\r\n if exists(select 1 from operativo_privado.ruta_multi_repartidores a where a.ruta_id=rid and not exists(select 1 from operativo_privado.repartidores rp join public.perfiles pf on pf.usuario_id=rp.usuario_id where rp.usuario_id=a.usuario_id and rp.activo and pf.rol<>'admin')) then raise exception 'REPARTIDOR_NO_HABILITADO'; end if;\r\n for p in select pe.* from public.pedidos pe join operativo_privado.ruta_multi_pedidos m on m.pedido_id=pe.id where m.ruta_id=rid order by pe.id for update of pe loop\r\n if p.regimen_contable<>'entrega_v1' then raise exception 'REGIMEN_CONTABLE_NO_COMPATIBLE'; end if;\r\n if p.fecha_entrega<>f or p.estado<>'listo_despacho' or p.preparacion_finalizada_en is null then raise exception 'PEDIDO_NO_LISTO'; end if;\r\n perform 1 from public.items_pedido where pedido_id=p.id order by id for update;\r\n perform 1 from public.preparacion_items_pedido where pedido_id=p.id order by item_pedido_id for update;\r\n if not exists(select 1 from public.items_pedido where pedido_id=p.id) or exists(select 1 from public.items_pedido i left join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id\r\n where i.pedido_id=p.id and (not coalesce(pi.confirmado_explicito,false) or pi.cantidad_preparada is null or pi.importe_linea_operativo is null)) then raise exception 'PRODUCTOS_PENDIENTES'; end if;\r\n prep:=operativo_privado.estado_preparacion_multi(p.id);\r\n if prep in ('sin_preparar','sin_stock') then raise exception 'SIN_PREPARAR'; end if;\r\n select coalesce((select version from operativo_privado.versiones_pedido where pedido_id=p.id),0) into pv;\r\n if prep='parcial' and not exists(select 1 from operativo_privado.ruta_multi_autorizaciones a where a.ruta_id=rid and a.pedido_id=p.id and a.version=pv and a.cantidades=operativo_privado.cantidades_ruta_multi(p.id)) then raise exception 'PARCIAL_NO_AUTORIZADO'; end if;\r\n perform operativo_privado.iniciar_operacion(p.id,pv,clave,'ruta_multiple_salir',s);\r\n insert into operativo_privado.ruta_multi_capacidad values(txid_current(),auth.uid(),rid,p.id,'salir');\r\n update public.pedidos set estado='en_reparto' where id=p.id;\r\n delete from operativo_privado.ruta_multi_capacidad where transaccion=txid_current();\r\n perform operativo_privado.completar_operacion(p.id,pv,clave,'ruta_multiple_salir',s,null,'Salida explícita por ruta',to_jsonb(p),\r\n jsonb_build_object('estado','en_reparto','preparacion',prep,'cantidades',operativo_privado.cantidades_ruta_multi(p.id)),jsonb_build_object('ruta',rid,'estado','en_reparto'));\r\n end loop;\r\n if f is distinct from (clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'PREPARACION_FECHA_NO_HABILITADA'; end if;\r\n update operativo_privado.rutas_multi set estado='en_reparto',salida_en=clock_timestamp() where id=rid;\r\n elsif accion in ('entregar','fallida') then\r\n if r.estado<>'en_reparto' then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n select pe.* into p from public.pedidos pe join operativo_privado.ruta_multi_pedidos m on m.pedido_id=pe.id where m.ruta_id=rid and pe.id=(s->>'pedido')::uuid;\r\n if not found then raise exception 'NO_AUTORIZADO'; end if;\r\n perform 1 from public.clientes where id=p.cliente_id for update nowait;\r\n insert into operativo_privado.ruta_multi_capacidad values(txid_current(),auth.uid(),rid,p.id,accion);\r\n if accion='entregar' then\r\n select * into hist from operativo_privado.historial_operativo where pedido_id=p.id and clave_idempotencia=clave;\r\n if found then it:=hist.solicitud->'items';\r\n else select jsonb_agg(jsonb_build_object('item_pedido_id',i.id,'cantidad_entregada',pi.cantidad_preparada) order by i.id) into it\r\n from public.items_pedido i join public.preparacion_items_pedido pi on pi.item_pedido_id=i.id where i.pedido_id=p.id; end if;\r\n perform public.confirmar_entrega_todo_correcto(p.id,(s->>'version_pedido')::bigint,clave,it,\r\n '{\"metodo\":\"por_pagar\",\"efectivo\":0,\"transferencia\":0,\"confirmar_por_pagar\":true}'::jsonb);\r\n else perform public.registrar_entrega_fallida(p.id,(s->>'version_pedido')::bigint,clave,s->>'motivo',s->>'observaciones'); end if;\r\n delete from operativo_privado.ruta_multi_capacidad where transaccion=txid_current();\r\n elsif accion='cerrar' then\r\n if r.estado<>'en_reparto' then raise exception 'RUTA_NO_EDITABLE'; end if;\r\n if exists(select 1 from operativo_privado.ruta_multi_pedidos m join public.pedidos pe on pe.id=m.pedido_id where m.ruta_id=rid and pe.estado not in ('entregado','entrega_fallida')) then raise exception 'PEDIDOS_PENDIENTES'; end if;\r\n -- La evidencia de cada fallo/venta fue validada por sus barreras actuales.\r\n -- Congela sólo los pedidos, cantidades, actores y eventos de ESTA ruta.\r\n update operativo_privado.rutas_multi set estado='cerrada',cierre=antes||jsonb_build_object('cerrada_en',clock_timestamp(),'cerrada_por',auth.uid()) where id=rid;\r\n end if;\r\n update operativo_privado.rutas_multi set version=version+1 where id=rid;\r\n resultado:=jsonb_build_object('ok',true,'ruta',rid,'version',r.version+1);\r\n if accion='incorporar' then\r\n resultado:=resultado||jsonb_build_object('modalidad',case when exists(\r\n select 1 from jsonb_array_elements(antes->'pedidos') x where x->'pedido'->>'estado' in ('entregado','entrega_fallida'))\r\n then 'incorporacion_extraordinaria' else 'modificacion_controlada' end,'pedidos_agregados',to_jsonb(ids));\r\n end if;\r\n insert into operativo_privado.ruta_multi_eventos(clave,ruta_id,actor,solicitud,anterior,resultado)\r\n values(clave,rid,auth.uid(),s,antes,resultado||jsonb_build_object('snapshot',operativo_privado.snapshot_ruta_multi(rid)));\r\n return resultado;\r\nend $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "public.reprogramar_no_entregado_administrativo(uuid,bigint,uuid,date,text)",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.reprogramar_no_entregado_administrativo(p_pedido_id uuid, p_version_esperada bigint, p_clave uuid, p_fecha date, p_motivo text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET \"TimeZone\" TO 'UTC'\n SET \"DateStyle\" TO 'ISO, YMD'\nAS $function$\r\ndeclare p public.pedidos%rowtype; cp operativo_privado.carga_pedidos%rowtype;\r\n c operativo_privado.cargas%rowtype; destino operativo_privado.cargas%rowtype;\r\n solicitud jsonb; inicio jsonb; despues jsonb; seleccion jsonb; respuesta jsonb;\r\n multi boolean; intento jsonb; fallo operativo_privado.historial_operativo%rowtype;\r\nbegin\r\n if auth.uid() is null or not coalesce(public.es_admin(),false) then raise exception 'NO_AUTORIZADO'; end if;\r\n if current_setting('transaction_isolation')<>'read committed' then raise exception 'AISLAMIENTO_NO_COMPATIBLE'; end if;\r\n if p_fecha is null or not isfinite(p_fecha) or nullif(btrim(p_motivo),'') is null or length(p_motivo)>2000 then raise exception 'OPERACION_INVALIDA'; end if;\r\n -- Mismo orden global que operar/cerrar; no se toman locks de cliente ni dinero.\r\n lock table public.pedidos in exclusive mode;\r\n solicitud:=jsonb_build_object('fecha',p_fecha,'motivo',p_motivo,'contrato',1);\r\n inicio:=operativo_privado.iniciar_operacion(p_pedido_id,p_version_esperada,p_clave,'reprogramar_no_entregado',solicitud);\r\n if (inicio->>'reintento')::boolean then return inicio; end if;\r\n perform operativo_privado.exigir_pedido_reprogramable(p_pedido_id);\r\n if not public.fecha_entrega_disponible(p_fecha,clock_timestamp())\r\n or p_fecha>(clock_timestamp() at time zone 'America/Santiago')::date+14 then\r\n raise exception 'FECHA_ENTREGA_NO_DISPONIBLE'; end if;\r\n select * into p from public.pedidos where id=p_pedido_id;\r\n select * into cp from operativo_privado.carga_pedidos where pedido_id=p.id;\r\n if not found or not cp.incluido then raise exception 'PEDIDO_NO_REPROGRAMABLE'; end if;\r\n if p_fecha<=cp.fecha or p_fecha<(clock_timestamp() at time zone 'America/Santiago')::date then raise exception 'FECHA_REPROGRAMACION_INVALIDA'; end if;\r\n -- Locks advisory en orden de fecha, antes de las filas de carga.\r\n perform pg_advisory_xact_lock(hashtextextended('carga:'||d::text,0))\r\n from (select cp.fecha d union select p_fecha) fechas order by d;\r\n -- El lock EXCLUSIVE de pedidos serializa también crear/cerrar/seleccionar\r\n -- rutas múltiples; sus RPC lo adquieren antes del advisory global multi.\r\n -- Igual que operar_carga_jornada: materializar sólo destino legacy tras advisory.\r\n -- Adquirir TODOS los locks de filas por fecha, igual que el trigger de selección;\r\n -- las lecturas individuales siguientes no introducen otro orden de bloqueo.\r\n multi:=operativo_privado.fecha_reprogramacion_tiene_rutas_multi(p_fecha);\r\n if not operativo_privado.fecha_reprogramacion_admite_pedidos(p_fecha) then\r\n raise exception 'CARGA_NO_EDITABLE'; end if;\r\n if not multi then\r\n insert into operativo_privado.cargas(fecha) values(p_fecha) on conflict do nothing;\r\n end if;\r\n perform 1 from operativo_privado.cargas\r\n where fecha in (cp.fecha,p_fecha) order by fecha for update;\r\n select * into c from operativo_privado.cargas where fecha=cp.fecha;\r\n if c.estado is distinct from 'cerrada' or p.estado<>'entrega_fallida'\r\n or p.venta_definitiva_snapshot is not null or p.venta_reconocida_en is not null\r\n or exists(select 1 from operativo_privado.entregas_definitivas where pedido_id=p.id)\r\n or p.preparacion_finalizada_en is null then raise exception 'PEDIDO_NO_REPROGRAMABLE'; end if;\r\n select * into destino from operativo_privado.cargas where fecha=p_fecha;\r\n if not multi and destino.estado is distinct from 'preparacion' then raise exception 'CARGA_NO_EDITABLE'; end if;\r\n -- No trasladar una selección sin su intento cerrado y evento de fallo exactos.\r\n -- La versión del cierre puede preceder otras operaciones auditadas sin cambio\r\n -- de estado; se enlaza el fallo por su propia versión, no por la versión actual.\r\n select x into intento from jsonb_array_elements(c.resumen_cierre->'intentos') x\r\n where x->'pedido'->>'id'=p.id::text;\r\n select * into fallo from operativo_privado.historial_operativo\r\n where pedido_id=p.id and operacion='entrega_fallida' order by version desc limit 1;\r\n if intento is null or fallo.pedido_id is null\r\n or intento->'pedido' is distinct from to_jsonb(p)\r\n or intento->'seleccion' is distinct from to_jsonb(cp)\r\n or intento->'fallo' is distinct from to_jsonb(fallo)\r\n or jsonb_typeof(intento->'version') is distinct from 'number'\r\n or (intento->>'version')::bigint>p_version_esperada\r\n or intento->'motivo' is distinct from to_jsonb(fallo.motivo)\r\n or fallo.version>(intento->>'version')::bigint\r\n or fallo.valores_nuevos->>'estado' is distinct from 'entrega_fallida'\r\n or not exists(select 1 from operativo_privado.historial_cargas h\r\n where h.fecha=cp.fecha and h.version=c.version and h.resultado=c.resumen_cierre\r\n and h.solicitud->>'accion'='cerrar') then\r\n raise exception 'TRAZABILIDAD_INTENTO_INVALIDA'; end if;\r\n if exists(select 1 from operativo_privado.historial_cargas where fecha=p_fecha and clave=p_clave) then\r\n raise exception 'CLAVE_IDEMPOTENCIA_EN_USO'; end if;\r\n despues:=to_jsonb(p)||jsonb_build_object('fecha_entrega',p_fecha,'estado','listo_despacho');\r\n seleccion:=to_jsonb(cp)||jsonb_build_object('fecha',p_fecha,'incluido',false,'motivo','Pendiente de inclusión tras reprogramación administrativa');\r\n if multi then seleccion:='null'::jsonb; end if;\r\n insert into operativo_privado.permiso_reprogramacion values\r\n (p.id,txid_current(),auth.uid(),to_jsonb(p),despues,to_jsonb(cp),seleccion);\r\n update public.pedidos set fecha_entrega=p_fecha,estado='listo_despacho' where id=p.id;\r\n if multi then\r\n -- Retira sólo la selección viva exacta; la evidencia cerrada permanece intacta.\r\n delete from operativo_privado.carga_pedidos where pedido_id=p.id;\r\n else\r\n update operativo_privado.carga_pedidos set fecha=p_fecha,incluido=false,\r\n motivo=seleccion->>'motivo' where pedido_id=p.id;\r\n end if;\r\n delete from operativo_privado.permiso_reprogramacion where pedido_id=p.id;\r\n -- La PK de carga_pedidos es por pedido: trasladar libera la asignación vieja.\r\n -- Su evidencia histórica permanece en resumen_cierre e historial_operativo.\r\n respuesta:=operativo_privado.completar_operacion(p.id,p_version_esperada,p_clave,\r\n 'reprogramar_no_entregado',solicitud,null,p_motivo,\r\n jsonb_build_object('pedido',to_jsonb(p),'seleccion',to_jsonb(cp),'cierre',c.resumen_cierre,\r\n 'fallo',to_jsonb(fallo)),\r\n jsonb_build_object('pedido',(select to_jsonb(pe) from public.pedidos pe where id=p.id),'seleccion',seleccion),\r\n jsonb_build_object('pedido_id',p.id,'fecha',p_fecha,'estado','listo_despacho','incluido',false));\r\n if not multi then\r\n update operativo_privado.cargas set version=version+1 where fecha=p_fecha;\r\n insert into operativo_privado.historial_cargas(fecha,version,clave,actor,solicitud,anterior,resultado)\r\n values(p_fecha,destino.version+1,p_clave,auth.uid(),\r\n solicitud||jsonb_build_object('accion','recibir_reprogramado','pedido_id',p.id),to_jsonb(destino),\r\n jsonb_build_object('pedido_id',p.id,'version',destino.version+1,'origen',cp.fecha,\r\n 'version_cierre_origen',c.version,'version_fallo',fallo.version,\r\n 'version_operativa',respuesta->'version','clave_operativa',p_clave,\r\n 'seleccion_anterior',to_jsonb(cp),'seleccion_nueva',seleccion));\r\n end if;\r\n if not public.fecha_entrega_disponible(p_fecha,clock_timestamp()) then\r\n raise exception 'FECHA_ENTREGA_NO_DISPONIBLE'; end if;\r\n return respuesta;\r\nend; $function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=pg_catalog",
+        "TimeZone=UTC",
+        "DateStyle=ISO, YMD"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "funcion",
+    "identidad": "registrar_historial_estado_pedido()",
+    "contrato": {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "existe": true,
+      "bypassrls": true,
+      "definicion": "CREATE OR REPLACE FUNCTION public.registrar_historial_estado_pedido()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nbegin\n  if tg_op = 'INSERT' then\n    insert into public.historial_estados_pedido (pedido_id, estado_anterior, estado_nuevo, cambiado_por)\n    values (new.id, null, new.estado, auth.uid());\n  elsif new.estado is distinct from old.estado then\n    insert into public.historial_estados_pedido (pedido_id, estado_anterior, estado_nuevo, cambiado_por)\n    values (new.id, old.estado, new.estado, auth.uid());\n  end if;\n  return new;\nend;\n$function$\n",
+      "propietario": "postgres",
+      "superusuario": false,
+      "configuracion": [
+        "search_path=public"
+      ],
+      "security_definer": true
+    }
+  },
+  {
+    "tipo": "indice_pertenencia",
+    "identidad": "operativo_privado.carga_pedidos_pkey",
+    "contrato": {
+      "definicion": "CREATE UNIQUE INDEX carga_pedidos_pkey ON operativo_privado.carga_pedidos USING btree (pedido_id)"
+    }
+  },
+  {
+    "tipo": "indice_pertenencia",
+    "identidad": "operativo_privado.ruta_multi_pedidos_pkey",
+    "contrato": {
+      "definicion": "CREATE UNIQUE INDEX ruta_multi_pedidos_pkey ON operativo_privado.ruta_multi_pedidos USING btree (pedido_id)"
+    }
+  },
+  {
+    "tipo": "indice_pertenencia",
+    "identidad": "operativo_privado.ruta_multi_pedidos_ruta",
+    "contrato": {
+      "definicion": "CREATE INDEX ruta_multi_pedidos_ruta ON operativo_privado.ruta_multi_pedidos USING btree (ruta_id, posicion)"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.carga_pedidos.carga_pedidos_check",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "CHECK ((incluido OR ((NULLIF(btrim(motivo), ''::text) IS NOT NULL) AND (length(motivo) <= 2000))))"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.carga_pedidos.carga_pedidos_fecha_fkey",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "FOREIGN KEY (fecha) REFERENCES operativo_privado.cargas(fecha)"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.carga_pedidos.carga_pedidos_pedido_id_fkey",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE RESTRICT"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.carga_pedidos.carga_pedidos_pkey",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "PRIMARY KEY (pedido_id)"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.ruta_multi_pedidos.ruta_multi_pedidos_pedido_id_fkey",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "FOREIGN KEY (pedido_id) REFERENCES pedidos(id)"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.ruta_multi_pedidos.ruta_multi_pedidos_pkey",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "PRIMARY KEY (pedido_id)"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.ruta_multi_pedidos.ruta_multi_pedidos_posicion_check",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "CHECK ((posicion > 0))"
+    }
+  },
+  {
+    "tipo": "restriccion",
+    "identidad": "operativo_privado.ruta_multi_pedidos.ruta_multi_pedidos_ruta_id_fkey",
+    "contrato": {
+      "validada": true,
+      "diferible": false,
+      "definicion": "FOREIGN KEY (ruta_id) REFERENCES operativo_privado.rutas_multi(id)"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "operativo_privado.carga_pedidos.fase2_no_truncable",
+    "contrato": {
+      "definicion": "CREATE TRIGGER fase2_no_truncable BEFORE TRUNCATE ON operativo_privado.carga_pedidos FOR EACH STATEMENT EXECUTE FUNCTION operativo_privado.impedir_truncado_fase2()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "operativo_privado.carga_pedidos.multi_barrera_seleccion",
+    "contrato": {
+      "definicion": "CREATE TRIGGER multi_barrera_seleccion BEFORE INSERT OR DELETE OR UPDATE ON operativo_privado.carga_pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_contratos_multi()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "operativo_privado.carga_pedidos.proteger_cierre_seleccion",
+    "contrato": {
+      "definicion": "CREATE TRIGGER proteger_cierre_seleccion BEFORE INSERT OR DELETE OR UPDATE ON operativo_privado.carga_pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_cierre_carga()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "operativo_privado.ruta_multi_capacidad.multi_no_truncable",
+    "contrato": {
+      "definicion": "CREATE TRIGGER multi_no_truncable BEFORE TRUNCATE ON operativo_privado.ruta_multi_capacidad FOR EACH STATEMENT EXECUTE FUNCTION operativo_privado.impedir_mutacion_historial()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "operativo_privado.ruta_multi_pedidos.multi_no_truncable",
+    "contrato": {
+      "definicion": "CREATE TRIGGER multi_no_truncable BEFORE TRUNCATE ON operativo_privado.ruta_multi_pedidos FOR EACH STATEMENT EXECUTE FUNCTION operativo_privado.impedir_mutacion_historial()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.actualizar_pedidos_fecha_actualizacion",
+    "contrato": {
+      "definicion": "CREATE TRIGGER actualizar_pedidos_fecha_actualizacion BEFORE UPDATE ON public.pedidos FOR EACH ROW EXECUTE FUNCTION actualizar_fecha_actualizacion()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.fase2_no_truncable",
+    "contrato": {
+      "definicion": "CREATE TRIGGER fase2_no_truncable BEFORE TRUNCATE ON public.pedidos FOR EACH STATEMENT EXECUTE FUNCTION operativo_privado.impedir_truncado_fase2()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.multi_proteger_pedido",
+    "contrato": {
+      "definicion": "CREATE TRIGGER multi_proteger_pedido BEFORE DELETE OR UPDATE ON public.pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_ruta_multi()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.otorgar_beneficio_pedido_entregado_despues_de_actualizar",
+    "contrato": {
+      "definicion": "CREATE TRIGGER otorgar_beneficio_pedido_entregado_despues_de_actualizar AFTER UPDATE OF estado ON public.pedidos FOR EACH ROW EXECUTE FUNCTION otorgar_beneficio_al_entregar_pedido()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.proteger_entrega_fallida",
+    "contrato": {
+      "definicion": "CREATE TRIGGER proteger_entrega_fallida BEFORE INSERT OR UPDATE OF estado ON public.pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_entrega_fallida()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.proteger_pedido_cargado",
+    "contrato": {
+      "definicion": "CREATE TRIGGER proteger_pedido_cargado BEFORE UPDATE ON public.pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_pedido_cargado()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.proteger_pedido_ruta_cerrada",
+    "contrato": {
+      "definicion": "CREATE TRIGGER proteger_pedido_ruta_cerrada BEFORE DELETE OR UPDATE ON public.pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_pedido_ruta_cerrada()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.proteger_regimen_contable_pedido_antes_de_actualizar",
+    "contrato": {
+      "definicion": "CREATE TRIGGER proteger_regimen_contable_pedido_antes_de_actualizar BEFORE UPDATE OF regimen_contable ON public.pedidos FOR EACH ROW EXECUTE FUNCTION proteger_regimen_contable_pedido()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.proteger_venta_definitiva",
+    "contrato": {
+      "definicion": "CREATE TRIGGER proteger_venta_definitiva BEFORE INSERT OR UPDATE ON public.pedidos FOR EACH ROW EXECUTE FUNCTION operativo_privado.proteger_venta_definitiva()",
+      "habilitacion": "O"
+    }
+  },
+  {
+    "tipo": "trigger",
+    "identidad": "pedidos.registrar_historial_estado_pedido_despues_de_guardar",
+    "contrato": {
+      "definicion": "CREATE TRIGGER registrar_historial_estado_pedido_despues_de_guardar AFTER INSERT OR UPDATE OF estado ON public.pedidos FOR EACH ROW EXECUTE FUNCTION registrar_historial_estado_pedido()",
+      "habilitacion": "O"
+    }
+  }
+]

@@ -1,3 +1,4 @@
+import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { AdminChat } from "@/components/admin/messages/admin-chat";
 import { obtenerDetalleChatAdmin } from "@/lib/admin/mensajes";
 import { AdminCustomerDetail } from "@/components/admin/customer-detail";
@@ -52,6 +53,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       </header>
       <div className="flex flex-wrap items-start gap-2">
         {pedido.clienteId ? <OrderCustomerLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</OrderCustomerLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
+        {pedido.estado === "entregado" ? <RecycleOrderLink pedidoId={pedido.id} /> : null}
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
         {pedido.estado === "confirmado" ? pedido.fechaEntrega ? <ActionLink href={`/admin/rutas?fecha=${pedido.fechaEntrega}`}>Ir a ruta</ActionLink> : <span className="text-sm text-muted-foreground">Sin fecha de entrega para ir a ruta</span> : null}
         {["preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}

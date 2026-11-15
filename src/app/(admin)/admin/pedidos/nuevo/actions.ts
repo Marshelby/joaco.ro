@@ -5,7 +5,7 @@ import { obtenerFechasEntregaDisponibles } from "@/lib/delivery-availability";
 import { z } from "zod";
 import { administradorComercial, leerFichaComercial } from "@/lib/admin/cliente-comercial";
 import { obtenerClienteAdmin, obtenerClientesAdmin } from "@/lib/admin/clientes";
-import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
+import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, totalLineaPedido, type LineaPedidoBorrador, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
 import { PAYMENT_INTENT_OPTIONS } from "@/lib/payment-intent";
 import { cotizarDespacho } from "@/lib/delivery-pricing";
 import { ROUTES } from "@/config/routes";
@@ -164,4 +164,49 @@ export async function cargarCatalogoPedido(clienteId: string, ubicacionId: strin
 export async function cargarFechasEntregaPedido() {
   await administradorComercial();
   return obtenerFechasEntregaDisponibles();
+}
+
+// Solo lectura: el ID de origen nunca forma parte de la confirmación del creador.
+export async function cargarPedidoParaReciclar(id: string) {
+  const db = await administradorComercial();
+  const pedidoId = z.uuid().parse(id);
+  const { data: pedido, error } = await db.from("pedidos")
+    .select("cliente_id,direccion_cliente_id,estado")
+    .eq("id", pedidoId).single();
+  if (error || !pedido || !["entregado", "entrega_fallida"].includes(pedido.estado)) {
+    throw new Error("Solo puedes reciclar pedidos entregados o no entregados disponibles.");
+  }
+  const inicial = await cargarClientePedido(pedido.cliente_id);
+  const ubicacionId = inicial.ubicaciones.find(u => u.id === pedido.direccion_cliente_id)?.id;
+  const advertencias: string[] = [];
+  if (!ubicacionId) advertencias.push("La dirección original ya no es una ubicación comercial activa. Selecciona una dirección vigente en el paso 1.");
+  const catalogo = ubicacionId ? await cargarCatalogoPedido(inicial.cliente.id, ubicacionId) : [];
+  // El creador admite como máximo 100 líneas; detectar excesos sin truncarlos.
+  const { data: items, error: errorItems } = await db.from("items_pedido")
+    .select("id,producto_id,presentacion_producto_id,cantidad,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot")
+    .eq("pedido_id", pedidoId).order("id").range(0, 100);
+  if (errorItems || !items?.length || items.length > 100) throw new Error("No fue posible recuperar todas las líneas del pedido original.");
+  const lineas: LineaPedidoBorrador[] = [];
+  const ids = new Set<string>();
+  for (const item of items) {
+    const actual = catalogo.find(p => p.productoId === item.producto_id && p.presentacionId === item.presentacion_producto_id);
+    // Conservar las líneas no disponibles para revisión explícita; nunca sustituir
+    // por nombre ni omitir productos silenciosamente. No se copian precios antiguos.
+    const presentacion = actual ?? {
+      productoId: item.producto_id ?? item.id, presentacionId: item.presentacion_producto_id ?? item.id,
+      nombre: item.nombre_producto_snapshot, presentacionNombre: item.nombre_presentacion_snapshot ?? "Presentación sin referencia vigente",
+      unidad: item.unidad_snapshot, cantidadPresentacion: 0, precioFinalReferencia: 0,
+    };
+    const cantidad = String(item.cantidad);
+    const total = actual ? totalLineaPedido(actual, cantidad, actual.precioFinalReferencia) : null;
+    if (total === null || ids.has(presentacion.presentacionId)) advertencias.push(`${presentacion.nombre}: revisa la presentación y cantidad en el paso 2; no tienen una selección vigente válida.`);
+    ids.add(presentacion.presentacionId);
+    lineas.push({ presentacion, cantidad, precioReferencia: presentacion.precioFinalReferencia, totalFinal: total === null ? "" : String(total), motivoAjuste: "" });
+  }
+  const ubicacion = inicial.ubicaciones.find(u => u.id === ubicacionId);
+  const direccionValida = ubicacion && [ubicacion.nombre_ubicacion, ubicacion.nombre, ubicacion.direccion].some(v => v?.trim())
+    && ubicacion.latitud !== null && Number.isFinite(ubicacion.latitud) && Math.abs(ubicacion.latitud) <= 90
+    && ubicacion.longitud !== null && Number.isFinite(ubicacion.longitud) && Math.abs(ubicacion.longitud) <= 180;
+  const pasoInicial: 0 | 1 | 2 = !direccionValida ? 0 : advertencias.length ? 1 : 2;
+  return { inicial, ubicacionId: ubicacionId ?? "", catalogo, lineas, advertencias, pasoInicial };
 }

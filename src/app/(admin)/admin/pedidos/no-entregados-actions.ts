@@ -1,12 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { obtenerFechasEntregaDisponibles, type FechaEntregaDisponible } from "@/lib/delivery-availability";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type ResolucionNoEntregado = {
-  pedido: string; version: number; clave: string; accion: "reprogramar" | "cancelar";
-  motivo: string; fecha: string; tratamiento: string;
+  pedido: string; version: number; clave: string; accion: "cancelar";
+  motivo: string; tratamiento: string;
 };
 const uuid = (v: unknown) => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 async function clienteAdmin() {
@@ -17,7 +16,7 @@ async function clienteAdmin() {
   if (!data.user || admin.data !== true) throw new Error("NO_AUTORIZADO");
   return db;
 }
-export async function prepararResolucionNoEntregado(id: string, reprogramar = false): Promise<{ version?: number; fechas?: FechaEntregaDisponible[]; error?: string }> {
+export async function prepararResolucionNoEntregado(id: string): Promise<{ version?: number; error?: string }> {
   if (!uuid(id)) return { error: "Pedido inválido." };
   try {
     const db = await clienteAdmin();
@@ -25,49 +24,21 @@ export async function prepararResolucionNoEntregado(id: string, reprogramar = fa
     if (error) return { error: error.code === "PGRST202" ? "Las acciones requieren instalar el SQL manual de Fase 4." : "No se pudo cargar la versión. Actualiza e intenta nuevamente." };
     const version = Number(data?.version);
     if (data?.version == null || !Number.isSafeInteger(version) || version < 0 || version >= Number.MAX_SAFE_INTEGER) return { error: "La versión del pedido no es válida." };
-    if (!reprogramar) return { version };
-    const fechas = await db.rpc("leer_fechas_reprogramacion_admin", { p_pedido_id: id });
-    if (fechas.error) {
-      const motivos: Record<string, string> = {
-        ASIGNACION_MULTI_REQUERIDA: "Falta la pertenencia original del pedido a una ruta múltiple; revisa su trazabilidad.",
-        CIERRE_MULTI_REQUERIDO: "Falta cerrar la ruta múltiple del intento fallido. No se puede reprogramar todavía.",
-        SNAPSHOT_MULTI_INVALIDO: "El snapshot del cierre multi no coincide con el pedido, su preparación o su posición original.",
-        FALLO_MULTI_NO_AUDITADO: "Falta un fallo auditado consistente con el historial y la versión del cierre multi.",
-        EVENTO_FALLO_MULTI_INVALIDO: "El evento multi del fallo no coincide en ruta, pedido, actor, motivo, clave o versión.",
-        EVENTO_CIERRE_MULTI_INVALIDO: "Falta un evento de cierre multi consistente con la ruta y posterior al fallo.",
-        NO_AUTORIZADO: "Solo un administrador puede consultar estas fechas.",
-        PEDIDO_NO_ENCONTRADO: "El pedido ya no está disponible.",
-        PEDIDO_NO_REPROGRAMABLE: "Este pedido requiere preparación terminada y un intento fallido con cierre auditado legacy o multi, sin venta definitiva. Revisa su historial.",
-        CIERRE_REQUERIDO: "Primero debes cerrar la ruta del intento fallido.",
-        TRAZABILIDAD_INTENTO_INVALIDA: "La evidencia del pedido no coincide con el intento cerrado. Revisa su historial antes de reprogramar.",
-      };
-      return { error: fechas.error.code === "PGRST202"
-        ? "Falta instalar el SQL manual de reprogramación. No se pudieron consultar las fechas."
-        : motivos[fechas.error.message] ?? "Error al consultar las fechas en la base de datos. Actualiza e intenta nuevamente." };
-    }
-    if (!Array.isArray(fechas.data) || !fechas.data.every((f: unknown) => typeof f === "string" && /^\d{4}-\d{2}-\d{2}$/.test(f))) return { error: "No se pudo verificar la disponibilidad. Actualiza las fechas para continuar." };
-    // Misma configuración y presentación que el creador administrativo.
-    // Un fallo al leerla debe propagarse como error, nunca como lista vacía.
-    const disponibles = await obtenerFechasEntregaDisponibles();
-    const permitidas = new Set<string>(fechas.data);
-    return { version, fechas: disponibles.filter(f => permitidas.has(f.fecha)).slice(0, 10) };
+    return { version };
   } catch (error) { return { error: error instanceof Error && error.message === "NO_AUTORIZADO"
     ? "No se pudo verificar la sesión administrativa."
-    : "No se pudieron consultar el pedido y la configuración de fechas. Actualiza e intenta nuevamente." }; }
+    : "No se pudieron consultar el pedido. Actualiza e intenta nuevamente." }; }
 }
 export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: boolean): Promise<{ exito?: boolean; error?: string; rechazada?: boolean }> {
   if (!s || confirmado !== true || !uuid(s.pedido) || !uuid(s.clave) || !Number.isSafeInteger(s.version) || s.version < 0 || s.version >= Number.MAX_SAFE_INTEGER ||
-    !["reprogramar", "cancelar"].includes(s.accion) || typeof s.motivo !== "string" || !s.motivo.trim() || s.motivo.length > 2000 ||
-    (s.accion === "cancelar" && (typeof s.tratamiento !== "string" || !s.tratamiento.trim() || s.tratamiento.length > 2000)) ||
-    (s.accion === "reprogramar" && (typeof s.fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isFinite(Date.parse(s.fecha)) || new Date(s.fecha).toISOString().slice(0, 10) !== s.fecha))) {
-    return { rechazada: true, error: "Revisa fecha, motivo y tratamiento administrativo y confirma la operación." };
+    s.accion !== "cancelar" || typeof s.motivo !== "string" || !s.motivo.trim() || s.motivo.length > 2000 ||
+    typeof s.tratamiento !== "string" || !s.tratamiento.trim() || s.tratamiento.length > 2000) {
+    return { rechazada: true, error: "Revisa el motivo y tratamiento administrativo y confirma la cancelación." };
   }
   try {
     const db = await clienteAdmin();
     const comunes = { p_pedido_id: s.pedido, p_version_esperada: s.version, p_clave: s.clave, p_motivo: s.motivo };
-    const { data, error } = s.accion === "reprogramar"
-      ? await db.rpc("reprogramar_no_entregado_administrativo", { ...comunes, p_fecha: s.fecha })
-      : await db.rpc("cancelar_no_entregado_administrativo", { ...comunes, p_tratamiento: s.tratamiento });
+    const { data, error } = await db.rpc("cancelar_no_entregado_administrativo", { ...comunes, p_tratamiento: s.tratamiento });
     if (error) {
       const mensajes: Record<string, string> = {
         FECHA_ENTREGA_NO_DISPONIBLE: "La fecha ya no está habilitada o pasó la hora límite. Actualiza las fechas y elige otra.",
@@ -96,8 +67,7 @@ export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: 
       return { rechazada: !!mensajes[error.message] || error.code === "PGRST202", error: error.code === "PGRST202" ? "Falta instalar el SQL manual de Fase 4 o su dependencia de Fase 2." : mensajes[error.message] ?? "No se pudo confirmar el resultado. Reintenta la misma solicitud sin cambiar sus datos." };
     }
     const r = data?.resultado;
-    if (r?.pedido_id !== s.pedido || r.estado !== (s.accion === "cancelar" ? "cancelado" : "listo_despacho") ||
-      (s.accion === "reprogramar" && (r.incluido !== false || r.fecha !== s.fecha)) ||
+    if (r?.pedido_id !== s.pedido || r.estado !== "cancelado" ||
       (s.accion === "cancelar" && r.pagos_creditos_preservados !== true)) {
       return { error: "Respuesta no verificable. Reintenta la misma solicitud sin cambiar sus datos." };
     }

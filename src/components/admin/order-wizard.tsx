@@ -31,12 +31,12 @@ export function useOrderStep(paso: number, valido: boolean, motivo: string) {
   useEffect(() => { registrar(paso, valido, motivo); }, [registrar, paso, valido, motivo]);
 }
 
-export function OrderWizard({ children }: { children: ReactNode }) {
-  const [activo, setActivo] = useState(0);
+export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode; pasoInicial?: 0 | 1 | 2 }) {
+  const [activo, setActivo] = useState<number>(pasoInicial);
   const [bloqueado, bloquear] = useState(false);
   const [destino, completar] = useState("");
-  const [desbloqueado, setDesbloqueado] = useState(0);
-  const [estados, setEstados] = useState<Estado[]>(Array.from({ length: 4 }, () => ({ valido: false, motivo: "Completa los datos obligatorios de este paso." })));
+  const [desbloqueado, setDesbloqueado] = useState<number>(pasoInicial);
+  const [estados, setEstados] = useState<Estado[]>(Array.from({ length: 4 }, (_, indice) => ({ valido: indice < pasoInicial, motivo: "Completa los datos obligatorios de este paso." })));
   const cabecera = useRef<HTMLParagraphElement>(null);
   const registrar = useCallback((paso: number, valido: boolean, motivo: string) => {
     setEstados((previos) => previos[paso].valido === valido && previos[paso].motivo === motivo ? previos : previos.map((estado, indice) => indice === paso ? { valido, motivo } : estado));

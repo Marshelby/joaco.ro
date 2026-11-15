@@ -1,3 +1,4 @@
+import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { CreateOrderLink } from "@/components/admin/create-order-link";
 import { UndeliveredOrders } from "@/components/admin/undelivered-orders";
 import { OrderIdentity } from "@/components/admin/order-identity";
@@ -29,12 +30,14 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     <OrderViews vista="posibles" />
     <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
   </div>;
-  const vista = filtro === "todos" ? "todos" : "recibidos";
+  const vista = filtro === "entregados" ? "entregados" : filtro === "todos" ? "todos" : "recibidos";
   const soloRecibidos = vista === "recibidos";
-  const [pedidos, cantidadRecibidos] = await Promise.all([
+  const [todosPedidos, cantidadRecibidos] = await Promise.all([
     obtenerPedidosAdmin(soloRecibidos),
     soloRecibidos ? obtenerCantidadPedidosRecibidos() : Promise.resolve(0),
   ]);
+
+  const pedidos = vista === "entregados" ? todosPedidos.filter(p => p.estado === "entregado") : todosPedidos;
 
   return (
     <div className="space-y-8">
@@ -42,7 +45,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       <section className="space-y-5" aria-labelledby="lista-pedidos-title">
         <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="lista-pedidos-title" className="text-2xl font-semibold tracking-tight text-foreground">{soloRecibidos ? `Pedidos recibidos (${cantidadRecibidos})` : "Todos los pedidos"}</h2>
+            <h2 id="lista-pedidos-title" className="text-2xl font-semibold tracking-tight text-foreground">{soloRecibidos ? `Pedidos recibidos (${cantidadRecibidos})` : vista === "entregados" ? "Entregados" : "Todos los pedidos"}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{`${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"} visibles`}</p>
           </div>
           <OrderViews vista={vista} />
@@ -57,7 +60,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                     <div className="mt-3"><OrderStatusBadge estado={pedido.estado} destacado /></div>
                   </div>
                   <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
-                  <ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
+                  <div className="flex flex-wrap gap-2">{["entregado", "entrega_fallida"].includes(pedido.estado) ? <RecycleOrderLink pedidoId={pedido.id} /> : null}<ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink></div>
                 </div>
               </li>
             ))}

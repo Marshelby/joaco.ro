@@ -26,6 +26,7 @@ export const ROUTES = {
   adminNewOrder: (clienteId?: string) => clienteId
     ? `/admin/pedidos/nuevo?${new URLSearchParams({ cliente_id: clienteId })}`
     : "/admin/pedidos/nuevo",
+  adminRecycleOrder: (id: string) => `/admin/pedidos/nuevo?${new URLSearchParams({ reciclar: id })}`,
   adminCustomers: "/admin/clientes",
   adminStaff: "/admin/personal",
   adminDeliveries: "/admin/entregas",

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { z } from "zod";
 import { OrderWizard } from "@/components/admin/order-wizard";
 import { OrderCustomerSelection } from "@/components/admin/order-customer-selection";
-import { cargarClientePedido } from "./actions";
+import { cargarClientePedido, cargarPedidoParaReciclar } from "./actions";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
@@ -13,15 +13,23 @@ export const metadata: Metadata = { title: "Crear pedido" };
 export default async function AdminNewOrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cliente_id?: string | string[] }>;
+  searchParams: Promise<{ cliente_id?: string | string[]; reciclar?: string | string[] }>;
 }) {
-  const { cliente_id: parametroCliente } = await searchParams;
+  const { cliente_id: parametroCliente, reciclar } = await searchParams;
   const resultado = z.uuid().safeParse(parametroCliente);
   let inicial: Awaited<ReturnType<typeof cargarClientePedido>> | null = null;
   let errorInicial = parametroCliente !== undefined && !resultado.success
     ? "El enlace contiene una referencia de cliente inválida. No se preseleccionó ningún cliente."
     : "";
-  if (resultado.success) {
+  let reciclado: Awaited<ReturnType<typeof cargarPedidoParaReciclar>> | null = null;
+  if (reciclar !== undefined) {
+    try {
+      reciclado = await cargarPedidoParaReciclar(z.uuid().parse(reciclar));
+      inicial = reciclado.inicial;
+    } catch {
+      errorInicial = "No fue posible precargar el pedido. Verifica que sea entregado o no entregado y que tenga un cliente activo y referencias accesibles. Puedes preparar un pedido manualmente.";
+    }
+  } else if (resultado.success) {
     try {
       inicial = await cargarClientePedido(resultado.data);
     } catch {
@@ -33,7 +41,7 @@ export default async function AdminNewOrderPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Crear pedido"
+        title={reciclar !== undefined ? "Reciclar pedido" : "Crear pedido"}
         eyebrow="Gestión administrativa"
         description="Prepara un pedido para un cliente y su ubicación comercial."
         actions={<ActionLink href={clienteIdInicial ? ROUTES.adminCustomer(clienteIdInicial) : ROUTES.adminOrders} variant="secondary">{clienteIdInicial ? "Volver al cliente" : "Volver a pedidos"}</ActionLink>}
@@ -44,9 +52,11 @@ export default async function AdminNewOrderPage({
       </div>
       {errorInicial ? <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{errorInicial}</p> : null}
 
+      {reciclado?.advertencias.map((aviso, indice) => <p key={indice} role="alert" className="text-sm text-destructive">{aviso}</p>)}
       <div role="group" aria-label="Crear pedido administrativo" aria-describedby="estado-integracion" className="min-w-0">
-        <OrderWizard>
-          <OrderCustomerSelection inicial={inicial} />
+        {reciclar !== undefined ? <p className="mb-4 text-sm">Se creará un pedido nuevo únicamente al confirmar, con precios vigentes. El pedido original y sus rutas, ventas, pagos e historial se conservan intactos.</p> : null}
+        <OrderWizard pasoInicial={reciclado?.pasoInicial ?? 0}>
+          <OrderCustomerSelection inicial={inicial} reciclado={reciclado} />
         </OrderWizard>
       </div>
     </div>

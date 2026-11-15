@@ -13,9 +13,11 @@ type Seleccion = Awaited<ReturnType<typeof cargarClientePedido>>;
 type Resultados = Awaited<ReturnType<typeof buscarClientesPedido>>;
 const campo = "mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm";
 
-export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null }) {
+type Reciclado = Awaited<ReturnType<typeof import("@/app/(admin)/admin/pedidos/nuevo/actions").cargarPedidoParaReciclar>>;
+
+export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Seleccion | null; reciclado?: Reciclado | null }) {
   const [seleccion, setSeleccion] = useState(inicial);
-  const [ubicacionId, setUbicacionId] = useState(inicial?.ubicaciones.length === 1 ? inicial.ubicaciones[0].id : "");
+  const [ubicacionId, setUbicacionId] = useState(reciclado?.ubicacionId ?? (inicial?.ubicaciones.length === 1 ? inicial.ubicaciones[0].id : ""));
   const [busqueda, setBusqueda] = useState("");
   const [resultados, setResultados] = useState<Resultados | null>(null);
   const [pagina, setPagina] = useState(1);
@@ -180,6 +182,6 @@ export function OrderCustomerSelection({ inicial }: { inicial: Seleccion | null 
     </div> : null}
 
   </section>
-    <OrderProductSelection clienteId={!cargando ? seleccion?.cliente.id : undefined} ubicacionId={ubicacion?.id} clienteNombre={seleccion?.cliente.nombre} ubicacionResumen={ubicacion ? [ubicacion.nombre_ubicacion ?? ubicacion.nombre, ubicacion.direccion, ubicacion.comuna, ubicacion.region].filter(Boolean).join(" · ") : undefined} />
+    <OrderProductSelection inicial={reciclado} clienteId={!cargando ? seleccion?.cliente.id : undefined} ubicacionId={ubicacion?.id} clienteNombre={seleccion?.cliente.nombre} ubicacionResumen={ubicacion ? [ubicacion.nombre_ubicacion ?? ubicacion.nombre, ubicacion.direccion, ubicacion.comuna, ubicacion.region].filter(Boolean).join(" · ") : undefined} />
   </>;
 }

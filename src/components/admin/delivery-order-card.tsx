@@ -1,3 +1,4 @@
+import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { RutasDetailLink } from "@/components/admin/rutas-detail-link";
 import type { ReactNode } from "react";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
@@ -76,7 +77,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink></> : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">{rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink> : null}{resumenContable ? (pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>) : <ActionLink href={`/admin/pedidos/detalle/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{["entregado", "entrega_fallida"].includes(pedido.estado) ? <RecycleOrderLink pedidoId={pedido.id} /> : null}{rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink> : null}{resumenContable ? (pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>) : <ActionLink href={`/admin/pedidos/detalle/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>}</div>
 
           {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 

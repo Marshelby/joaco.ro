@@ -15,9 +15,9 @@ type Linea = LineaPedidoBorrador;
 const campo = "mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm";
 const normalizar = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-CL");
 
-export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, ubicacionResumen }: { clienteId?: string; ubicacionId?: string; clienteNombre?: string; ubicacionResumen?: string }) {
-  const [catalogo, setCatalogo] = useState<{ clave: string; items: Presentacion[] } | null>(null);
-  const [lineas, setLineas] = useState<Linea[]>([]);
+export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, ubicacionResumen, inicial }: { inicial?: Awaited<ReturnType<typeof import("@/app/(admin)/admin/pedidos/nuevo/actions").cargarPedidoParaReciclar>> | null; clienteId?: string; ubicacionId?: string; clienteNombre?: string; ubicacionResumen?: string }) {
+  const [catalogo, setCatalogo] = useState<{ clave: string; items: Presentacion[] } | null>(inicial ? { clave: `${inicial.inicial.cliente.id}:${inicial.ubicacionId}`, items: inicial.catalogo } : null);
+  const [lineas, setLineas] = useState<Linea[]>(inicial?.lineas ?? []);
   const [busqueda, setBusqueda] = useState("");
   const [productoId, setProductoId] = useState("");
   const [presentacionId, setPresentacionId] = useState("");
@@ -29,6 +29,8 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   const [intento, setIntento] = useState(0);
   const clave = clienteId && ubicacionId ? `${clienteId}:${ubicacionId}` : "";
 
+  const precarga = useRef(Boolean(inicial));
+
   useEffect(() => { incorporando.current = false; }, [lineas]);
 
   useEffect(() => {
@@ -36,6 +38,8 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   }, [productoId]);
 
   useEffect(() => {
+    if (precarga.current && inicial && clave === `${inicial.inicial.cliente.id}:${inicial.ubicacionId}` && intento === 0) return;
+    precarga.current = false;
     let vigente = true;
     setCatalogo(null);
     setError("");
@@ -47,7 +51,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
       if (vigente) { setCatalogo(null); setError("No fue posible cargar el catálogo vigente. Intenta nuevamente."); }
     });
     return () => { vigente = false; };
-  }, [clienteId, ubicacionId, intento]);
+  }, [clienteId, ubicacionId, intento, inicial, clave]);
 
   const listo = Boolean(clave && catalogo?.clave === clave);
   const items = listo ? catalogo!.items : [];
@@ -55,7 +59,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
     .filter((item) => normalizar(item.nombre).includes(normalizar(busqueda.trim())));
   const presentaciones = items.filter((item) => item.productoId === productoId);
   const elegida = presentaciones.find((item) => item.presentacionId === presentacionId);
-  const resueltas = lineas.map((linea) => ({ ...linea, actual: items.find((item) => item.presentacionId === linea.presentacion.presentacionId) }));
+  const resueltas = lineas.map((linea) => ({ ...linea, actual: items.find((item) => item.presentacionId === linea.presentacion.presentacionId && item.productoId === linea.presentacion.productoId) }));
   const valida = (linea: typeof resueltas[number]) => Boolean(linea.actual && isValidCartQuantity(linea.actual, Number(linea.cantidad))
     && totalLineaPedido(linea.actual, linea.cantidad, linea.actual.precioFinalReferencia) !== null);
   const validas = listo && resueltas.length > 0 && resueltas.every(valida);

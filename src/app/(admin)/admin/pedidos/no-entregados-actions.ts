@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { obtenerFechasEntregaDisponibles, type FechaEntregaDisponible } from "@/lib/delivery-availability";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type ResolucionNoEntregado = {
@@ -15,7 +16,7 @@ async function clienteAdmin() {
   if (error || !data.user || admin.error || admin.data !== true) throw new Error("NO_AUTORIZADO");
   return db;
 }
-export async function prepararResolucionNoEntregado(id: string): Promise<{ version?: number; error?: string }> {
+export async function prepararResolucionNoEntregado(id: string, reprogramar = false): Promise<{ version?: number; fechas?: FechaEntregaDisponible[]; error?: string }> {
   if (!uuid(id)) return { error: "Pedido inválido." };
   try {
     const db = await clienteAdmin();
@@ -23,15 +24,21 @@ export async function prepararResolucionNoEntregado(id: string): Promise<{ versi
     if (error) return { error: error.code === "PGRST202" ? "Las acciones requieren instalar el SQL manual de Fase 4." : "No se pudo cargar la versión. Actualiza e intenta nuevamente." };
     const version = Number(data?.version);
     if (data?.version == null || !Number.isSafeInteger(version) || version < 0 || version >= Number.MAX_SAFE_INTEGER) return { error: "La versión del pedido no es válida." };
-    return { version };
+    if (!reprogramar) return { version };
+    const disponibles = await obtenerFechasEntregaDisponibles();
+    const fechas = await db.rpc("leer_fechas_reprogramacion_admin", { p_pedido_id: id });
+    if (fechas.error) return { error: "No se pudieron verificar las fechas. Revisa que esté instalado el SQL manual de reprogramación." };
+    if (!Array.isArray(fechas.data) || !fechas.data.every((f: unknown) => typeof f === "string")) return { error: "No se pudo verificar la disponibilidad. Actualiza las fechas para continuar." };
+    const permitidas = new Set<string>(fechas.data);
+    return { version, fechas: disponibles.filter(f => permitidas.has(f.fecha)).slice(0, 10) };
   } catch { return { error: "No se pudo verificar la sesión administrativa." }; }
 }
-export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: boolean): Promise<{ exito?: boolean; error?: string }> {
+export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: boolean): Promise<{ exito?: boolean; error?: string; rechazada?: boolean }> {
   if (!s || confirmado !== true || !uuid(s.pedido) || !uuid(s.clave) || !Number.isSafeInteger(s.version) || s.version < 0 || s.version >= Number.MAX_SAFE_INTEGER ||
     !["reprogramar", "cancelar"].includes(s.accion) || typeof s.motivo !== "string" || !s.motivo.trim() || s.motivo.length > 2000 ||
     (s.accion === "cancelar" && (typeof s.tratamiento !== "string" || !s.tratamiento.trim() || s.tratamiento.length > 2000)) ||
     (s.accion === "reprogramar" && (typeof s.fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isFinite(Date.parse(s.fecha)) || new Date(s.fecha).toISOString().slice(0, 10) !== s.fecha))) {
-    return { error: "Revisa fecha, motivo y tratamiento administrativo y confirma la operación." };
+    return { rechazada: true, error: "Revisa fecha, motivo y tratamiento administrativo y confirma la operación." };
   }
   try {
     const db = await clienteAdmin();
@@ -41,6 +48,8 @@ export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: 
       : await db.rpc("cancelar_no_entregado_administrativo", { ...comunes, p_tratamiento: s.tratamiento });
     if (error) {
       const mensajes: Record<string, string> = {
+        FECHA_ENTREGA_NO_DISPONIBLE: "La fecha ya no está habilitada o pasó la hora límite. Actualiza las fechas y elige otra.",
+        REQUIERE_RUTA_INDIVIDUAL: "La fecha pertenece a rutas individuales y no admite esta reprogramación. Revisa la planificación de rutas.",
         NO_AUTORIZADO: "Solo un administrador puede resolver pedidos no entregados.",
         VERSION_OPERATIVA_CONFLICTO: "El pedido cambió. Revisa su detalle y abre una nueva solicitud.",
         CLAVE_IDEMPOTENCIA_EN_USO: "La clave pertenece a otra solicitud. Revisa el historial antes de continuar.",
@@ -56,7 +65,7 @@ export async function resolverNoEntregado(s: ResolucionNoEntregado, confirmado: 
         TRATAMIENTO_ADMINISTRATIVO_REQUERIDO: "Registra el tratamiento explícito de pagos y créditos (máximo 2000 caracteres).",
         PEDIDO_NO_ENCONTRADO: "El pedido ya no está disponible.",
       };
-      return { error: error.code === "PGRST202" ? "Falta instalar el SQL manual de Fase 4 o su dependencia de Fase 2." : mensajes[error.message] ?? "No se pudo confirmar el resultado. Reintenta la misma solicitud sin cambiar sus datos." };
+      return { rechazada: !!mensajes[error.message] || error.code === "PGRST202", error: error.code === "PGRST202" ? "Falta instalar el SQL manual de Fase 4 o su dependencia de Fase 2." : mensajes[error.message] ?? "No se pudo confirmar el resultado. Reintenta la misma solicitud sin cambiar sus datos." };
     }
     const r = data?.resultado;
     if (r?.pedido_id !== s.pedido || r.estado !== (s.accion === "cancelar" ? "cancelado" : "listo_despacho") ||

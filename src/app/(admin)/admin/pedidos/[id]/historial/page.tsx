@@ -1,3 +1,5 @@
+import { destinoNoEntregados } from "@/lib/admin/undelivered-return";
+import { actionLinkVariants } from "@/components/ui/action-link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ActionLink } from "@/components/ui/action-link";
@@ -10,8 +12,10 @@ const fechaChile = new Intl.DateTimeFormat("es-CL", {
   timeZone: DELIVERY_TIME_ZONE, dateStyle: "long", timeStyle: "medium", hour12: false,
 });
 
-export default async function HistorialPedidoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function HistorialPedidoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volver?: string | string[] }> }) {
   const { id } = await params;
+  const { volver } = await searchParams;
+  const retorno = destinoNoEntregados(typeof volver === "string" ? volver : undefined);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
   const historial = await obtenerHistorialPedido(id);
   if (!historial) notFound();
@@ -20,7 +24,7 @@ export default async function HistorialPedidoPage({ params }: { params: Promise<
     <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
       <div><h1 className="text-2xl font-semibold">Historial del pedido {historial.numeroPedido}</h1>
         <p className="mt-2 text-sm text-muted-foreground">Orden cronológico · Hora de Chile ({DELIVERY_TIME_ZONE}). Solo registros existentes.</p></div>
-      <ActionLink href={`/admin/pedidos/${id}`} variant="secondary">Volver al pedido</ActionLink>
+      {retorno ? <a href={retorno} className={actionLinkVariants({ variant: "secondary" })}>Volver a no entregados</a> : <ActionLink href={`/admin/pedidos/${id}`} variant="secondary">Volver al pedido</ActionLink>}
     </header>
     <div className="space-y-2 rounded-xl border bg-card p-4 text-sm text-muted-foreground">
       <p>Los registros confirmados acreditan la operación indicada. Los avances de preparación y la planificación son provisionales; no representan una entrega ni una venta definitiva.</p>

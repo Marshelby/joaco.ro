@@ -20,4 +20,6 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/admin/:path*", "/reparto/:path*", "/iniciar-sesion"] };
+// Renovar y persistir la sesión antes del render público. Los Server Components
+// pueden leer cookies, pero no guardar una renovación por sí solos.
+export const config = { matcher: ["/", "/catalogo/:path*", "/admin/:path*", "/reparto/:path*", "/iniciar-sesion"] };

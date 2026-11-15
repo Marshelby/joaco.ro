@@ -1,9 +1,11 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { HomeCategory } from "@/mocks/home";
 import type { ImageFallbackKind } from "@/types/media";
 import type { MockProduct, ProductSaleUnit } from "@/types/product";
-import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
+import { crearClienteSupabaseCatalogo } from "@/lib/supabase/storefront";
 
 type CatalogRow = {
   id: string;
@@ -106,8 +108,14 @@ export function mapStorefrontProduct(row: CatalogRow): MockProduct | null {
   };
 }
 
+function throwCatalogError(error: { code: string; message: string }, message: string): never {
+  // No registrar cookies, tokens ni respuestas completas; conservar el código original.
+  console.error("[storefront] Falló la lectura del catálogo", { operation: message, code: error.code });
+  throw new Error(message, { cause: error });
+}
+
 async function queryProducts(options?: { slug?: string }) {
-  const supabase = await crearClienteSupabaseServidor();
+  const supabase = crearClienteSupabaseCatalogo();
   let query = supabase
     .from("productos")
     .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias!inner(nombre,slug,descripcion,activa,orden),presentaciones_producto!inner(id,nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
@@ -119,18 +127,16 @@ async function queryProducts(options?: { slug?: string }) {
     .order("orden");
   if (options?.slug) query = query.eq("slug", options.slug);
   const { data, error } = await query;
-  if (error) throw new Error("No fue posible cargar el catálogo.");
+  if (error) throwCatalogError(error, "No fue posible cargar el catálogo.");
   return (data as unknown as CatalogRow[] ?? []).map(mapStorefrontProduct).filter((product): product is MockProduct => product !== null);
 }
 
-export async function getStorefrontProducts() {
-  return queryProducts();
-}
+export const getStorefrontProducts = cache(async () => queryProducts());
 
 export async function getStorefrontHomeSections(
   products: readonly MockProduct[],
 ): Promise<StorefrontHomeSections> {
-  const supabase = await crearClienteSupabaseServidor();
+  const supabase = crearClienteSupabaseCatalogo();
   const { data, error } = await supabase
     .from("secciones_inicio_productos")
     .select("seccion_slug,orden,productos!inner(id)")
@@ -138,7 +144,7 @@ export async function getStorefrontHomeSections(
     .order("seccion_slug")
     .order("orden");
 
-  if (error) throw new Error("No fue posible cargar las secciones de inicio.");
+  if (error) throwCatalogError(error, "No fue posible cargar las secciones de inicio.");
 
   const productsById = new Map(products.map((product) => [product.id, product]));
   const sections: Record<StorefrontHomeSectionSlug, MockProduct[]> = {
@@ -165,7 +171,7 @@ export async function getStorefrontProductsByPresentationIds(presentationIds: re
   const ids = [...new Set(presentationIds)];
   if (ids.length === 0) return [];
 
-  const supabase = await crearClienteSupabaseServidor();
+  const supabase = crearClienteSupabaseCatalogo();
   const { data, error } = await supabase
     .from("productos")
     .select("id,nombre,slug,descripcion,ruta_imagen,activo,disponible,destacado,mas_vendido,nuevo,orden,categorias!inner(nombre,slug,descripcion,activa,orden),presentaciones_producto!inner(id,nombre,cantidad,unidad,precio_neto,precio_final,es_principal,activa,orden)")
@@ -176,18 +182,18 @@ export async function getStorefrontProductsByPresentationIds(presentationIds: re
     .eq("presentaciones_producto.activa", true)
     .eq("presentaciones_producto.es_principal", true);
 
-  if (error) throw new Error("No fue posible resolver los productos actuales.");
+  if (error) throwCatalogError(error, "No fue posible resolver los productos actuales.");
   return (data as unknown as CatalogRow[] ?? []).map(mapStorefrontProduct).filter((product): product is MockProduct => product !== null);
 }
 
-export async function getStorefrontCategories(): Promise<HomeCategory[]> {
-  const supabase = await crearClienteSupabaseServidor();
+export const getStorefrontCategories = cache(async (): Promise<HomeCategory[]> => {
+  const supabase = crearClienteSupabaseCatalogo();
   const { data, error } = await supabase
     .from("categorias")
     .select("nombre,descripcion,slug")
     .eq("activa", true)
     .order("orden");
-  if (error) throw new Error("No fue posible cargar las categorías.");
+  if (error) throwCatalogError(error, "No fue posible cargar las categorías.");
   return (data ?? []).map((category) => ({
     slug: category.slug,
     name: category.nombre,
@@ -195,7 +201,7 @@ export async function getStorefrontCategories(): Promise<HomeCategory[]> {
     imageFallback: imageFallbackByCategory[category.slug] ?? "fresh-produce",
     subcategories: [],
   }));
-}
+});
 
 export function getStorefrontRelatedProducts(products: readonly MockProduct[], product: MockProduct, limit = 4) {
   const rankByStorefrontPriority = (items: readonly MockProduct[]) => [...items].sort((left, right) => {

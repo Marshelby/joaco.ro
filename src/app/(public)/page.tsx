@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { unstable_rethrow } from "next/navigation";
 
 import { Container } from "@/components/layout/container";
 import { CategorySelector } from "@/components/home/category-selector";
@@ -25,7 +26,9 @@ async function HomeContent() {
   try {
     [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
     homeSections = await getStorefrontHomeSections(products);
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[storefront] No fue posible completar la portada", { type: error instanceof Error ? error.name : "UnknownError" });
     return <Container className="py-10 sm:py-14"><EmptyState title="No pudimos cargar el catálogo" description="Inténtalo nuevamente en unos momentos." /></Container>;
   }
   const productSections: ReadonlyArray<{ slug: StorefrontHomeSectionSlug; id: string; eyebrow?: string; title: string; description: string }> = [

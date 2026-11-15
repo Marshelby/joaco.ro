@@ -1,3 +1,4 @@
+import { UndeliveredHistoryLink, UndeliveredScrollRestoration } from "@/components/admin/undelivered-history-navigation";
 import { UndeliveredOrderActions } from "@/components/admin/undelivered-order-actions";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ export async function UndeliveredOrders({ filtros }: { filtros: FiltrosNoEntrega
   const hrefPagina = (pagina: number) => `/admin/pedidos?${new URLSearchParams({ filtro: "no-entregados", q: filtros.q ?? "", desde: filtros.desde ?? "", hasta: filtros.hasta ?? "", pagina: String(pagina) })}`;
   const inputClass = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm";
   return <section className="space-y-5" aria-labelledby="no-entregados-title">
+    <UndeliveredScrollRestoration />
     <div><h2 id="no-entregados-title" className="text-2xl font-semibold">No entregados</h2>
       <p className="mt-2 text-sm text-muted-foreground">Pedidos cuyo estado operativo vigente es entrega fallida. Los montos son informativos; esta consulta no reconoce ventas ni genera deuda.</p></div>
     <form action="/admin/pedidos" method="get" className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -32,7 +34,7 @@ export async function UndeliveredOrders({ filtros }: { filtros: FiltrosNoEntrega
           <div><dt className="text-muted-foreground">Monto original informativo</dt><dd className="mt-1 font-semibold">{formatCLP(p.total)}</dd></div>
         </dl>
         <details className="border-t pt-3"><summary className="min-h-11 cursor-pointer text-sm font-medium">Productos ({p.productos.length})</summary><ul className="space-y-2 text-sm">{p.productos.map((producto, i) => <li key={i}>{producto.nombre}{producto.presentacion ? ` · ${producto.presentacion}` : ""} · {producto.cantidad} {producto.unidad}</li>)}</ul></details>
-        <div className="flex flex-wrap gap-2"><ActionLink href={`/admin/pedidos/${p.id}`} scroll={false} prefetch={false} variant="secondary">Ver pedido completo</ActionLink><ActionLink href={`/admin/pedidos/${p.id}/historial`} variant="quiet">Historial operativo</ActionLink></div>
+        <div className="flex flex-wrap gap-2"><ActionLink href={`/admin/pedidos/${p.id}`} scroll={false} prefetch={false} variant="secondary">Ver pedido completo</ActionLink><UndeliveredHistoryLink pedidoId={p.id} retorno={hrefPagina(resultado.pagina)} /></div>
         <UndeliveredOrderActions pedidoId={p.id} historico={p.historico} />
       </li>)}</ul> : <EmptyState title="Sin pedidos no entregados" description="No hay resultados para los filtros seleccionados." />}
       <nav aria-label="Páginas de pedidos no entregados" className="flex flex-wrap gap-3">{resultado.pagina > 1 ? <ActionLink href={hrefPagina(resultado.pagina - 1)} variant="secondary">Anterior</ActionLink> : null}{resultado.pagina * 20 < resultado.total ? <ActionLink href={hrefPagina(resultado.pagina + 1)} variant="secondary">Siguiente</ActionLink> : null}</nav>

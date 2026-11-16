@@ -26,7 +26,7 @@ function valoresRevision(valores: Record<string, unknown>) {
   return `${valores.confirmado_explicito ? "LISTO" : "PENDIENTE"} · Cantidad preparada: ${cantidad == null ? "sin confirmación" : String(cantidad)} · Importe operativo: ${typeof importe === "number" ? formatCLP(importe) : "sin confirmación"}`;
 }
 
-export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false, resumenContable }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean; resumenContable?: ReactNode }) {
+export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false, resumenContable, soloPreparacion = false }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean; resumenContable?: ReactNode; soloPreparacion?: boolean }) {
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
@@ -43,6 +43,29 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   const sinStockResuelto = pedido.estado === "entrega_fallida" && pedido.historialPreparacion.some(h => h.valores_nuevos.origen === "sin_stock_pre_despacho");
   const estadoCantidad = sinStockResuelto ? "No entregado — Sin stock" : !pedido.items.length || pedido.items.some(i => i.cantidadPreparada === null)
     ? "Sin preparar" : pedido.items.every(i => i.cantidadPreparada === 0) ? "Cero registrado" : preparados === pedido.items.length ? "Listo" : "Parcial";
+
+  if (soloPreparacion) return (
+    <li data-preparacion-pedido={pedido.id} className="overflow-hidden rounded-xl border border-border bg-card">
+      <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <span aria-label={`Parada ${numeroPreparacion}`} className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">{numeroPreparacion}</span>
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-sm font-semibold">{pedido.nombreClienteSnapshot}</h3>
+          <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
+        </div>
+        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${estadoCantidad === "Listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted text-foreground"}`}>{estadoCantidad}</span>
+        <div className="flex w-full items-center gap-2 text-xs text-muted-foreground sm:w-auto">
+          <progress className="h-1.5 min-w-0 flex-1 accent-primary sm:w-24" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={preparados} />
+          <span>{preparados}/{pedido.items.length} completos</span>
+        </div>
+      </header>
+      <div id={`preparacion-${pedido.id}`} className="scroll-mt-24 px-3">
+        {pedido.items.length ? <ul className="divide-y divide-border">
+          {pedido.items.map(item => <PreparationCompactItemControl key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} soloPreparacion soloLectura={!((pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta)} />)}
+        </ul> : <p className="py-3 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p>}
+        {pedido.contextoEntrega.disponible && pedido.contextoEntrega.observacion ? <p className="border-t border-border py-2 text-xs text-muted-foreground whitespace-pre-wrap break-words"><span className="font-semibold">Observación: </span>{pedido.contextoEntrega.observacion.texto}</p> : null}
+      </div>
+    </li>
+  );
 
   return (
     <li data-preparacion-pedido={pedido.id} className={compacta ? "overflow-hidden rounded-xl border border-border bg-card" : "rounded-xl border border-border bg-card p-4 sm:p-5"}>

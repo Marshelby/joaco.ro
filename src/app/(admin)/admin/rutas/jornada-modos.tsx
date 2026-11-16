@@ -45,7 +45,7 @@ export function JornadaModos({ titulo, mensaje, preparacion, ruta, salida }: Pro
       </div>
       <p className="text-sm text-muted-foreground">{mensaje}</p>
     </div>
-    <div id="jornada-preparacion" hidden={modo !== "preparacion"} className="space-y-3">{preparacion}<div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2"><Button type="button" onClick={() => cambiarModo("ruta")}>Ir a ver ruta</Button><p className="text-xs text-muted-foreground">Revisa las paradas y el despacho en la vista de ruta.</p></div></div>
+    <div id="jornada-preparacion" hidden={modo !== "preparacion"} className="space-y-3">{preparacion}<div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2"><Button type="button" onClick={() => cambiarModo("ruta")}>Ir a la ruta</Button><p className="text-xs text-muted-foreground">Revisa las paradas y el despacho en la vista de ruta.</p></div></div>
     <div id="jornada-ruta" hidden={modo !== "ruta"} className="space-y-4">{salida}{ruta}</div>
   </>;
 }

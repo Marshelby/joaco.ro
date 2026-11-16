@@ -101,7 +101,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     {entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <>
       <section aria-label="Pedidos de la fecha" className="space-y-3">
         <h2 className="text-lg font-semibold">Preparación de pedidos</h2>
-        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} resumenContable={<RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} />} operativa rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
+        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} resumenContable={<RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} />} operativa soloPreparacion rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
       </section>
     </>}
     {carga.estado === "preparacion" && <RutaPreparacionControl key={`${fecha}-${carga.version}-${entrega.pedidos.map(p => p.versionPreparacion).join("-")}`} fecha={fecha} ruta={{ id: "", nombre: "Ruta de la jornada", version: carga.version, pedidos: entrega.pedidos.filter(p => !["cancelado", "entrega_fallida", "entregado", "en_reparto"].includes(p.estado)).map(p => p.id) }} pedidos={entrega.pedidos.filter(p => !["cancelado", "entrega_fallida", "entregado", "en_reparto"].includes(p.estado))} habilitada={permiso.permitida} />}

@@ -9,8 +9,8 @@ import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-
 import { resolverModoCantidadPreparacion } from "@/lib/order-preparation";
 import type { ItemPreparacionPedidoAdmin } from "@/lib/admin/pedidos";
 
-export function PreparationCompactItemControl({ item, version, soloLectura = false, cantidadEnviada = 0 }: {
-  item: ItemPreparacionPedidoAdmin; version: number; soloLectura?: boolean; cantidadEnviada?: number;
+export function PreparationCompactItemControl({ item, version, soloLectura = false, cantidadEnviada = 0, soloPreparacion = false }: {
+  item: ItemPreparacionPedidoAdmin; version: number; soloLectura?: boolean; cantidadEnviada?: number; soloPreparacion?: boolean;
 }) {
   const router = useRouter();
   const [cantidad, setCantidad] = useState(item.cantidadPreparada === null ? "" : String(item.cantidadPreparada));
@@ -26,6 +26,9 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   const valor = Number(cantidad);
   const cambios = cantidadGuardada === null ? cantidad !== "" : cantidad === "" || valor !== cantidadGuardada;
   const formato = (n: number) => formatearCantidadPreparacionEntrega(n, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
+
+  const estadoCargado = cantidadGuardada === null ? "Pendiente" : cantidadGuardada === 0 ? "Sin carga" : cantidadGuardada < item.cantidad ? "Parcial" : cantidadGuardada === item.cantidad ? "Completo" : "Excedente";
+  const colorCargado = cantidadGuardada === null || cantidadGuardada === 0 ? "bg-muted text-muted-foreground" : cantidadGuardada < item.cantidad ? "bg-amber-100 text-amber-900" : cantidadGuardada === item.cantidad ? "bg-emerald-100 text-emerald-900" : "bg-blue-100 text-blue-900";
 
   function editar(siguiente: string) {
     setCantidad(siguiente);
@@ -71,13 +74,18 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
       <input type="hidden" name="itemPedidoId" value={item.id} />
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="clave" value={clave} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className={soloPreparacion ? "grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" : "flex flex-wrap items-center justify-between gap-3"}>
         <div className="min-w-0 flex-1">
           <p className="break-words font-medium">{item.nombreProducto}</p>
           {item.nombrePresentacion ? <p className="text-xs text-muted-foreground">{item.nombrePresentacion}</p> : null}
+          {soloPreparacion ? <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+            <span>Solicitado: <strong>{formato(item.cantidad)}</strong></span>
+            <span>Cargado: <strong>{cantidadGuardada === null ? "—" : formato(cantidadGuardada)}</strong></span>
+            <span className={`rounded px-1.5 py-0.5 font-semibold ${colorCargado}`}>{estadoCargado}</span>
+          </div> : <>
           <p className="text-xs text-muted-foreground">Precio unitario histórico de referencia: {item.precioUnitarioHistorico == null ? "Sin dato" : formatCLP(item.precioUnitarioHistorico)} · {modo === "kg_fraccionable" ? "por KG" : "por unidad / presentación"}</p>
           <p className="text-xs text-muted-foreground">Subtotal solicitado: {formatCLP(item.importeOriginal)} · Preparación provisional: {item.importeOperativo == null ? "Sin importe confirmado" : formatCLP(item.importeOperativo)}</p>
-          <p className="text-xs text-muted-foreground">Solicitado: {formato(item.cantidad)} · Preparado: {item.cantidadPreparada === null ? "Sin preparar" : formato(item.cantidadPreparada)} · Enviado: {formato(cantidadEnviada)}</p>
+          <p className="text-xs text-muted-foreground">Solicitado: {formato(item.cantidad)} · Preparado: {item.cantidadPreparada === null ? "Sin preparar" : formato(item.cantidadPreparada)} · Enviado: {formato(cantidadEnviada)}</p></>}
         </div>
         <div className="space-y-1">
           <label htmlFor={`cargada-${item.id}`} className="block text-xs">Cantidad cargada</label>
@@ -90,8 +98,8 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
           <p className="text-xs text-muted-foreground">{cantidad !== "" && Number.isFinite(valor) ? formato(valor) : "Ingresa una cantidad"}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2"><progress className="h-2 min-w-0 flex-1 accent-primary" aria-label={`Progreso de ${item.nombreProducto}`} max={100} value={Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0))} /><span className="text-xs">{Number.isFinite(valor) ? valor : 0} / {item.cantidad} · {Math.round(Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0)))}%</span></div>
-      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (guardado ? `Cantidad guardada: ${formato(valor)}` : item.cantidadPreparada !== null ? `Cantidad guardada: ${formato(item.cantidadPreparada)}` : "Sin preparar: registra y guarda la cantidad cargada, incluso cero")}</p>
+      {!soloPreparacion ? <div className="flex items-center gap-2"><progress className="h-2 min-w-0 flex-1 accent-primary" aria-label={`Progreso de ${item.nombreProducto}`} max={100} value={Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0))} /><span className="text-xs">{Number.isFinite(valor) ? valor : 0} / {item.cantidad} · {Math.round(Math.min(100, Math.max(0, Number.isFinite(valor) && item.cantidad > 0 ? valor / item.cantidad * 100 : 0)))}%</span></div> : null}
+      {(!soloPreparacion || error || guardado || cambios) ? <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{error || (soloPreparacion && cambios ? "Cambios sin guardar" : guardado ? `Cantidad guardada: ${formato(valor)}` : item.cantidadPreparada !== null ? `Cantidad guardada: ${formato(item.cantidadPreparada)}` : "Sin preparar: registra y guarda la cantidad cargada, incluso cero")}</p> : null}
     </form>
   </li>;
 }

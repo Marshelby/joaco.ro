@@ -19,16 +19,68 @@ export async function DayProfitSummary({ fecha }: { fecha: string }) {
   const incompleta = filas.some(f => f.cubierta < f.p.requerida || f.p.requiere_ajuste || (f.costo === null && f.p.requerida > 0));
   const seguros = (["venta", "ingreso", "costo", "utilidad", "pendiente"] as const).every(k => Number.isFinite(suma(k)) && Math.abs(suma(k)) <= Number.MAX_SAFE_INTEGER);
   if (!seguros) return <p role="alert">Importes fuera del rango seguro; utilidad no disponible.</p>;
-  const reconocida = filas.reduce((s, f) => s + (f.p.venta_reconocida ?? 0), 0);
-  const sinDesglose = filas.some(f => (f.p.sin_desglose ?? 0) > 0);
   const margen = (u: number | null, venta: number) => u === null || venta === 0 ? "—" : `${(100 * u / venta).toFixed(1)} %`;
-  return <section className="space-y-3 text-xs" aria-label="Utilidad del día">
-    <p className="font-semibold">UTILIDAD BRUTA ESTIMADA · {fecha}</p>
-    <p className="text-muted-foreground">Venta proyectada: suma de los importes reales de cada línea de pedido, sin promediar precios de venta. Para la parte comprada, los ingresos se estiman proporcionalmente a la cantidad de cada línea; no representan una entrega ni una venta reconocida.</p>
-    {incompleta && <p role="status" className="rounded border border-amber-500/40 p-2">Resultado parcial pendiente de compras o revisión. No hay una utilidad total definitiva; los costos pendientes no se estiman.</p>}
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">{[["Venta proyectada", clp(suma("venta"))], ["Ingreso estimado parte comprada", clp(suma("ingreso"))], ["Costo estimado parte comprada", clp(suma("costo"))], ["Utilidad estimada parte comprada", clp(suma("utilidad"))], ["Venta pendiente de costo", clp(suma("pendiente"))], ["Margen parte comprada", margen(suma("utilidad"), suma("ingreso"))]].map(([t,v]) => <div key={t}><dt className="text-muted-foreground">{t}</dt><dd className="font-semibold">{v}</dd></div>)}</dl>
-    <p>Ventas efectivamente reconocidas de productos con desglose verificable: {Number.isSafeInteger(reconocida) ? clp(reconocida) : "No disponible"}.{sinDesglose && " Subtotal incompleto: existen ventas reconocidas sin desglose verificable por producto."} Se utiliza el snapshot definitivo y su última corrección. Consulta Resumen contable para el total exigible del pedido.</p>
-    <ul className="grid gap-2 sm:grid-cols-2">{filas.map(f => <li key={f.p.clave} className="space-y-1 rounded border p-3"><p className="font-semibold">{f.p.producto} · {f.p.presentacion ?? f.p.unidad}</p><p>Necesitamos: {cantidad(f.p.requerida)} · Compramos para estos pedidos: {cantidad(f.cubierta)} · Faltan: {cantidad(Math.max(0,f.p.requerida-f.cubierta))}</p><p>Venta proyectada: {clp(f.venta)} · Parte comprada: {clp(f.ingreso)}</p><p>Costo: {f.costo === null ? "Pendiente" : clp(f.costo)} · Utilidad: {f.utilidad === null ? "Pendiente" : clp(f.utilidad)} · Margen: {margen(f.utilidad,f.ingreso)}</p><p>Venta pendiente de costo: {clp(f.pendiente)}</p><p>Venta reconocida verificable: {f.p.venta_reconocida === null ? "Sin desglose" : clp(f.p.venta_reconocida ?? 0)}{(f.p.sin_desglose ?? 0) > 0 ? " · Desglose incompleto" : ""}</p>{f.p.requiere_ajuste && <p className="text-amber-800">Compras históricas pendientes de revisión.</p>}</li>)}</ul>
-    <p className="text-muted-foreground">Costo promedio ponderado = suma de cantidad × precio de compra / cantidad comprada. El costo considerado se limita a la demanda; los excedentes quedan fuera. Importes CLP redondeados solo al mostrar; no incluye reparto, otros gastos operativos ni impuestos adicionales.</p>
+  const colorUtilidad = (valor: number | null) => valor !== null && valor < 0 ? "text-red-700" : valor !== null && valor > 0 ? "text-emerald-700" : "text-muted-foreground";
+  const utilidadTotal = filas.length > 0 && filas.every(f => f.utilidad === null) ? null : suma("utilidad");
+  return <section className="min-w-0 space-y-3 text-xs" aria-label="Utilidad del día">
+    <div role="region" aria-label="Detalle de utilidad por producto" tabIndex={0} className="overflow-x-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-ring">
+      <table className="w-full min-w-[640px] text-left tabular-nums">
+        <thead className="bg-muted/50 text-muted-foreground">
+          <tr>
+            <th scope="col" className="px-3 py-2 font-medium">Producto</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">Cantidad comprada</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">Cantidad vendida</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">Venta</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">Compra</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">Utilidad</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {filas.map(f => {
+            const unidad = f.p.modo === "kg_fraccionable" ? "kg" : f.p.modo === "presentacion_cerrada" ? `presentación (${f.p.presentacion ?? f.p.unidad})` : f.p.modo === "unidad" ? "unidad" : f.p.unidad;
+            const faltan = Math.max(0, Math.round((f.p.requerida - f.cubierta) * 1000) / 1000);
+            const parcial = f.cubierta < f.p.requerida || f.p.requiere_ajuste;
+            return <tr key={f.p.clave}>
+              <th scope="row" className="px-3 py-2 align-top font-medium">
+                {f.p.producto}
+                <span className="block font-normal text-muted-foreground">{f.p.presentacion ?? f.p.unidad}</span>
+              </th>
+              <td className="px-3 py-2 text-right align-top">
+                {cantidad(f.cubierta)} {unidad}
+                {faltan > 0 && <span className="block text-[11px] text-amber-800">Pendiente: {cantidad(faltan)} {unidad}</span>}
+                {f.p.requiere_ajuste && <span className="block text-[11px] text-amber-800">Compra por revisar</span>}
+              </td>
+              <td className="px-3 py-2 text-right align-top">{cantidad(f.p.requerida)} {unidad}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right align-top">{clp(f.venta)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right align-top">{f.costo === null ? "Pendiente" : clp(f.costo)}</td>
+              <td className={`whitespace-nowrap px-3 py-2 text-right align-top font-medium ${colorUtilidad(f.utilidad)}`}>
+                {f.utilidad === null ? "Pendiente" : clp(f.utilidad)}
+                {parcial && f.utilidad !== null && <span className="block text-[11px] font-normal text-amber-800">Parcial</span>}
+              </td>
+            </tr>;
+          })}
+          {filas.length === 0 && <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">No hay productos para esta fecha.</td></tr>}
+        </tbody>
+        <tfoot className="border-t bg-muted/50 font-semibold">
+          <tr>
+            <th scope="row" colSpan={3} className="px-3 py-2">TOTAL</th>
+            <td className="whitespace-nowrap px-3 py-2 text-right">{clp(suma("venta"))}</td>
+            <td className="whitespace-nowrap px-3 py-2 text-right">{utilidadTotal === null ? "Pendiente" : clp(suma("costo"))}</td>
+            <td className={`whitespace-nowrap px-3 py-2 text-right ${colorUtilidad(utilidadTotal)}`}>
+              {utilidadTotal === null ? "Pendiente" : clp(utilidadTotal)}
+              {incompleta && <span className="block text-[11px] font-normal text-amber-800">Parcial</span>}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-3">
+      <p className="font-semibold">UTILIDAD BRUTA ESTIMADA TOTAL{incompleta && <span className="ml-2 font-normal text-amber-800">Parcial</span>}</p>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className={`text-xl font-semibold tabular-nums ${colorUtilidad(utilidadTotal)}`}>{utilidadTotal === null ? "Pendiente" : clp(utilidadTotal)}</p>
+        <p className="text-muted-foreground">Margen{incompleta ? " parcial" : ""}: {margen(utilidadTotal, suma("ingreso"))}</p>
+      </div>
+    </div>
+    <p className="text-[11px] text-muted-foreground">Estimación basada en pedidos del día, no necesariamente entregados; no incluye reparto ni otros gastos.</p>
   </section>;
 }

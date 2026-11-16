@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { CheckCircle2, MapPin, Package, Phone, ShoppingBasket, UserRound } from "lucide-react";
 import { Suspense } from "react";
 
+import { DeliveryAccessCard } from "@/components/account/delivery-access-card";
+import { tieneAccesoReparto } from "@/lib/reparto/acceso";
 import { CustomerProfileForm } from "@/components/account/customer-profile-form";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccountDashboardSkeleton } from "@/components/feedback/account-loading-skeletons";
@@ -34,17 +36,19 @@ export default function AccountPage() {
 
 async function AccountContent() {
   const cuenta = await obtenerCuentaDashboard();
+  const accesoReparto = await tieneAccesoReparto();
+  const tarjetaReparto = accesoReparto ? <DeliveryAccessCard /> : null;
 
   if (cuenta.estado === "admin") {
-    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="Sesión administrativa de Hidro Leufú." actions={<><ActionLink href={ROUTES.admin}>Ir a administración</ActionLink><SignOutButton /></>} /><section className="rounded-xl border border-border bg-card p-5 sm:p-6"><p className="text-sm text-muted-foreground">Identidad</p><p className="mt-1 break-all text-lg font-semibold text-foreground">{cuenta.nombreAdmin ?? cuenta.email ?? "Administrador"}</p><p className="mt-4 text-sm text-muted-foreground">Rol</p><p className="mt-1 font-medium text-foreground">Administrador</p></section></div>;
+    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="Sesión administrativa de Hidro Leufú." actions={<><ActionLink href={ROUTES.admin}>Ir a administración</ActionLink><SignOutButton /></>} />{tarjetaReparto}<section className="rounded-xl border border-border bg-card p-5 sm:p-6"><p className="text-sm text-muted-foreground">Identidad</p><p className="mt-1 break-all text-lg font-semibold text-foreground">{cuenta.nombreAdmin ?? cuenta.email ?? "Administrador"}</p><p className="mt-4 text-sm text-muted-foreground">Rol</p><p className="mt-1 font-medium text-foreground">Administrador</p></section></div>;
   }
 
   if (cuenta.estado === "inactive_customer") {
-    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="No pudimos habilitar las acciones de compra para esta cuenta." actions={<SignOutButton />} /><section className="rounded-xl border border-border bg-card p-5 sm:p-6"><h2 className="text-xl font-semibold tracking-tight text-foreground">Tu cuenta no está habilitada para realizar pedidos</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Contacta a Hidro Leufú para revisar tu acceso. No creamos ni reactivamos cuentas automáticamente.</p></section></div>;
+    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="No pudimos habilitar las acciones de compra para esta cuenta." actions={<SignOutButton />} />{tarjetaReparto}<section className="rounded-xl border border-border bg-card p-5 sm:p-6"><h2 className="text-xl font-semibold tracking-tight text-foreground">Tu cuenta no está habilitada para realizar pedidos</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Contacta a Hidro Leufú para revisar tu acceso. No creamos ni reactivamos cuentas automáticamente.</p></section></div>;
   }
 
   if (cuenta.estado !== "active_customer" || !cuenta.cliente) {
-    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="Revisa tu información de acceso." actions={<SignOutButton />} /><section className="rounded-xl border border-dashed border-border bg-card p-6 sm:p-8"><h2 className="text-xl font-semibold tracking-tight text-foreground">No pudimos cargar tu cuenta</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Intenta nuevamente. Si el problema continúa, contacta a Hidro Leufú.</p></section></div>;
+    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="Revisa tu información de acceso." actions={<SignOutButton />} />{tarjetaReparto}<section className="rounded-xl border border-dashed border-border bg-card p-6 sm:p-8"><h2 className="text-xl font-semibold tracking-tight text-foreground">No pudimos cargar tu cuenta</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Intenta nuevamente. Si el problema continúa, contacta a Hidro Leufú.</p></section></div>;
   }
 
   const supabase = await crearClienteSupabaseServidor();
@@ -60,6 +64,8 @@ async function AccountContent() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <PageHeader title={`Hola, ${cuenta.cliente.nombre}`} description="Administra tu cuenta y prepara tus próximos pedidos." actions={<SignOutButton />} />
+
+      {tarjetaReparto}
 
       <section className="rounded-xl border border-primary/25 bg-primary/5 p-5 sm:p-6" aria-label="Estado de cuenta">
         <div className="flex gap-3"><CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" /><div><h2 className="font-semibold text-foreground">Tu cuenta está lista</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Ya puedes guardar direcciones y realizar pedidos cuando quieras.</p></div></div>

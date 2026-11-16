@@ -44,7 +44,7 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
       {incierta && <p className="text-sm">Se conserva la clave y el contenido mientras esta página siga abierta. Si debes recargar, consulta primero el estado actualizado.</p>}
     </section>}
     {cierre && !solicitud && <button className={boton} disabled={pendiente} onClick={() => setSolicitud({ ...cierre, accion: "cerrar", clave: crypto.randomUUID() })}>Confirmar cierre de {cierre.fecha}</button>}
-    {!consultaFallida && !jornadas.length && <p>No tienes jornadas activas asignadas.</p>}
+    {!consultaFallida && !jornadas.length && <section className="rounded-xl border border-border bg-card p-5"><h2 className="font-semibold text-foreground">No tienes rutas activas asignadas</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Tus rutas aparecerán aquí cuando administración las asigne y habilite su salida. Puedes volver a consultar con Actualizar rutas.</p></section>}
     {jornadas.map(j => {
       const resueltos = j.pedidos.filter(p => ["entregado", "entrega_fallida"].includes(p.estado)).length;
       return <section key={j.ruta ?? `${j.fecha}-${j.asignacion}`} className="space-y-4">

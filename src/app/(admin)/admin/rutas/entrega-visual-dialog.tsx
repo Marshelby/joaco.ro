@@ -17,6 +17,8 @@ import { confirmarEntregaDiferencias } from "./diferencias-actions";
 import { solicitudValida, cobroValido } from "./entrega-validacion";
 import { valorarVistaEntrega, balanceVistaEntrega, type DatosVistaEntrega } from "./entrega-preview";
 
+export type ItemVistaEntrega = Pick<ItemPreparacionPedidoAdmin, "id" | "nombreProducto" | "nombrePresentacion" | "unidad" | "cantidad" | "modoCantidadSnapshot" | "cantidadPreparada" | "importeOriginal" | "importeOperativo">;
+
 type Props = {
   habilitada: boolean;
   motivoBloqueo: string | null;
@@ -24,7 +26,8 @@ type Props = {
   versionEsperada: number;
   numero: string;
   cliente: string;
-  items: readonly ItemPreparacionPedidoAdmin[];
+  items: readonly ItemVistaEntrega[];
+  acciones?: { cargar: typeof cargarVistaEntrega; confirmar: typeof confirmarEntregaTodoCorrecto; diferencias: typeof confirmarEntregaDiferencias; recuperar: typeof recuperarEntrega };
   totalReferencia: number;
 };
 type Metodo = "efectivo" | "transferencia" | "ambos" | "pendiente";
@@ -62,7 +65,7 @@ export function EntregaVisualDialog(props: Props) {
   </Dialog.Root>;
 }
 
-function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, cliente, items, totalReferencia: referenciaOriginal, onConfirmada }: Props & { onConfirmada: (mensaje: string) => void }) {
+function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, cliente, items, totalReferencia: referenciaOriginal, acciones, onConfirmada }: Props & { onConfirmada: (mensaje: string) => void }) {
   const id = useId();
   const bloqueo = useRef(false);
   const intento = useRef<SolicitudConCobro | null>(null);
@@ -95,7 +98,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
     }
     if (!intento.current) { bloqueo.current = false; setEnviando(false); return; }
     try {
-      const respuesta = await (tipoIntento.current ? confirmarEntregaDiferencias : confirmarEntregaTodoCorrecto)(intento.current);
+      const respuesta = await (tipoIntento.current ? (acciones?.diferencias ?? confirmarEntregaDiferencias) : (acciones?.confirmar ?? confirmarEntregaTodoCorrecto))(intento.current);
       if (respuesta.yaEntregado) { confirmado.current = true; setYaEntregado(true); limpiarSolicitudConfirmada(); onConfirmada("Pedido confirmado por otra solicitud. Este intento no registró un cobro. Datos actualizados."); return; }
       if (!respuesta.resultado) { setError(respuesta.error ?? "No fue posible confirmar. Reintenta con la misma solicitud."); return; }
       confirmado.current = true;
@@ -105,7 +108,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
       onConfirmada(`${respuesta.recuperada ? "Comprobante recuperado, sin un nuevo cobro." : "Entrega y cobro registrados."} Deuda: ${formatCLP(respuesta.resultado.deuda_pendiente)} · Saldo a favor: ${formatCLP(respuesta.resultado.saldo_a_favor_generado)}`);
     } catch {
       try {
-        const recuperada = await recuperarEntrega(intento.current!, tipoIntento.current);
+        const recuperada = await (acciones?.recuperar ?? recuperarEntrega)(intento.current!, tipoIntento.current);
         if (recuperada.resultado || recuperada.yaEntregado) {
           confirmado.current = !!(recuperada.resultado || recuperada.yaEntregado);
           setRecuperada(recuperada.recuperada === true);
@@ -147,7 +150,7 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
           intento.current = pendiente.solicitud;
           tipoIntento.current = pendiente.diferencias;
           setEnviado(true); setPaso(3);
-          const recuperada = await recuperarEntrega(pendiente.solicitud, pendiente.diferencias);
+          const recuperada = await (acciones?.recuperar ?? recuperarEntrega)(pendiente.solicitud, pendiente.diferencias);
           if (!vigente) return;
           confirmado.current = !!(recuperada.resultado || recuperada.yaEntregado);
           setRecuperada(recuperada.recuperada === true);
@@ -156,14 +159,14 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
           if (recuperada.resultado || recuperada.yaEntregado) { limpiarSolicitudConfirmada(); onConfirmada("El pedido ya tiene una entrega confirmada. Datos actualizados."); }
           return;
         }
-        const respuesta = await cargarVistaEntrega(pedidoId, versionEsperada);
+        const respuesta = await (acciones?.cargar ?? cargarVistaEntrega)(pedidoId, versionEsperada);
         if (vigente) { setDatosVista(respuesta.datos ?? null); setError(respuesta.error ?? null); }
       } catch (error) { if (vigente) setError(error instanceof Error ? error.message : "No fue posible cargar la entrega."); }
       finally { if (vigente) setCargando(false); }
     }
     void cargar();
     return () => { vigente = false; };
-  }, [almacenamiento, pedidoId, versionEsperada, onConfirmada]);
+  }, [almacenamiento, pedidoId, versionEsperada, onConfirmada, acciones]);
 
   function continuar() {
     if (bloqueo.current || enviado || cargando || !datosVista) return;
@@ -184,11 +187,11 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
   const usaTransferencia = metodo === "transferencia" || metodo === "ambos";
   const recibido = (usaEfectivo && numeroValido(efectivo) ? Number(efectivo) : 0) + (usaTransferencia && numeroValido(transferencia) ? Number(transferencia) : 0);
   const saldo = totalReferencia - recibido;
-  function fraccionable(item: ItemPreparacionPedidoAdmin) {
+  function fraccionable(item: ItemVistaEntrega) {
     return item.modoCantidadSnapshot === "kg_fraccionable" || (!item.modoCantidadSnapshot &&
       !/(saco|malla|caja|paquete|docena)/i.test(item.nombrePresentacion ?? "") && item.unidad.trim().toUpperCase() === "KG");
   }
-  function cantidadValida(item: ItemPreparacionPedidoAdmin) {
+  function cantidadValida(item: ItemVistaEntrega) {
     const texto = cantidades[item.id] ?? "";
     return /^\d+(\.\d{1,3})?$/.test(texto) && Number(texto) < 1e9 && (fraccionable(item) || Number.isInteger(Number(texto)));
   }

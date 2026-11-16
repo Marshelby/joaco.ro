@@ -1,7 +1,7 @@
 "use client";
 import { RutaActualizacion } from "@/components/admin/ruta-actualizacion";
 import { RutaDiaMap } from "@/app/(admin)/admin/rutas/ruta-dia-map";
-import { EntregaFallidaDialog } from "@/app/(admin)/admin/rutas/entrega-fallida-dialog";
+import { AccionesEntregaReparto } from "./acciones-entrega";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { operarReparto, type SolicitudReparto } from "./actions";
@@ -70,10 +70,8 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
           <details className="rounded-xl border bg-muted/30 px-3"><summary className="min-h-12 cursor-pointer py-3 font-semibold text-primary">Ver productos · {p.productos.length}</summary><ul className="divide-y">{p.productos.map((i, n) => <li key={n} className="space-y-2 py-3 text-sm"><p className="font-semibold">{i.nombre}</p><dl className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div><dt className="text-muted-foreground">Solicitado</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.solicitada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Preparado</dt><dd>{i.cantidad} {i.unidad}</dd></div><div><dt className="text-muted-foreground">Enviado</dt><dd>{i.enviada === undefined ? "Sin dato de salida" : `${i.enviada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Diferencia preparada</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.cantidad - i.solicitada} ${i.unidad}`}</dd></div></dl></li>)}</ul></details>
           {p.preparacion && <p className={`inline-flex rounded-md px-2 py-1 text-sm font-semibold ${p.preparacion === "listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted"}`}>Preparación: {p.preparacion === "listo" ? "✓ Listo" : p.preparacion === "parcial" ? "Parcial" : "Sin preparar"}</p>}
           <p>Entrega: {p.estado === "entrega_fallida" ? "No entregado" : p.estado === "entregado" ? "Entregado" : p.estado === "en_reparto" ? "En reparto" : "Pendiente de entrega"}</p>
-          {j.estado === "en_ruta" && p.estado === "en_reparto" && <div className="space-y-3">
-            <button className={boton} disabled={pendiente || !!solicitud} onClick={() => { setCierre(null); setIncierta(false); setSolicitud({ ruta: j.ruta, fecha: j.fecha, asignacion: j.asignacion, accion: "entregar", pedido: p.id, version: p.version, clave: crypto.randomUUID() }); }}>Entregado</button>
-            <NoEntregadoReparto jornada={j} pedido={p} habilitada={!pendiente && !solicitud} />
-          </div>}
+          {["en_reparto", "entregado"].includes(p.estado) && <AccionesEntregaReparto ruta={j.ruta} fecha={j.fecha} asignacion={j.asignacion}
+            pedido={p} habilitada={j.estado === "en_ruta" && p.estado === "en_reparto" && !pendiente && !solicitud} />}
         </article>
         }))} />
         <button className={boton} disabled={j.estado !== "en_ruta" || pendiente || !!solicitud || !j.pedidos.length || resueltos !== j.pedidos.length} onClick={() => {
@@ -83,19 +81,4 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
       </section>;
     })}
   </div>;
-}
-
-function NoEntregadoReparto({ jornada, pedido, habilitada }: { jornada: Jornada; pedido: Jornada["pedidos"][number]; habilitada: boolean }) {
-  // Congela también la versión de asignación: un reintento no puede transformar
-  // el contenido asociado a una clave si se actualizan las props de la ruta.
-  const intento = useRef<SolicitudReparto | null>(null);
-  return <EntregaFallidaDialog habilitada={habilitada} pedidoId={pedido.id} versionEsperada={pedido.version}
-    numero={pedido.numero} cliente={pedido.cliente} ubicacion={pedido.direccion} productos={pedido.productos.length}
-    totalReferencia={0} ocultarReferencia maxObservaciones={1900} registrar={async (s) => {
-      intento.current ??= { ruta: jornada.ruta, fecha: jornada.fecha, asignacion: jornada.asignacion,
-        accion: "fallida", pedido: s.p_pedido_id, version: s.p_version_esperada, clave: s.p_clave,
-        motivo: s.p_motivo, observaciones: s.p_observaciones ?? "" };
-      const r = await operarReparto(intento.current);
-      return r.ok ? { exito: true } : { error: r.error ?? "No se pudo confirmar la operación." };
-    }} />;
 }

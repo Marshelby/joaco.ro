@@ -11,7 +11,7 @@ function esRechazoConfirmado(error: unknown) {
 }
 function mensaje(error: unknown) {
   const texto = error && typeof error === "object" && "message" in error ? String(error.message) : "";
-  if (texto.includes("ABONO_SUPERA_SALDO")) return "El abono supera el saldo pendiente. No se admiten saldos a favor.";
+  if (texto.includes("ABONO_SUPERA_SALDO")) return "El pago al proveedor supera la deuda manual pendiente. Estos pagos no pueden generar saldo a favor.";
   if (texto.includes("NO_AUTORIZADO")) return "Solo los administradores pueden realizar esta acción.";
   if (texto.includes("CLAVE_REUTILIZADA")) return "La confirmación ya se utilizó con otros datos. Recupera el proveedor antes de continuar.";
   if (texto.includes("PROVEEDOR_NO_ENCONTRADO")) return "Proveedor no encontrado.";

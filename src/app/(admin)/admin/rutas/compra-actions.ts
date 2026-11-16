@@ -1,5 +1,6 @@
 "use server";
 
+import { totalCompraCLP } from "@/lib/admin/compra-importes";
 import { revalidatePath } from "next/cache";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 
@@ -18,17 +19,31 @@ export async function guardarCompraDia(datos: FormData): Promise<{ error?: strin
       !decimal.test(cantidadTexto) || !decimal.test(precioTexto)) {
     return { error: "Revisa los valores: hasta tres decimales y menos de mil millones." };
   }
-  const multiple = datos.get("contrato") === "2";
+  const integrado = datos.get("contrato") === "3";
+  const multiple = integrado || datos.get("contrato") === "2";
+  const proveedor = String(datos.get("proveedor") ?? "");
+  const estado = String(datos.get("estado") ?? "por_pagar");
+  const abonado = String(datos.get("abonado") ?? "0");
+  const total = totalCompraCLP(cantidadTexto, precioTexto);
+  if (integrado && ((proveedor !== "" && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(proveedor)) ||
+      !["por_pagar", "pagado", "parcial"].includes(estado) || !/^\d{1,18}$/.test(abonado) || total === null ||
+      !Number.isSafeInteger(Number(abonado)) || (estado === "parcial" && (Number(abonado) <= 0 || Number(abonado) >= (total ?? 0))) ||
+      (!proveedor && (estado !== "por_pagar" || Number(abonado) !== 0)))) return { error: "Revisa el proveedor y el abono: debe ser positivo, en pesos enteros y menor al total." };
   const id = String(datos.get("compra_id") ?? "");
   if (multiple && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)) return { error: "Identificador de compra inválido. Recarga." };
   const db = await exigirAdminReparto();
-  const { error } = await db.rpc(multiple ? "guardar_compra_producto_dia_v2" : "guardar_costo_producto_dia", {
+  const { error } = await db.rpc(integrado ? "guardar_compra_producto_dia_v3" : multiple ? "guardar_compra_producto_dia_v2" : "guardar_costo_producto_dia", {
     ...(multiple ? { p_id: id } : {}),
+    ...(integrado ? { p_proveedor: proveedor || null, p_estado: estado, p_abonado: estado === "parcial" ? Number(abonado) : 0 } : {}),
     p_fecha: fecha, p_clave: clave, p_revision: revision, p_version: Number(versionTexto),
     p_cantidad: Number(cantidadTexto), p_precio: Number(precioTexto),
   });
   if (error) {
     const mensajes: Record<string, string> = {
+      ACTUALIZAR_COMPRAS_V3: "La integración contable se actualizó. Recarga antes de guardar la compra.",
+      COMPRA_CON_PAGOS: "Los pagos registrados se conservan: no puedes cambiar el proveedor, reducir lo abonado ni bajar el total por debajo de los pagos.",
+      ABONO_INVALIDO: "El abono debe ser positivo y menor al total redondeado en CLP.",
+      PROVEEDOR_NO_ENCONTRADO: "El proveedor ya no está disponible. Recarga.",
       ACTUALIZAR_COMPRAS_V2: "Las compras se actualizaron. Recarga para registrar compras independientes.",
       CANTIDAD_EXCEDE_DEMANDA: "La cantidad supera lo necesario. Revisa las compras existentes y la demanda actual.",
       DEMANDA_OCUPADA: "Hay pedidos en modificación. Recarga y vuelve a intentar.",
@@ -45,5 +60,6 @@ export async function guardarCompraDia(datos: FormData): Promise<{ error?: strin
     return { error: mensajes[error.message] ?? "No se pudo guardar. Revisa la instalación del SQL de costos del día y recarga antes de reintentar." };
   }
   revalidatePath("/admin/rutas");
+  revalidatePath("/admin/proveedores");
   return { guardado: true };
 }

@@ -19,7 +19,7 @@ export async function DayProfitSummary({ fecha }: { fecha: string }) {
 // Ambas vistas comparten una única lectura y el mismo cálculo de utilidad.
 export async function obtenerPresentacionUtilidadDia(fecha: string) {
   const datos = await leerComprasDia(fecha);
-  if (!datos || datos.contrato !== 2) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="status" className="text-sm text-amber-800">Utilidad no disponible. No se pudo verificar el contrato de compras múltiples o sus datos. Recarga y revisa el acceso a las funciones de compras.</p> };
+  if (!datos || ![2, 3].includes(datos.contrato)) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="status" className="text-sm text-amber-800">Utilidad no disponible. No se pudo verificar el contrato de compras múltiples o sus datos. Recarga y revisa el acceso a las funciones de compras.</p> };
   const filas = datos.productos.map(p => {
     const cubierta = p.precio === null ? 0 : p.asignada ?? 0;
     const fraccion = p.requerida > 0 ? cubierta / p.requerida : 0;

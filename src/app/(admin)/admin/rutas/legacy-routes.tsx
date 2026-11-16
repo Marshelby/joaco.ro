@@ -14,6 +14,7 @@ import { RutasLink as Link, RutasFechaForm } from "./rutas-navigation";
 import { notFound } from "next/navigation";
 
 import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
+import { DayProfitSummary } from "@/components/admin/day-profit-summary";
 import { DayPurchasesSummary } from "@/components/admin/day-purchases-summary";
 import { RutaPreparacionControl } from "./ruta-preparacion-control";
 import { JornadaSalidaControl } from "@/components/admin/jornada-salida-control";
@@ -96,7 +97,7 @@ export default async function AdminRoutesPage({ searchParams }: {
         ["Listos / en reparto", `${listos} / ${enRuta}`],
       ].map(([titulo, valor]) => <div key={titulo} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{titulo}</p><p className="mt-1 break-words text-xl font-semibold">{valor}</p></div>)}
     </section>
-    <JornadaControles key={fecha} productos={<DayPurchasesSummary fecha={fecha} productos={entrega.resumenProductos} />} contabilidad={<RutasContabilidadJornada datos={contabilidad} pedidos={entrega.pedidos} />} />
+    <JornadaControles key={fecha} utilidad={<DayProfitSummary fecha={fecha} />} productos={<DayPurchasesSummary fecha={fecha} productos={entrega.resumenProductos} />} contabilidad={<RutasContabilidadJornada datos={contabilidad} pedidos={entrega.pedidos} />} />
     {entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <>
       <section aria-label="Pedidos de la fecha" className="space-y-3">
         <h2 className="text-lg font-semibold">Preparación de pedidos</h2>

@@ -18,13 +18,19 @@ export async function guardarCompraDia(datos: FormData): Promise<{ error?: strin
       !decimal.test(cantidadTexto) || !decimal.test(precioTexto)) {
     return { error: "Revisa los valores: hasta tres decimales y menos de mil millones." };
   }
+  const multiple = datos.get("contrato") === "2";
+  const id = String(datos.get("compra_id") ?? "");
+  if (multiple && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)) return { error: "Identificador de compra inválido. Recarga." };
   const db = await exigirAdminReparto();
-  const { error } = await db.rpc("guardar_costo_producto_dia", {
+  const { error } = await db.rpc(multiple ? "guardar_compra_producto_dia_v2" : "guardar_costo_producto_dia", {
+    ...(multiple ? { p_id: id } : {}),
     p_fecha: fecha, p_clave: clave, p_revision: revision, p_version: Number(versionTexto),
     p_cantidad: Number(cantidadTexto), p_precio: Number(precioTexto),
   });
   if (error) {
     const mensajes: Record<string, string> = {
+      ACTUALIZAR_COMPRAS_V2: "Las compras se actualizaron. Recarga para registrar compras independientes.",
+      CANTIDAD_EXCEDE_DEMANDA: "La cantidad supera lo necesario. Revisa las compras existentes y la demanda actual.",
       DEMANDA_OCUPADA: "Hay pedidos en modificación. Recarga y vuelve a intentar.",
       COMPRA_OCUPADA: "Otro guardado está en curso. Recarga para verificar el resultado.",
       AISLAMIENTO_NO_COMPATIBLE: "El SQL requiere transacciones READ COMMITTED. Revisa la configuración antes de reintentar.",

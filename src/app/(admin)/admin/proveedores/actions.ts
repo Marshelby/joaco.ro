@@ -27,7 +27,30 @@ export async function verProveedor(id: string): Promise<Resultado<ProveedorDetal
     if (error) throw error;
     if (!data) return { ok: false, error: "Proveedor no encontrado." };
     const detalle = data as ProveedorDetalle;
-    return { ok: true, dato: { ...detalle, saldo_actual: Number(detalle.saldo_actual), movimientos: detalle.movimientos.map((m) => ({ ...m, monto: Number(m.monto) })) } };
+    // Solo nombres de los responsables referenciados, con la sesión y RLS existentes.
+    // No usar snapshots históricos: un perfil eliminado debe quedar no disponible.
+    const ids = [...new Set([
+      ...detalle.movimientos.map((m) => m.administrador_id),
+      ...(detalle.compras ?? []).map((c) => c.actor),
+      ...(detalle.asientos_compras ?? []).map((a) => a.actor),
+    ].filter((actor): actor is string => typeof actor === "string" && uuid.test(actor)))];
+    const nombres = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: perfiles, error: errorPerfiles } = await supabase.from("perfiles")
+        .select("usuario_id,nombre").in("usuario_id", ids.slice(i, i + 100));
+      if (!errorPerfiles) for (const perfil of perfiles ?? []) {
+        const nombre = perfil.nombre?.trim();
+        if (nombre && !uuid.test(nombre)) nombres.set(perfil.usuario_id, nombre);
+      }
+    }
+    const responsable = (actor?: string) => (actor && nombres.get(actor)) || "Administrador no disponible";
+    return { ok: true, dato: {
+      ...detalle,
+      saldo_actual: Number(detalle.saldo_actual),
+      compras: detalle.compras?.map((c) => ({ ...c, administrador_nombre: responsable(c.actor) })),
+      asientos_compras: detalle.asientos_compras?.map((a) => ({ ...a, administrador_nombre: responsable(a.actor) })),
+      movimientos: detalle.movimientos.map((m) => ({ ...m, monto: Number(m.monto), administrador_nombre: responsable(m.administrador_id) })),
+    } };
   } catch (error) { return { ok: false, error: mensaje(error), corregible: esRechazoConfirmado(error) }; }
 }
 

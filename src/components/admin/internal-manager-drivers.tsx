@@ -13,6 +13,6 @@ export default async function InternalManagerDrivers({ resultado, q = "" }: { re
     </div>
     {resultado && <p role={resultado === "ok" ? "status" : "alert"} className={`rounded-lg border px-3 py-2 text-sm ${resultado === "ok" ? "bg-muted/40" : "border-destructive/40 text-destructive"}`}>{resultado === "ok" ? "Permiso actualizado." : "No se guardó el cambio. Actualiza la página y comprueba que el usuario tenga un perfil válido y no sea administrador."}</p>}
     {error || !data ? <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">No se pudo consultar repartidores. <Link href="/admin/gestor-interno?seccion=repartidores" className="underline">Reintentar</Link></div> :
-      <InternalManagerDriversList key={`${busqueda}:${resultado ?? ""}`} gestion={data as DriverManagement} initialQuery={busqueda} />}
+      <InternalManagerDriversList key={busqueda} gestion={data as DriverManagement} initialQuery={busqueda} />}
   </div>;
 }

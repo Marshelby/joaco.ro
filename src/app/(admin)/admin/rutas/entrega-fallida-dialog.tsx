@@ -11,9 +11,9 @@ import { registrarEntregaFallida, type SolicitudEntregaFallida } from "./fallida
 const motivos = ["Cliente ausente", "Cliente rechazó pedido", "Dirección incorrecta", "Problema de acceso", "Otro"];
 const campo = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background p-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, numero, cliente, ubicacion, productos, totalReferencia, ocultarReferencia = false, onRegistrada }: {
+export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, numero, cliente, ubicacion, productos, totalReferencia, ocultarReferencia = false, onRegistrada, maxObservaciones = 2000, registrar = registrarEntregaFallida }: {
   habilitada: boolean; pedidoId: string; versionEsperada: number; numero: string; cliente: string;
-  ubicacion: string | null; productos: number; totalReferencia: number; ocultarReferencia?: boolean; onRegistrada?: () => void;
+  ubicacion: string | null; productos: number; totalReferencia: number; ocultarReferencia?: boolean; onRegistrada?: () => void; registrar?: typeof registrarEntregaFallida; maxObservaciones?: number;
 }) {
   const id = useId();
   const router = useRouter();
@@ -30,7 +30,7 @@ export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, nu
   // Permanece al cerrar/reabrir el modal; tras enviar se congela TODO el payload.
   const intento = useRef<SolicitudEntregaFallida | null>(null);
   const texto = [motivo === "Otro" ? descripcion.trim() : "", observaciones.trim()].filter(Boolean).join("\n\n");
-  const valido = motivos.includes(motivo) && (motivo !== "Otro" || !!descripcion.trim()) && texto.length <= 2000 && confirmado;
+  const valido = motivos.includes(motivo) && (motivo !== "Otro" || !!descripcion.trim()) && texto.length <= maxObservaciones && confirmado;
   function confirmar() {
     if (bloqueo.current || pendiente || exito || !habilitada || !valido) return;
     bloqueo.current = true;
@@ -40,7 +40,7 @@ export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, nu
         intento.current ??= { p_pedido_id: pedidoId, p_version_esperada: versionEsperada,
           p_clave: crypto.randomUUID(), p_motivo: motivo, p_observaciones: texto || null };
         setEnviado(true);
-        const respuesta = await registrarEntregaFallida(intento.current, true);
+        const respuesta = await registrar(intento.current, true);
         if (!respuesta.exito) { setError(respuesta.error ?? "No se pudo registrar. Reintenta con la misma solicitud."); return; }
         setExito(true);
         onRegistrada?.();
@@ -67,9 +67,9 @@ export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, nu
             <p className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">Confirmar una entrega fallida no genera venta definitiva, deuda nueva ni pagos. Los registros previos se conservan. El pedido quedará en entrega fallida.</p>
             <fieldset disabled={enviado || pendiente || exito || !habilitada} className="space-y-3">
               <label className="block text-sm font-medium" htmlFor={`${id}-motivo`}>Motivo obligatorio<select id={`${id}-motivo`} required className={campo} value={motivo} onChange={(e) => setMotivo(e.target.value)}><option value="">Selecciona un motivo</option>{motivos.map(m => <option key={m}>{m}</option>)}</select></label>
-              {motivo === "Otro" ? <label className="block text-sm font-medium" htmlFor={`${id}-descripcion`}>Descripción obligatoria<textarea id={`${id}-descripcion`} required maxLength={2000} rows={2} className={campo} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></label> : null}
-              <label className="block text-sm font-medium" htmlFor={`${id}-observaciones`}>Observaciones adicionales (opcional)<textarea id={`${id}-observaciones`} maxLength={2000} rows={2} className={campo} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} /></label>
-              <p className={`text-xs ${texto.length > 2000 ? "text-destructive" : "text-muted-foreground"}`}>{texto.length} / 2000 caracteres en total.</p>
+              {motivo === "Otro" ? <label className="block text-sm font-medium" htmlFor={`${id}-descripcion`}>Descripción obligatoria<textarea id={`${id}-descripcion`} required maxLength={maxObservaciones} rows={2} className={campo} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></label> : null}
+              <label className="block text-sm font-medium" htmlFor={`${id}-observaciones`}>Observaciones adicionales (opcional)<textarea id={`${id}-observaciones`} maxLength={maxObservaciones} rows={2} className={campo} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} /></label>
+              <p className={`text-xs ${texto.length > maxObservaciones ? "text-destructive" : "text-muted-foreground"}`}>{texto.length} / {maxObservaciones} caracteres en total.</p>
               <label className="flex min-h-11 items-start gap-3 text-sm"><input type="checkbox" className="mt-1 size-4 shrink-0 accent-primary" checked={confirmado} onChange={(e) => setConfirmado(e.target.checked)} /><span>Confirmo que este pedido no fue entregado y deseo registrar el motivo indicado.</span></label>
             </fieldset>
             {enviado && !exito ? <p className="text-xs text-muted-foreground">La solicitud enviada queda fija. Los reintentos conservan la clave, versión, motivo y observaciones originales.</p> : null}

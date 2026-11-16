@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { RutaActualizacion } from "@/components/admin/ruta-actualizacion";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CheckCircle2, ChevronDown, GripVertical } from "lucide-react";
 import { ordenRutaDiaAction } from "./actions";
@@ -25,7 +26,7 @@ const Mapa = dynamic(() => import("./ruta-dia-map-leaflet"), {
   loading: () => <div className="h-full animate-pulse bg-muted" aria-label="Cargando mapa de la ruta" />,
 });
 
-export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId, versionRuta }: { paradas: ParadaRuta[]; fecha: string; cerrada?: boolean; rutaId?: string; versionRuta?: number }) {
+export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId, versionRuta, soloLectura = false }: { paradas: ParadaRuta[]; fecha: string; cerrada?: boolean; rutaId?: string; versionRuta?: number; soloLectura?: boolean }) {
   const [orden, setOrden] = useState(originales.map((p) => p.id));
   const confirmado = useRef(orden);
   const actual = useRef(orden);
@@ -46,6 +47,12 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
   }, [originales, orden]);
 
   useEffect(() => {
+    if (soloLectura) {
+      const ids = originales.map(p => p.id);
+      confirmado.current = actual.current = ids;
+      setOrden(ids);
+      return;
+    }
     let vigente = true;
     ordenRutaDiaAction(fecha, undefined, undefined, rutaId).then((resultado) => {
       if (!vigente) return;
@@ -62,7 +69,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
       setLista(true);
     });
     return () => { vigente = false; };
-  }, [fecha, originales, rutaId, versionRuta]);
+  }, [fecha, originales, rutaId, versionRuta, soloLectura]);
 
   useEffect(() => () => {
     if (arrastre.current) cancelAnimationFrame(arrastre.current.frame);
@@ -79,7 +86,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
   }
 
   async function guardar() {
-    if (cerrada || actual.current.join() === confirmado.current.join()) return;
+    if (soloLectura || cerrada || actual.current.join() === confirmado.current.join()) return;
     bloqueo.current = true;
     setGuardando(true);
     setError(null);
@@ -164,10 +171,11 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
   }, [seleccionada, panelAbierto]);
 
   return <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+    {!soloLectura && cerrada && <RutaActualizacion />}
     <h3 className="border-b border-border px-3 py-3 font-semibold">Mapa de la ruta</h3>
     <p className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-3 text-xs" aria-live="polite"><span>Entregados: {paradas.filter(p => p.entregado).length}</span><span className="text-destructive">Entrega fallida: {paradas.filter(p => p.fallida).length}</span><span>Pendientes: {paradas.filter(p => !p.entregado && !p.fallida).length}</span></p>
     <div className="space-y-1 px-3 py-2 text-sm" aria-live="polite">
-      <p>{cerrada ? "Orden bloqueado: ruta en reparto o cerrada." : guardando ? "Guardando orden…" : lista ? "Arrastra el asa para ordenar las paradas. También puedes usar las flechas del teclado." : "Reordenamiento no disponible hasta recuperar el orden guardado."}</p>
+      <p>{soloLectura ? "Orden de paradas definido por administración." : cerrada ? "Orden bloqueado: ruta en reparto o cerrada." : guardando ? "Guardando orden…" : lista ? "Arrastra el asa para ordenar las paradas. También puedes usar las flechas del teclado." : "Reordenamiento no disponible hasta recuperar el orden guardado."}</p>
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}
       {aviso ? <p role="alert">{aviso}</p> : null}
     </div>
@@ -200,7 +208,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
               const activa = seleccionada === parada.id;
               return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.fallida ? "border-destructive/40 bg-destructive/5 text-destructive" : parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
                 <div className="flex items-center">
-                <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={cerrada || !lista || guardando}
+                {!soloLectura && <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={cerrada || !lista || guardando}
                   className={`min-h-12 min-w-11 shrink-0 touch-none select-none rounded-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 ${arrastrada === parada.id ? "cursor-grabbing bg-muted" : "cursor-grab"}`}
                   onPointerDown={(evento) => {
                     if (cerrada || bloqueo.current || !lista || !evento.isPrimary || evento.button !== 0 || arrastre.current || !listado.current) return;
@@ -216,7 +224,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
                     evento.preventDefault();
                     mover(parada.id, actual.current.indexOf(parada.id) + (evento.key === "ArrowUp" ? -1 : 1));
                     void guardar();
-                  }}><GripVertical className="mx-auto size-5" aria-hidden="true" /></button>
+                  }}><GripVertical className="mx-auto size-5" aria-hidden="true" /></button>}
                 <button type="button" aria-expanded={activa} aria-controls={`detalle-parada-${parada.id}`} onClick={() => activa ? setSeleccionada(null) : seleccionar(parada.id)} className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-lg p-3 text-left focus-visible:outline-2 focus-visible:outline-ring">
                   <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${parada.fallida ? "bg-destructive text-white" : parada.entregado ? "bg-green-700 text-white" : "bg-muted text-foreground"}`}>{parada.numero}</span>
                   <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold">{parada.cliente}</span><span className="block break-words text-xs opacity-80">{parada.ubicacion || "Sin ubicación comercial registrada"}</span></span>

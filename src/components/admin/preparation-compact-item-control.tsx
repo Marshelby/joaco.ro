@@ -27,7 +27,7 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   const cambios = cantidadGuardada === null ? cantidad !== "" : cantidad === "" || valor !== cantidadGuardada;
   const formato = (n: number) => formatearCantidadPreparacionEntrega(n, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
 
-  const estadoCargado = cantidadGuardada === null ? "Pendiente" : cantidadGuardada === 0 ? "Sin carga" : cantidadGuardada < item.cantidad ? "Parcial" : cantidadGuardada === item.cantidad ? "Completo" : "Excedente";
+  const estadoCargado = cantidadGuardada === null || cantidadGuardada === 0 ? "Pendiente" : cantidadGuardada < item.cantidad ? "Parcial" : cantidadGuardada === item.cantidad ? "Completo" : "Excedente";
   const colorCargado = cantidadGuardada === null || cantidadGuardada === 0 ? "bg-muted text-muted-foreground" : cantidadGuardada < item.cantidad ? "bg-amber-100 text-amber-900" : cantidadGuardada === item.cantidad ? "bg-emerald-100 text-emerald-900" : "bg-blue-100 text-blue-900";
 
   function editar(siguiente: string) {
@@ -81,6 +81,7 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
           {soloPreparacion ? <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
             <span>Solicitado: <strong>{formato(item.cantidad)}</strong></span>
             <span>Cargado: <strong>{cantidadGuardada === null ? "—" : formato(cantidadGuardada)}</strong></span>
+            {cantidadGuardada !== null && cantidadGuardada !== item.cantidad ? <span>Diferencia: <strong>{cantidadGuardada > item.cantidad ? "+" : ""}{formato(cantidadGuardada - item.cantidad)}</strong></span> : null}
             <span className={`rounded px-1.5 py-0.5 font-semibold ${colorCargado}`}>{estadoCargado}</span>
           </div> : <>
           <p className="text-xs text-muted-foreground">Precio unitario histórico de referencia: {item.precioUnitarioHistorico == null ? "Sin dato" : formatCLP(item.precioUnitarioHistorico)} · {modo === "kg_fraccionable" ? "por KG" : "por unidad / presentación"}</p>

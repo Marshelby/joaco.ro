@@ -58,6 +58,18 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
   const asignados = new Set(modelo.rutas.flatMap(r => r.pedidos));
   const disponibles = entrega.pedidos.filter(p => !asignados.has(p.id) && ["recibido", "en_revision", "programado", "confirmado", "preparando", "listo_despacho"].includes(p.estado));
   const porId = new Map(entrega.pedidos.map(p => [p.id, p]));
+  // Progreso visual por cantidades guardadas; la confirmación y sus autorizaciones se validan aparte.
+  for (const r of modelo.rutas) {
+    if (!["planificacion", "preparacion"].includes(r.estado)) continue;
+    const resumen = { sin_preparar: 0, parciales: 0, preparados: 0 };
+    for (const id of r.pedidos) {
+      const p = porId.get(id);
+      if (!p || !p.items.length || p.items.some(i => i.cantidadPreparada === null) || p.items.every(i => i.cantidadPreparada === 0)) resumen.sin_preparar++;
+      else if (p.items.every(i => i.cantidadPreparada !== null && i.cantidadPreparada > 0 && i.cantidadPreparada >= i.cantidad)) resumen.preparados++;
+      else resumen.parciales++;
+    }
+    r.contadores = { ...r.contadores, ...resumen };
+  }
   const pedidos = ruta ? ruta.pedidos.flatMap(id => { const p = porId.get(id); return p ? [p] : []; }) : entrega.pedidos;
   const editable = !!ruta && ["planificacion", "preparacion"].includes(ruta.estado);
   const permiso = obtenerPermisoTemporalPreparacion(fecha);

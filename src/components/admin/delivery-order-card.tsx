@@ -38,7 +38,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   const ContenedorProductos = "details";
   const ControlProducto = compacta ? PreparationCompactItemControl : PreparationItemControl;
   // El encabezado cuenta únicamente cantidades persistidas, sin depender de la confirmación final.
-  const preparados = pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada === item.cantidad).length;
+  const preparados = pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada > 0 && item.cantidadPreparada >= item.cantidad).length;
 
   const sinStockResuelto = pedido.estado === "entrega_fallida" && pedido.historialPreparacion.some(h => h.valores_nuevos.origen === "sin_stock_pre_despacho");
   const estadoCantidad = sinStockResuelto ? "No entregado — Sin stock" : !pedido.items.length || pedido.items.some(i => i.cantidadPreparada === null)
@@ -55,7 +55,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
         <span className={`rounded-md px-2 py-1 text-xs font-semibold ${estadoCantidad === "Listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted text-foreground"}`}>{estadoCantidad}</span>
         <div className="flex w-full items-center gap-2 text-xs text-muted-foreground sm:w-auto">
           <progress className="h-1.5 min-w-0 flex-1 accent-primary sm:w-24" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={preparados} />
-          <span>{preparados}/{pedido.items.length} completos</span>
+          <span>{preparados}/{pedido.items.length} preparados</span>
         </div>
       </header>
       <div id={`preparacion-${pedido.id}`} className="scroll-mt-24 px-3">

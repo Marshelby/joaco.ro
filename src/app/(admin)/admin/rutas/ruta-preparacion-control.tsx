@@ -59,12 +59,12 @@ export function RutaPreparacionControl({ ruta, pedidos, habilitada, fecha }: Pro
         {pedidos.map(p => {
           const sinTrabajar = !p.items.length || p.items.some(i => i.cantidadPreparada === null);
           const cero = !sinTrabajar && p.items.every(i => i.cantidadPreparada === 0);
-          const estado = sinTrabajar ? "PENDIENTE DE PREPARACIÓN" : cero ? "SIN STOCK · requiere declaración expresa" : p.items.every(i => i.cantidadPreparada === i.cantidad) ? "COMPLETO" : "PARCIAL";
+          const estado = sinTrabajar ? "PENDIENTE DE PREPARACIÓN" : cero ? "SIN STOCK · requiere declaración expresa" : p.items.every(i => i.cantidadPreparada !== null && i.cantidadPreparada > 0 && i.cantidadPreparada >= i.cantidad) ? "COMPLETO" : "PARCIAL";
           return <section key={p.id} className="rounded-lg border p-3">
             <h3 className="text-sm font-semibold">{p.numeroPedido} · {p.nombreClienteSnapshot} · {estado}</h3>
             <ul className="divide-y">{p.items.map(i => {
               const formato = (n: number) => formatearCantidadPreparacionEntrega(n, i.nombrePresentacion, i.unidad, i.modoCantidadSnapshot);
-              return <li key={i.id} className="space-y-2 py-3 text-sm"><p>{i.nombreProducto} · {i.nombrePresentacion}</p><p className="text-xs">Solicitado: {formato(i.cantidad)} · Preparado: {i.cantidadPreparada === null ? "Sin preparar" : formato(i.cantidadPreparada)} · Enviado: {formato(0)} · Diferencia: {i.cantidadPreparada === null ? "Pendiente" : formato(i.cantidadPreparada - i.cantidad)}</p>
+              return <li key={i.id} className="space-y-2 py-3 text-sm"><p>{i.nombreProducto} · {i.nombrePresentacion} · <strong>{i.cantidadPreparada === null || i.cantidadPreparada === 0 ? "Pendiente" : i.cantidadPreparada < i.cantidad ? "Parcial" : i.cantidadPreparada === i.cantidad ? "Completo" : "Excedente"}</strong></p><p className="text-xs">Solicitado: {formato(i.cantidad)} · Preparado: {i.cantidadPreparada === null ? "Sin preparar" : formato(i.cantidadPreparada)} · Enviado: {formato(0)} · Diferencia: {i.cantidadPreparada === null ? "Pendiente" : formato(i.cantidadPreparada - i.cantidad)}</p>
                 <p className="text-xs">Importe: {p.estado === "listo_despacho" && i.importeOperativo !== null ? formatCLP(i.importeOperativo) : i.importeCalculado != null ? formatCLP(Number(i.importeCalculado)) : i.cantidadPreparada === null ? "Pendiente de cantidad" : "Excepción comercial indicada en el resumen"}</p>
               </li>;
             })}</ul>

@@ -1,16 +1,21 @@
 "use client";
-import { formatCLP } from "@/lib/formatters";
+import { RutaActualizacion } from "@/components/admin/ruta-actualizacion";
+import { RutaDiaMap } from "@/app/(admin)/admin/rutas/ruta-dia-map";
+import { EntregaFallidaDialog } from "@/app/(admin)/admin/rutas/entrega-fallida-dialog";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { operarReparto, type SolicitudReparto } from "./actions";
 export type Jornada = { ruta?: string; nombre?: string; fecha: string; asignacion: number; estado: string; pedidos: {
   id: string; numero: string; cliente: string; direccion: string | null; telefono: string | null;
-  referencia: string | null; preparacion?: "sin_preparar" | "parcial" | "listo"; estado: string; version: number; posicion: number | null;
-  productos: { nombre: string; cantidad: number; solicitada?: number; faltante?: number; enviada?: number; importe_operativo?: number; unidad: string }[];
+  latitude?: number | null; longitude?: number | null; referencia: string | null; preparacion?: "sin_preparar" | "parcial" | "listo"; estado: string; version: number; posicion: number | null;
+  productos: { nombre: string; cantidad: number; solicitada?: number; faltante?: number; enviada?: number; unidad: string }[];
 }[] };
 const boton = "min-h-12 rounded-lg border px-4 py-3 font-medium disabled:opacity-50";
 export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: Jornada[]; consultaFallida?: boolean }) {
   const router = useRouter();
+  const [seleccion, setSeleccion] = useState("");
+  const identificador = (j: Jornada) => j.ruta ?? `${j.fecha}-${j.asignacion}`;
+  const activa = jornadas.find(j => identificador(j) === seleccion) ?? jornadas[0];
   const ejecutando = useRef(false);
   const [pendiente, iniciar] = useTransition();
   const [solicitud, setSolicitud] = useState<SolicitudReparto | null>(null);
@@ -33,7 +38,8 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
       finally { ejecutando.current = false; }
     });
   }
-  return <div className="space-y-5">
+  return <div className="space-y-5" data-ruta-operacion={!!solicitud || !!cierre || pendiente}>
+    <RutaActualizacion />
     <button className={boton} disabled={pendiente || !!solicitud} onClick={() => { setCierre(null); router.refresh(); }}>Actualizar rutas</button>
     <p role="status" aria-live="polite">{mensaje}</p>
     {solicitud && <section className="min-w-0 space-y-3 rounded-xl border p-4 [overflow-wrap:anywhere]">
@@ -45,7 +51,8 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
     </section>}
     {cierre && !solicitud && <button className={boton} disabled={pendiente} onClick={() => setSolicitud({ ...cierre, accion: "cerrar", clave: crypto.randomUUID() })}>Confirmar cierre de {cierre.fecha}</button>}
     {!consultaFallida && !jornadas.length && <section className="rounded-xl border border-border bg-card p-5"><h2 className="font-semibold text-foreground">No tienes rutas activas asignadas</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Tus rutas aparecerán aquí cuando administración las asigne y habilite su salida. Puedes volver a consultar con Actualizar rutas.</p></section>}
-    {jornadas.map(j => {
+    {jornadas.length > 1 && <label className="block text-sm font-medium">Ruta asignada<select className="mt-1 min-h-11 w-full rounded-lg border bg-background p-3" value={activa ? identificador(activa) : ""} disabled={pendiente || !!solicitud || !!cierre} onChange={e => setSeleccion(e.target.value)}>{jornadas.map(j => <option key={identificador(j)} value={identificador(j)}>{j.nombre ?? "Ruta"} · {j.fecha}</option>)}</select></label>}
+    {(activa ? [activa] : []).map(j => {
       const resueltos = j.pedidos.filter(p => ["entregado", "entrega_fallida"].includes(p.estado)).length;
       return <section key={j.ruta ?? `${j.fecha}-${j.asignacion}`} className="space-y-4">
         <h2 className="text-xl font-semibold">{j.nombre ?? "Ruta"} · {j.fecha}</h2>
@@ -53,32 +60,42 @@ export function RepartoMovil({ jornadas, consultaFallida = false }: { jornadas: 
         <p className="text-sm">En reparto: {j.pedidos.filter(p => p.estado === "en_reparto").length} · Entregados: {j.pedidos.filter(p => p.estado === "entregado").length} · No entregados: {j.pedidos.filter(p => p.estado === "entrega_fallida").length}</p>
         <p>{resueltos} de {j.pedidos.length} pedidos resueltos</p>
         <progress className="w-full" value={resueltos} max={j.pedidos.length || 1} aria-label="Progreso de ruta" />
-        {j.pedidos.map(p => <article key={p.id} className="min-w-0 space-y-3 rounded-xl border p-4 [overflow-wrap:anywhere]">
+        <RutaDiaMap key={identificador(j)} fecha={j.fecha} rutaId={j.ruta} versionRuta={j.asignacion} soloLectura cerrada paradas={[...j.pedidos].sort((a, b) => (a.posicion ?? Number.MAX_SAFE_INTEGER) - (b.posicion ?? Number.MAX_SAFE_INTEGER)).map((p, n) => ({
+          id: p.id, numero: n + 1, cliente: p.cliente, ubicacion: p.direccion, pedido: p.numero,
+          latitude: p.latitude ?? null, longitude: p.longitude ?? null, entregado: p.estado === "entregado", fallida: p.estado === "entrega_fallida",
+          detalle: <article className="min-w-0 space-y-3 border-t p-3 [overflow-wrap:anywhere]">
           <h3 className="font-semibold">{p.posicion ? `${p.posicion}. ` : ""}{p.numero} · {p.cliente}</h3>
           <p>{p.direccion || "Dirección pendiente: consulta a administración"}</p><p>{p.referencia}</p>
           {p.telefono && <a className="inline-block min-h-12 py-3 underline" href={`tel:${p.telefono.replace(/[^+\d]/g, "")}`}>Llamar: {p.telefono}</a>}
-          <details className="rounded-xl border bg-muted/30 px-3"><summary className="min-h-12 cursor-pointer py-3 font-semibold text-primary">Ver productos · {p.productos.length}</summary><ul className="divide-y">{p.productos.map((i, n) => <li key={n} className="space-y-2 py-3 text-sm"><p className="font-semibold">{i.nombre}</p><dl className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div><dt className="text-muted-foreground">Solicitado</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.solicitada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Preparado</dt><dd>{i.cantidad} {i.unidad}</dd></div><div><dt className="text-muted-foreground">Enviado</dt><dd>{i.enviada === undefined ? "Sin dato de salida" : `${i.enviada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Diferencia preparada</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.cantidad - i.solicitada} ${i.unidad}`}</dd></div></dl><p className="text-xs text-muted-foreground">Importe operativo: {i.importe_operativo == null ? "No disponible en esta ruta" : formatCLP(i.importe_operativo)} · Referencia de preparación</p></li>)}</ul></details>
+          <details className="rounded-xl border bg-muted/30 px-3"><summary className="min-h-12 cursor-pointer py-3 font-semibold text-primary">Ver productos · {p.productos.length}</summary><ul className="divide-y">{p.productos.map((i, n) => <li key={n} className="space-y-2 py-3 text-sm"><p className="font-semibold">{i.nombre}</p><dl className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div><dt className="text-muted-foreground">Solicitado</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.solicitada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Preparado</dt><dd>{i.cantidad} {i.unidad}</dd></div><div><dt className="text-muted-foreground">Enviado</dt><dd>{i.enviada === undefined ? "Sin dato de salida" : `${i.enviada} ${i.unidad}`}</dd></div><div><dt className="text-muted-foreground">Diferencia preparada</dt><dd>{i.solicitada === undefined ? "Sin dato" : `${i.cantidad - i.solicitada} ${i.unidad}`}</dd></div></dl></li>)}</ul></details>
           {p.preparacion && <p className={`inline-flex rounded-md px-2 py-1 text-sm font-semibold ${p.preparacion === "listo" ? "bg-emerald-100 text-emerald-900" : "bg-muted"}`}>Preparación: {p.preparacion === "listo" ? "✓ Listo" : p.preparacion === "parcial" ? "Parcial" : "Sin preparar"}</p>}
           <p>Entrega: {p.estado === "entrega_fallida" ? "No entregado" : p.estado === "entregado" ? "Entregado" : p.estado === "en_reparto" ? "En reparto" : "Pendiente de entrega"}</p>
-          {p.estado === "en_reparto" && <div className="space-y-3">
-            <button className={boton} disabled={pendiente || !!solicitud} onClick={() => { setCierre(null); setIncierta(false); setSolicitud({ ruta: j.ruta, fecha: j.fecha, asignacion: j.asignacion, accion: "entregar", pedido: p.id, version: p.version, clave: crypto.randomUUID() }); }}>Todo entregado</button>
-            <form className="space-y-3" onSubmit={e => {
-              e.preventDefault(); const f = new FormData(e.currentTarget);
-              if (f.get("motivo") === "Otro" && !String(f.get("observaciones") ?? "").trim()) { setMensaje("Describe el motivo Otro antes de continuar."); return; }
-              setCierre(null); setIncierta(false);
-              setSolicitud({ ruta: j.ruta, fecha: j.fecha, asignacion: j.asignacion, accion: "fallida", pedido: p.id, version: p.version, clave: crypto.randomUUID(), motivo: String(f.get("motivo")), observaciones: String(f.get("observaciones")) });
-            }}>
-              <label className="block">Motivo del intento fallido<select name="motivo" required className="block min-h-12 w-full rounded border p-2" disabled={pendiente || !!solicitud}>{["Cliente ausente", "Cliente rechazó pedido", "Dirección incorrecta", "Problema de acceso", "Otro"].map(m => <option key={m}>{m}</option>)}</select></label>
-              <label className="block">Observaciones (obligatorias para Otro)<textarea name="observaciones" maxLength={1900} className="block w-full rounded border p-2" disabled={pendiente || !!solicitud} /></label>
-              <button className={boton} disabled={pendiente || !!solicitud}>Revisar intento fallido</button>
-            </form>
+          {j.estado === "en_ruta" && p.estado === "en_reparto" && <div className="space-y-3">
+            <button className={boton} disabled={pendiente || !!solicitud} onClick={() => { setCierre(null); setIncierta(false); setSolicitud({ ruta: j.ruta, fecha: j.fecha, asignacion: j.asignacion, accion: "entregar", pedido: p.id, version: p.version, clave: crypto.randomUUID() }); }}>Entregado</button>
+            <NoEntregadoReparto jornada={j} pedido={p} habilitada={!pendiente && !solicitud} />
           </div>}
-        </article>)}
-        <button className={boton} disabled={pendiente || !!solicitud || !j.pedidos.length || resueltos !== j.pedidos.length} onClick={() => {
+        </article>
+        }))} />
+        <button className={boton} disabled={j.estado !== "en_ruta" || pendiente || !!solicitud || !j.pedidos.length || resueltos !== j.pedidos.length} onClick={() => {
           if (j.ruta) { setIncierta(false); setSolicitud({ ruta: j.ruta, fecha: j.fecha, asignacion: j.asignacion, accion: "cerrar", clave: crypto.randomUUID() }); }
           else ejecutar({ fecha: j.fecha, asignacion: j.asignacion, accion: "revisar_cierre" });
         }}>Revisar y terminar ruta</button>
       </section>;
     })}
   </div>;
+}
+
+function NoEntregadoReparto({ jornada, pedido, habilitada }: { jornada: Jornada; pedido: Jornada["pedidos"][number]; habilitada: boolean }) {
+  // Congela también la versión de asignación: un reintento no puede transformar
+  // el contenido asociado a una clave si se actualizan las props de la ruta.
+  const intento = useRef<SolicitudReparto | null>(null);
+  return <EntregaFallidaDialog habilitada={habilitada} pedidoId={pedido.id} versionEsperada={pedido.version}
+    numero={pedido.numero} cliente={pedido.cliente} ubicacion={pedido.direccion} productos={pedido.productos.length}
+    totalReferencia={0} ocultarReferencia maxObservaciones={1900} registrar={async (s) => {
+      intento.current ??= { ruta: jornada.ruta, fecha: jornada.fecha, asignacion: jornada.asignacion,
+        accion: "fallida", pedido: s.p_pedido_id, version: s.p_version_esperada, clave: s.p_clave,
+        motivo: s.p_motivo, observaciones: s.p_observaciones ?? "" };
+      const r = await operarReparto(intento.current);
+      return r.ok ? { exito: true } : { error: r.error ?? "No se pudo confirmar la operación." };
+    }} />;
 }

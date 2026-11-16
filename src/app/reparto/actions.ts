@@ -10,6 +10,7 @@ export type RespuestaReparto = { error?: string; ok?: boolean; cierre?: { versio
 const uuid = (s: unknown) => typeof s === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 export async function operarReparto(s: SolicitudReparto): Promise<RespuestaReparto> {
   const db = await exigirRepartidor();
+  if (s?.accion === "fallida" && (!["Cliente ausente", "Cliente rechazó pedido", "Dirección incorrecta", "Problema de acceso", "Otro"].includes(s.motivo ?? "") || typeof s.observaciones !== "string" || s.observaciones.length > 1900 || (s.motivo === "Otro" && !s.observaciones.trim()))) return { error: "Selecciona un motivo y completa Otro. Máximo 1900 caracteres." };
   if (s?.ruta) {
     if (!uuid(s.ruta) || !uuid(s.clave) || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
       !["entregar", "fallida", "cerrar"].includes(s.accion) || (s.accion !== "cerrar" && (!uuid(s.pedido) || !Number.isSafeInteger(s.version) || s.version! < 0))) return { error: "Solicitud inválida. Actualiza la ruta." };

@@ -19,7 +19,7 @@ import { formatFechaEntregaCorta, formatFechaEntregaLarga } from "@/lib/delivery
 import { PageHeader } from "@/components/shared/page-header";
 import { RutaPreparacionControl } from "./ruta-preparacion-control";
 import { DeliveryOrderCard } from "@/components/admin/delivery-order-card";
-import { DayProfitSummary } from "@/components/admin/day-profit-summary";
+import { DayProfitSummary, obtenerPresentacionUtilidadDia } from "@/components/admin/day-profit-summary";
 import { DayPurchasesSummary } from "@/components/admin/day-purchases-summary";
 import { ActionLink } from "@/components/ui/action-link";
 import { RutaMultipleForm } from "./multiple-controls";
@@ -52,6 +52,7 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
   const nombreResponsable = await obtenerNombresResponsables(modelo.rutas.flatMap(r => r.historial.map(e => e.actor)));
   const entrega = await obtenerDetalleEntregaAdmin(fecha);
   const contabilidad = await obtenerContabilidadRutas(fecha, entrega.pedidos.map(p => p.id));
+  const utilidadDia = await obtenerPresentacionUtilidadDia(fecha);
   const dias = Array.from({ length: 7 }, (_, n) => { const d = new Date(`${hoy}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); });
   const conteo = await obtenerConteoPedidosPorFecha(hoy, dias[6]);
   const asignados = new Set(modelo.rutas.flatMap(r => r.pedidos));
@@ -79,12 +80,12 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
       <nav className="flex gap-2 overflow-x-auto pb-2" aria-label="Próximos siete días">{dias.map(d => <Link key={d} prefetch={false} href={`/admin/rutas?fecha=${d}`} aria-current={d === fecha ? "date" : undefined} className={`min-w-28 flex-1 rounded-lg border p-3 text-center text-sm ${d === fecha ? "border-primary bg-primary/10 text-primary" : "border-border"}`}><span className="block font-semibold">{d === hoy ? "Hoy" : formatFechaEntregaCorta(d)}</span><span>{conteo[d] ?? 0} pedidos</span></Link>)}</nav>
       <RutasFechaForm className="flex flex-wrap items-end gap-3"><label className="text-sm">Consultar fecha<input name="fecha" type="date" required defaultValue={fecha} key={fecha} className="mt-1 block min-h-11 rounded-lg border bg-background px-3" /></label><button className="min-h-11 rounded-lg border px-4">Consultar</button></RutasFechaForm>
       <h2 data-rutas-destino="fecha" className="scroll-mt-24 font-semibold">{formatFechaEntregaLarga(fecha)}</h2>
-      <dl className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Resumen operativo de jornada">{[
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" aria-label="Resumen operativo de jornada">{[
         ["Pedidos del día", entrega.pedidos.length], ["Sin asignar · disponibles", disponibles.length],
         ["Rutas activas", modelo.rutas.filter(r => r.estado !== "cerrada").length],
         ["Entregados / no entregados", `${entrega.pedidos.filter(p => p.estado === "entregado").length} / ${entrega.pedidos.filter(p => p.estado === "entrega_fallida").length}`],
-      ].map(([t, v]) => <div key={t} className="rounded-lg bg-muted/40 px-3 py-2"><dt className="text-xs text-muted-foreground">{t}</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{v}</dd></div>)}</dl>
-      <JornadaControles key={fecha} utilidad={<DayProfitSummary fecha={fecha} />} crear={<RutaMultipleForm key={`crear-${modelo.rutas.length}`} comando={{ accion: "crear", ruta: "", fecha, version: 0 }} etiqueta="Crear ruta"><label className="block text-sm">Nombre o número de ruta<input name="nombre" required maxLength={100} placeholder="Ruta 1 · Centro" className="mt-1 min-h-11 w-full rounded-lg border bg-background p-2" /></label></RutaMultipleForm>} productos={<DayPurchasesSummary fecha={fecha} productos={entrega.resumenProductos} />} contabilidad={<RutasContabilidadJornada datos={contabilidad} pedidos={entrega.pedidos} />} />
+      ].map(([t, v]) => <div key={t} className="min-w-0 rounded-lg bg-muted/40 px-3 py-2"><dt className="text-xs text-muted-foreground">{t}</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{v}</dd></div>)}{utilidadDia.indicador}</dl>
+      <JornadaControles key={fecha} utilidad={utilidadDia.detalle} crear={<RutaMultipleForm key={`crear-${modelo.rutas.length}`} comando={{ accion: "crear", ruta: "", fecha, version: 0 }} etiqueta="Crear ruta"><label className="block text-sm">Nombre o número de ruta<input name="nombre" required maxLength={100} placeholder="Ruta 1 · Centro" className="mt-1 min-h-11 w-full rounded-lg border bg-background p-2" /></label></RutaMultipleForm>} productos={<DayPurchasesSummary fecha={fecha} productos={entrega.resumenProductos} />} contabilidad={<RutasContabilidadJornada datos={contabilidad} pedidos={entrega.pedidos} />} />
     </section>
     <nav className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Rutas creadas">
       <Link destinoListado href={`/admin/rutas?fecha=${fecha}`} aria-current={!ruta ? "page" : undefined} className="rounded-xl border bg-card p-4 font-semibold">Todos los pedidos del día ({entrega.pedidos.length})</Link>

@@ -1,11 +1,25 @@
+import type { ReactNode } from "react";
 import { leerComprasDia } from "@/lib/admin/compras-dia";
 
-const clp = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
+const clp = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0, useGrouping: "always" }).format(n);
 const cantidad = (n: number) => new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 }).format(n);
 
+function indicadorUtilidad(monto: ReactNode, parcial = false, color = "text-muted-foreground") {
+  return <div className="col-span-2 min-w-0 rounded-lg bg-muted/40 px-3 py-2 sm:col-span-1">
+    <dt className="text-xs text-muted-foreground">Utilidad estimada</dt>
+    <dd className={`mt-1 break-words text-lg font-semibold tabular-nums ${color}`}>{monto}</dd>
+    {parcial && <dd className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">Parcial · compras o costos pendientes</dd>}
+  </div>;
+}
+
 export async function DayProfitSummary({ fecha }: { fecha: string }) {
+  return (await obtenerPresentacionUtilidadDia(fecha)).detalle;
+}
+
+// Ambas vistas comparten una única lectura y el mismo cálculo de utilidad.
+export async function obtenerPresentacionUtilidadDia(fecha: string) {
   const datos = await leerComprasDia(fecha);
-  if (!datos || datos.contrato !== 2) return <p role="status" className="text-sm text-amber-800">Utilidad no disponible. No se pudo verificar el contrato de compras múltiples o sus datos. Recarga y revisa el acceso a las funciones de compras.</p>;
+  if (!datos || datos.contrato !== 2) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="status" className="text-sm text-amber-800">Utilidad no disponible. No se pudo verificar el contrato de compras múltiples o sus datos. Recarga y revisa el acceso a las funciones de compras.</p> };
   const filas = datos.productos.map(p => {
     const cubierta = p.precio === null ? 0 : p.asignada ?? 0;
     const fraccion = p.requerida > 0 ? cubierta / p.requerida : 0;
@@ -18,11 +32,11 @@ export async function DayProfitSummary({ fecha }: { fecha: string }) {
   const suma = (campo: "venta" | "ingreso" | "costo" | "utilidad" | "pendiente") => filas.reduce((s, f) => s + (f[campo] ?? 0), 0);
   const incompleta = filas.some(f => f.cubierta < f.p.requerida || f.p.requiere_ajuste || (f.costo === null && f.p.requerida > 0));
   const seguros = (["venta", "ingreso", "costo", "utilidad", "pendiente"] as const).every(k => Number.isFinite(suma(k)) && Math.abs(suma(k)) <= Number.MAX_SAFE_INTEGER);
-  if (!seguros) return <p role="alert">Importes fuera del rango seguro; utilidad no disponible.</p>;
+  if (!seguros) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="alert">Importes fuera del rango seguro; utilidad no disponible.</p> };
   const margen = (u: number | null, venta: number) => u === null || venta === 0 ? "—" : `${(100 * u / venta).toFixed(1)} %`;
   const colorUtilidad = (valor: number | null) => valor !== null && valor < 0 ? "text-red-700" : valor !== null && valor > 0 ? "text-emerald-700" : "text-muted-foreground";
   const utilidadTotal = filas.length > 0 && filas.every(f => f.utilidad === null) ? null : suma("utilidad");
-  return <section className="min-w-0 space-y-3 text-xs" aria-label="Utilidad del día">
+  const detalle = <section className="min-w-0 space-y-3 text-xs" aria-label="Utilidad del día">
     <div role="region" aria-label="Detalle de utilidad por producto" tabIndex={0} className="overflow-x-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-ring">
       <table className="w-full min-w-[640px] text-left tabular-nums">
         <thead className="bg-muted/50 text-muted-foreground">
@@ -83,4 +97,8 @@ export async function DayProfitSummary({ fecha }: { fecha: string }) {
     </div>
     <p className="text-[11px] text-muted-foreground">Estimación basada en pedidos del día, no necesariamente entregados; no incluye reparto ni otros gastos.</p>
   </section>;
+  return {
+    detalle,
+    indicador: indicadorUtilidad(utilidadTotal === null ? "Pendiente" : clp(utilidadTotal), incompleta, colorUtilidad(utilidadTotal)),
+  };
 }

@@ -1,48 +1,39 @@
-import { ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { CalendarDays, Package, Truck } from "lucide-react";
 
 import { CustomerOrderStatusBadge } from "@/components/account/customer-order-status-badge";
 import { PreparationStatusBadge } from "@/components/order/preparation-status-badge";
 import { OrderRepeatAction } from "@/components/account/order-repeat-action";
-import { ROUTES } from "@/config/routes";
+import { OrderDetailDialog } from "@/components/account/order-detail-dialog";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
 import { formatFechaEntregaCorta } from "@/lib/delivery-date";
 import type { PedidoCuentaListado } from "@/lib/account/pedidos";
 
-type OrderHistoryCardProps = { order: PedidoCuentaListado };
-
-export function OrderHistoryCard({ order }: OrderHistoryCardProps) {
-  const itemCount = order.cantidadLineas;
-
+export function OrderHistoryCard({ order }: { order: PedidoCuentaListado }) {
   return (
-    <article id={`pedido-${order.id}`} className="rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
+    <article id={`pedido-${order.id}`} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 bg-primary/[0.03] px-4 py-3 sm:px-5">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-foreground">{order.numeroPedido}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{formatDateCL(order.fechaCreacion)}</p>
-          {order.fechaEntrega ? <p className="mt-1 text-sm text-muted-foreground">Entrega: {formatFechaEntregaCorta(order.fechaEntrega)}</p> : null}
+          <h2 className="break-words text-lg font-semibold tracking-tight text-foreground">{order.numeroPedido}</h2>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />{formatDateCL(order.fechaCreacion)}</p>
         </div>
         <div className="flex items-start gap-1">
-          <div className="flex flex-wrap justify-end gap-1"><CustomerOrderStatusBadge estado={order.estado} />{order.preparacionEstado === "incompleta" ? <PreparationStatusBadge estado={order.preparacionEstado} /> : null}</div>
+          <div className="flex flex-wrap gap-1.5"><CustomerOrderStatusBadge estado={order.estado} />{order.preparacionEstado === "incompleta" ? <PreparationStatusBadge estado={order.preparacionEstado} /> : null}</div>
           <OrderRepeatAction pedidoId={order.id} numeroPedido={order.numeroPedido} estado={order.estado} />
         </div>
       </div>
-
-      <dl className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 text-sm">
-        <div>
-          <dt className="text-muted-foreground">Productos</dt>
-          <dd className="mt-1 font-medium text-foreground">{itemCount} {itemCount === 1 ? "producto" : "productos"}</dd>
+      <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-start gap-2.5">
+            <Package className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0"><p className="text-sm font-medium text-foreground">{order.cantidadLineas} {order.cantidadLineas === 1 ? "producto" : "productos"}</p><p className="mt-0.5 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">{order.resumenProductos.join(" · ") || "Sin productos registrados"}{order.cantidadLineas > 3 ? ` · +${order.cantidadLineas - 3} más` : ""}</p></div>
+          </div>
+          <p className="flex items-center gap-2.5 text-xs text-muted-foreground"><Truck className="size-4 shrink-0 text-primary" aria-hidden="true" />{order.fechaEntrega ? `Entrega: ${formatFechaEntregaCorta(order.fechaEntrega)}` : "Entrega por programar"}</p>
         </div>
-        <div className="text-right">
-          <dt className="text-muted-foreground">Total</dt>
-          <dd className="mt-1 text-base font-semibold text-foreground">{formatCLP(order.totalFinal ?? order.total)}</dd>
+        <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-3 sm:gap-6 sm:border-0 sm:pt-0">
+          <div className="sm:text-right"><p className="text-xs text-muted-foreground">Total{order.totalFinal !== null ? " final" : ""}</p><p className="mt-0.5 text-xl font-semibold tracking-tight text-foreground tabular-nums">{formatCLP(order.totalFinal ?? order.total)}</p></div>
+          <OrderDetailDialog pedidoId={order.id} numeroPedido={order.numeroPedido} />
         </div>
-      </dl>
-
-      <Link href={ROUTES.customerOrder(order.id)} className="mt-4 inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-primary outline-none transition-colors hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50" aria-label={`Ver más sobre el pedido ${order.numeroPedido}`}>
-        Ver más
-        <ChevronRight className="size-4" aria-hidden="true" />
-      </Link>
+      </div>
     </article>
   );
 }

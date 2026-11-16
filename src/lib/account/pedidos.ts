@@ -31,6 +31,7 @@ export type PedidoCuentaListado = {
   totalFinal: number | null;
   preparacionEstado: PreparacionEstado | null;
   cantidadLineas: number;
+  resumenProductos: string[];
 };
 
 export type ItemPedidoCuenta = {
@@ -99,7 +100,7 @@ type PedidoListadoFila = {
   total: number | string;
   total_final: number | string | null;
   preparacion_estado: PreparacionEstado | null;
-  items_pedido: Array<{ id: string }> | null;
+  items_pedido: Array<{ id: string; nombre_producto_snapshot: string }> | null;
 };
 
 type PedidoDetalleFila = Omit<PedidoListadoFila, "items_pedido"> & {
@@ -155,6 +156,7 @@ function mapPedidoListado(fila: PedidoListadoFila): PedidoCuentaListado {
     totalFinal: fila.total_final === null ? null : Number(fila.total_final),
     preparacionEstado: fila.preparacion_estado,
     cantidadLineas: fila.items_pedido?.length ?? 0,
+    resumenProductos: (fila.items_pedido ?? []).slice(0, 3).map((item) => item.nombre_producto_snapshot),
   };
 }
 
@@ -165,7 +167,7 @@ export async function obtenerPedidosCuenta(): Promise<readonly PedidoCuentaLista
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,items_pedido(id)")
+    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,items_pedido(id,nombre_producto_snapshot)")
     .eq("cliente_id", cliente.id)
     .order("fecha_creacion", { ascending: false });
 

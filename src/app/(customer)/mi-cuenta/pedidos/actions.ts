@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { obtenerIdentidadActual } from "@/lib/account/identity";
-import { obtenerLineasRepetiblesPedido } from "@/lib/account/pedidos";
+import { obtenerPedidoCuenta, obtenerLineasRepetiblesPedido } from "@/lib/account/pedidos";
 import type { LineasRepetiblesPedido } from "@/lib/account/pedidos";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -77,4 +77,17 @@ export async function cancelarPedidoCliente(
   if (resultado.fecha_entrega) revalidatePath(`/admin/pedidos/entregas/${resultado.fecha_entrega}`);
 
   return { cancelado: true };
+}
+
+// La consulta compartida autentica y limita el detalle al cliente actual.
+export async function cargarDetallePedido(pedidoId: string) {
+  if (typeof pedidoId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pedidoId)) {
+    return { order: null, error: "No encontramos este pedido." };
+  }
+  try {
+    const order = await obtenerPedidoCuenta(pedidoId);
+    return { order, error: order ? null : "El pedido no está disponible. Revisa tu sesión e inténtalo nuevamente." };
+  } catch {
+    return { order: null, error: "No fue posible cargar el pedido. Inténtalo nuevamente." };
+  }
 }

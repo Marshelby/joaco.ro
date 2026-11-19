@@ -2,4 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Productos" };
 
-export { default } from "@/components/admin/public-manager-products";
+import Products from "@/components/admin/public-manager-products";
+
+export default function AdminProductsPage() {
+  return <Products />;
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentProps } from "react";
 
+import { ROUTES } from "@/config/routes";
 import { cn } from "@/lib/utils";
 import { usePublicNavigationFeedback } from "@/components/navigation/public-navigation-feedback";
 
@@ -16,7 +17,14 @@ export function NavigationLink({ className, activeClassName, exact = false, href
   const pathname = usePathname();
   const feedback = usePublicNavigationFeedback();
   const target = typeof href === "string" ? href : href.pathname ?? "";
-  const groupedPathname = target === "/admin/gestor-publico" && ["/admin/productos", "/admin/categorias", "/admin/secciones-inicio"].some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  const managerTab = target === ROUTES.adminPublicManager
+    ? ([
+      [ROUTES.adminProducts, "productos"],
+      [ROUTES.adminCategories, "categorias"],
+      [ROUTES.adminHomeSections, "secciones-inicio"],
+    ] as const).find(([route]) => pathname === route || pathname.startsWith(`${route}/`))?.[1]
+    : undefined;
+  const groupedPathname = managerTab
     ? target
     : target === "/admin/clientes" && (pathname === "/admin/mensajes" || pathname.startsWith("/admin/mensajes/"))
       ? target
@@ -28,7 +36,7 @@ export function NavigationLink({ className, activeClassName, exact = false, href
 
   return (
     <Link
-      href={href}
+      href={managerTab ? ROUTES.adminPublicManagerTab(managerTab) : href}
       aria-current={active ? "page" : undefined}
       data-active={active ? "true" : undefined}
       className={cn(className, active && activeClassName)}

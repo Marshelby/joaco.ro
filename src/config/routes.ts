@@ -19,6 +19,8 @@ export const ROUTES = {
   adminProduction: "/admin/produccion",
   adminInternalManager: "/admin/gestor-interno",
   adminPublicManager: "/admin/gestor-publico",
+  adminPublicManagerTab: (pestana: "productos" | "categorias" | "secciones-inicio") =>
+    `/admin/gestor-publico?pestana=${pestana}`,
   adminProducts: "/admin/productos",
   adminCategories: "/admin/categorias",
   adminHomeSections: "/admin/secciones-inicio",

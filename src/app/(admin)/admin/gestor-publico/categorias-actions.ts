@@ -11,6 +11,7 @@ type CategoriaVersion = { id: string; version: string };
 type DatosCategoria = { nombre: string; descripcion: string; orden: number; activa: boolean };
 
 export type OperacionCategoria =
+  | { tipo: "reordenar"; categorias: CategoriaVersion[]; id: string; direccion: -1 | 1 }
   | { tipo: "guardar"; categoria: CategoriaVersion | null; datos: DatosCategoria; productos: CambioProducto[] }
   | { tipo: "asignar"; categoria: CategoriaVersion; productos: CambioProducto[] }
   | { tipo: "eliminar"; categoria: CategoriaVersion; productos: CambioProducto[] };
@@ -35,16 +36,24 @@ export async function gestionarCategoria(operacion: OperacionCategoria): Promise
     datos = { ...operacion.datos, nombre, slug: slug || "categoria" };
   }
 
-  const { error } = await supabase.rpc("gestionar_categoria_administrativa", {
-    p_operacion: operacion.tipo,
-    p_categoria_id: operacion.categoria?.id ?? null,
-    p_version: operacion.categoria?.version ?? null,
-    p_datos: datos,
-    p_productos: operacion.productos,
-  });
+  const { error } = operacion.tipo === "reordenar"
+    ? await supabase.rpc("reordenar_categorias_administrativas", {
+      p_categorias: operacion.categorias,
+      p_categoria_id: operacion.id,
+      p_direccion: operacion.direccion,
+    })
+    : await supabase.rpc("gestionar_categoria_administrativa", {
+      p_operacion: operacion.tipo,
+      p_categoria_id: operacion.categoria?.id ?? null,
+      p_version: operacion.categoria?.version ?? null,
+      p_datos: datos,
+      p_productos: operacion.productos,
+    });
   if (error) {
     if (error.code === "PGRST202" || error.code === "42883") {
-      return { error: "El gestor requiere instalar el SQL manual de categorías antes de guardar cambios." };
+      return { error: operacion.tipo === "reordenar"
+        ? "Para cambiar el orden, aplica el SQL manual de reordenamiento de categorías."
+        : "El gestor requiere instalar el SQL manual de categorías antes de guardar cambios." };
     }
     if (error.code === "40001" || error.code === "40P01" || error.code === "23503") {
       return { error: "El catálogo cambió durante la edición. Vuelve a cargar los datos antes de confirmar.", recargar: true };

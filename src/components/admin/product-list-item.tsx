@@ -1,3 +1,5 @@
+import type { MouseEventHandler } from "react";
+import { Button } from "@/components/ui/button";
 import { ActionLink } from "@/components/ui/action-link";
 import { CatalogImage } from "@/components/media/catalog-image";
 import { ROUTES } from "@/config/routes";
@@ -6,7 +8,7 @@ import type { ProductoAdmin } from "@/lib/admin/catalogo";
 
 import { ProductStatusBadge } from "./product-status-badge";
 
-export function ProductListItem({ product }: { product: ProductoAdmin }) {
+export function ProductListItem({ product, onEdit }: { product: ProductoAdmin; onEdit?: MouseEventHandler<HTMLButtonElement> }) {
   return (
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-4 sm:grid-cols-[5rem_minmax(10rem,1.35fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(10rem,0.95fr)_auto] sm:items-center sm:gap-5">
@@ -32,7 +34,9 @@ export function ProductListItem({ product }: { product: ProductoAdmin }) {
         </dl>
         <div className="col-span-2 flex items-center justify-between gap-3 border-t border-border pt-4 sm:col-span-1 sm:block sm:border-0 sm:p-0">
           <div><span className="text-sm text-muted-foreground sm:sr-only">Estado</span><div className="mt-1 sm:mt-0"><ProductStatusBadge status={product.activo ? "active" : "hidden"} /></div></div>
-          <ActionLink href={ROUTES.adminProduct(product.id)} variant="quiet" aria-label={`Editar ${product.nombre}`}>Editar</ActionLink>
+          {onEdit
+            ? <Button type="button" variant="ghost" aria-haspopup="dialog" aria-label={`Editar ${product.nombre}`} onClick={onEdit}>Editar</Button>
+            : <ActionLink href={ROUTES.adminProduct(product.id)} variant="quiet" aria-label={`Editar ${product.nombre}`}>Editar</ActionLink>}
         </div>
       </div>
     </li>

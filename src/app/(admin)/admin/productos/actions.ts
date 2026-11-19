@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ROUTES } from "@/config/routes";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type EstadoGuardadoProducto = { error?: string };
@@ -22,6 +23,18 @@ const mensajesRpc: Record<string, string> = {
 };
 
 export async function guardarProductoAdmin(_: EstadoGuardadoProducto, datos: FormData): Promise<EstadoGuardadoProducto> {
+  const resultado = await guardarProducto(datos);
+  if ("error" in resultado) return resultado;
+  redirect(ROUTES.adminProduct(resultado.id));
+}
+
+export async function guardarProductoEnGestor(datos: FormData): Promise<EstadoGuardadoProducto> {
+  if (!texto(datos, "id")) return { error: "Selecciona un producto para editar." };
+  const resultado = await guardarProducto(datos);
+  return "error" in resultado ? resultado : {};
+}
+
+async function guardarProducto(datos: FormData): Promise<{ id: string } | { error: string }> {
   const supabase = await crearClienteSupabaseServidor();
   const { data: sesion } = await supabase.auth.getUser();
   if (!sesion.user) return { error: "Tu sesión expiró. Inicia sesión nuevamente." };
@@ -31,6 +44,11 @@ export async function guardarProductoAdmin(_: EstadoGuardadoProducto, datos: For
     p_producto_id: texto(datos, "id") || null, p_categoria_id: texto(datos, "categoriaId"), p_nombre: texto(datos, "nombre"), p_slug: texto(datos, "slug"), p_descripcion: texto(datos, "descripcion"), p_ruta_imagen: texto(datos, "rutaImagen"), p_activo: datos.get("activo") === "on", p_disponible: datos.get("disponible") === "on", p_destacado: datos.get("destacado") === "on", p_mas_vendido: datos.get("masVendido") === "on", p_nuevo: datos.get("nuevo") === "on", p_orden: orden, p_presentacion_nombre: texto(datos, "presentacionNombre"), p_cantidad: cantidad, p_unidad: texto(datos, "unidad"), p_precio_neto: precioNeto, p_precio_final: precioFinal, p_presentacion_activa: true,
   });
   if (error) return { error: error.code === "23505" ? "El slug ya está en uso." : mensajesRpc[error.message] ?? "Hubo un problema al guardar el producto." };
-  revalidatePath("/admin"); revalidatePath("/admin/productos"); revalidatePath(`/admin/productos/${data}`); revalidatePath("/"); revalidatePath("/catalogo");
-  redirect(`/admin/productos/${data}`);
+  revalidatePath(ROUTES.admin);
+  revalidatePath(ROUTES.adminProducts);
+  revalidatePath(ROUTES.adminProduct(data));
+  revalidatePath(ROUTES.adminPublicManager);
+  revalidatePath(ROUTES.home);
+  revalidatePath(ROUTES.catalog);
+  return { id: data };
 }

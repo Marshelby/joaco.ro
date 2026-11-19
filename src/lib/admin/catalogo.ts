@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type CategoriaAdmin = { id: string; nombre: string; slug: string; descripcion: string | null; activa: boolean; orden: number };
@@ -149,7 +151,10 @@ export async function obtenerClasificacionAdmin() {
       return ultimoId ? consulta.gt("id", ultimoId) : consulta;
     }),
   ]);
-  categorias.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
+  // Mismo desempate por bytes UTF-8 e ID que en la RPC de reordenamiento.
+  categorias.sort((a, b) => a.orden - b.orden
+    || Buffer.compare(Buffer.from(a.nombre, "utf8"), Buffer.from(b.nombre, "utf8"))
+    || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   productos.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   return { categorias, productos };
 }

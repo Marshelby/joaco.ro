@@ -1,12 +1,14 @@
 import { ProductGrid } from "@/components/home/product-grid";
 import { SectionTitle } from "@/components/home/section-title";
+import type { HomeSectionIcon } from "@/lib/home-section-icons";
 import type { MockProduct } from "@/types/product";
 
 type ProductSectionProps = {
   id: string;
   eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
+  icon?: HomeSectionIcon;
   products: readonly MockProduct[];
   countLabel?: string;
   gridVariant?: "home" | "catalog";
@@ -17,6 +19,7 @@ export function ProductSection({
   eyebrow,
   title,
   description,
+  icon,
   products,
   countLabel,
   gridVariant,
@@ -25,7 +28,7 @@ export function ProductSection({
     <section aria-labelledby={id} className="min-w-0 max-w-full space-y-8">
       <div className="flex min-w-0 max-w-full flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div id={id} className="min-w-0 max-w-full">
-          <SectionTitle eyebrow={eyebrow} title={title} description={description} />
+          <SectionTitle eyebrow={eyebrow} title={title} description={description} icon={icon} />
         </div>
         {countLabel ? <p className="text-sm text-muted-foreground">{countLabel}</p> : null}
       </div>

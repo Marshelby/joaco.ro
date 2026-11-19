@@ -2,7 +2,7 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type CategoriaAdmin = { id: string; nombre: string; slug: string; descripcion: string | null; activa: boolean; orden: number };
 export type PresentacionAdmin = { id: string; nombre: string; cantidad: number; unidad: string; precioNeto: number; precioFinal: number; activa: true };
-export type ProductoAdmin = { id: string; nombre: string; slug: string; descripcion: string | null; rutaImagen: string | null; categoriaId: string; categoria: string; activo: boolean; disponible: boolean; destacado: boolean; masVendido: boolean; nuevo: boolean; orden: number; presentacion: PresentacionAdmin };
+export type ProductoAdmin = { id: string; nombre: string; slug: string; descripcion: string | null; rutaImagen: string | null; categoriaId: string | null; categoria: string; activo: boolean; disponible: boolean; destacado: boolean; masVendido: boolean; nuevo: boolean; orden: number; presentacion: PresentacionAdmin };
 
 type PresentacionAdminRow = {
   id: string;
@@ -20,7 +20,7 @@ type ProductoAdminRow = {
   slug: string;
   descripcion: string | null;
   ruta_imagen: string | null;
-  categoria_id: string;
+  categoria_id: string | null;
   activo: boolean;
   disponible: boolean;
   destacado: boolean;
@@ -114,4 +114,42 @@ export async function obtenerProductoAdmin(id: string) {
   if (errorProducto) throw errorProducto;
   if (productoSinPresentacion) throw new ProductoSinPresentacionPrincipalError();
   return null;
+}
+
+export type CategoriaGestor = CategoriaAdmin & { fecha_actualizacion: string };
+export type ProductoClasificable = { id: string; nombre: string; categoria_id: string | null };
+
+async function leerCatalogoCompleto<Fila extends { id: string }>(
+  obtenerPagina: (ultimoId: string | undefined) => PromiseLike<{ data: Fila[] | null; error: unknown }>,
+) {
+  const filas: Fila[] = [];
+  let ultimoId: string | undefined;
+  while (true) {
+    const { data, error } = await obtenerPagina(ultimoId);
+    if (error) throw error;
+    if (!data?.length) return filas;
+    filas.push(...data);
+    ultimoId = data[data.length - 1].id;
+  }
+}
+
+export async function obtenerClasificacionAdmin() {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data: esAdmin, error } = await supabase.rpc("es_admin");
+  if (error || esAdmin !== true) throw new Error("Acceso administrativo requerido.");
+
+  const [categorias, productos] = await Promise.all([
+    leerCatalogoCompleto<CategoriaGestor>((ultimoId) => {
+      const consulta = supabase.from("categorias")
+        .select("id,nombre,slug,descripcion,activa,orden,fecha_actualizacion").order("id").limit(500);
+      return ultimoId ? consulta.gt("id", ultimoId) : consulta;
+    }),
+    leerCatalogoCompleto<ProductoClasificable>((ultimoId) => {
+      const consulta = supabase.from("productos").select("id,nombre,categoria_id").order("id").limit(500);
+      return ultimoId ? consulta.gt("id", ultimoId) : consulta;
+    }),
+  ]);
+  categorias.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
+  productos.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  return { categorias, productos };
 }

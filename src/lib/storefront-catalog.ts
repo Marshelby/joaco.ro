@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import type { HomeSectionIcon } from "@/lib/home-section-icons";
 import type { HomeCategory } from "@/mocks/home";
 import type { ImageFallbackKind } from "@/types/media";
 import type { MockProduct, ProductSaleUnit } from "@/types/product";
@@ -33,16 +34,12 @@ type CatalogRow = {
   }>;
 };
 
-const storefrontHomeSectionSlugs = ["featured", "best-sellers", "opportunities", "new-arrivals"] as const;
-
-export type StorefrontHomeSectionSlug = (typeof storefrontHomeSectionSlugs)[number];
-
-export type StorefrontHomeSections = Record<StorefrontHomeSectionSlug, readonly MockProduct[]>;
-
-type HomeSectionAssignmentRow = {
-  seccion_slug: StorefrontHomeSectionSlug;
-  orden: number;
-  productos: { id: string } | null;
+type HomeSectionRow = {
+  slug: string;
+  nombre: string;
+  descripcion: string | null;
+  icono: HomeSectionIcon;
+  secciones_inicio_productos: { producto_id: string }[];
 };
 
 const imageFallbackByCategory: Record<string, ImageFallbackKind> = {
@@ -133,34 +130,27 @@ async function queryProducts(options?: { slug?: string }) {
 
 export const getStorefrontProducts = cache(async () => queryProducts());
 
-export async function getStorefrontHomeSections(
-  products: readonly MockProduct[],
-): Promise<StorefrontHomeSections> {
+export async function getStorefrontHomeSections(products: readonly MockProduct[]) {
   const supabase = crearClienteSupabaseCatalogo();
   const { data, error } = await supabase
-    .from("secciones_inicio_productos")
-    .select("seccion_slug,orden,productos!inner(id)")
-    .in("seccion_slug", storefrontHomeSectionSlugs)
-    .order("seccion_slug")
-    .order("orden");
+    .from("secciones_inicio")
+    .select("slug,nombre,descripcion,icono,secciones_inicio_productos(producto_id)")
+    .eq("activa", true)
+    .order("orden")
+    .order("orden", { referencedTable: "secciones_inicio_productos" });
 
   if (error) throwCatalogError(error, "No fue posible cargar las secciones de inicio.");
 
   const productsById = new Map(products.map((product) => [product.id, product]));
-  const sections: Record<StorefrontHomeSectionSlug, MockProduct[]> = {
-    featured: [],
-    "best-sellers": [],
-    opportunities: [],
-    "new-arrivals": [],
-  };
-
-  for (const assignment of (data as unknown as HomeSectionAssignmentRow[] ?? [])) {
-    const productId = assignment.productos?.id;
-    const product = productId ? productsById.get(productId) : null;
-    if (product) sections[assignment.seccion_slug].push(product);
-  }
-
-  return sections;
+  return (data as unknown as HomeSectionRow[]).map((section) => ({
+    slug: section.slug,
+    title: section.nombre,
+    description: section.descripcion,
+    icon: section.icono,
+    products: section.secciones_inicio_productos
+      .map(({ producto_id }) => productsById.get(producto_id))
+      .filter((product): product is MockProduct => product !== undefined),
+  }));
 }
 
 export async function getStorefrontProduct(slug: string) {

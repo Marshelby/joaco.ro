@@ -1,16 +1,8 @@
 import "server-only";
 
+import type { HomeSectionIcon } from "@/lib/home-section-icons";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { ImageFallbackKind } from "@/types/media";
-
-export const HOME_SECTION_DEFINITIONS = [
-  { slug: "featured", title: "Frescos de Hidro Leufú", description: "Una selección prioritaria de productos hidropónicos." },
-  { slug: "best-sellers", title: "Productos destacados", description: "Productos seleccionados para la vitrina principal." },
-  { slug: "opportunities", title: "Más productos frescos", description: "Productos seleccionados manualmente para complementar la vitrina." },
-  { slug: "new-arrivals", title: "Recién seleccionados", description: "Productos que se suman a la selección disponible." },
-] as const;
-
-export type HomeSectionSlug = (typeof HOME_SECTION_DEFINITIONS)[number]["slug"];
 
 export type AdminHomeSectionProduct = {
   assignmentId: string;
@@ -26,9 +18,11 @@ export type AdminHomeSectionProduct = {
 };
 
 export type AdminHomeSection = {
-  slug: HomeSectionSlug;
+  slug: string;
   title: string;
-  description: string;
+  description: string | null;
+  icon: HomeSectionIcon;
+  active: boolean;
   products: readonly AdminHomeSectionProduct[];
 };
 
@@ -50,7 +44,6 @@ type ProductRow = {
 
 type AssignmentRow = {
   id: string;
-  seccion_slug: HomeSectionSlug;
   orden: number;
   productos: ProductRow | null;
 };
@@ -85,18 +78,29 @@ function mapAssignment(row: AssignmentRow): AdminHomeSectionProduct | null {
 export async function obtenerSeccionesInicioAdmin(): Promise<readonly AdminHomeSection[]> {
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
-    .from("secciones_inicio_productos")
-    .select("id,seccion_slug,orden,productos(id,nombre,slug,ruta_imagen,activo,disponible,categorias(nombre,slug))")
-    .order("seccion_slug")
-    .order("orden");
+    .from("secciones_inicio")
+    .select("slug,nombre,descripcion,icono,activa,secciones_inicio_productos(id,orden,productos(id,nombre,slug,ruta_imagen,activo,disponible,categorias(nombre,slug)))")
+    .order("orden")
+    .order("orden", { referencedTable: "secciones_inicio_productos" });
 
-  if (error) throw new Error("No fue posible cargar las secciones de inicio.");
+  if (error) throw new Error("No fue posible cargar las secciones de inicio.", { cause: error });
 
-  const assignments = (data as unknown as AssignmentRow[] ?? []);
-  return HOME_SECTION_DEFINITIONS.map((section) => ({
-    ...section,
-    products: assignments
-      .filter((assignment) => assignment.seccion_slug === section.slug)
+  type SectionRow = {
+    slug: string;
+    nombre: string;
+    descripcion: string | null;
+    icono: HomeSectionIcon;
+    activa: boolean;
+    secciones_inicio_productos: AssignmentRow[];
+  };
+
+  return (data as unknown as SectionRow[]).map((section) => ({
+    slug: section.slug,
+    title: section.nombre,
+    description: section.descripcion,
+    icon: section.icono,
+    active: section.activa,
+    products: section.secciones_inicio_productos
       .map(mapAssignment)
       .filter((product): product is AdminHomeSectionProduct => product !== null),
   }));

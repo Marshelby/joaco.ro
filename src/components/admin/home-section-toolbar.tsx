@@ -8,9 +8,9 @@ import { agregarProductoSeccionInicio } from "@/app/(admin)/admin/secciones-inic
 import { buttonVariants } from "@/components/ui/button";
 import { PendingButton } from "@/components/ui/pending-button";
 import { cn } from "@/lib/utils";
-import type { AdminHomeSectionCandidate, HomeSectionSlug } from "@/lib/admin-home-sections";
+import type { AdminHomeSectionCandidate } from "@/lib/admin-home-sections";
 
-export function HomeSectionToolbar({ products, sectionSlug, assignedProductIds }: { products: readonly AdminHomeSectionCandidate[]; sectionSlug: HomeSectionSlug; assignedProductIds: readonly string[] }) {
+export function HomeSectionToolbar({ products, sectionSlug, assignedProductIds }: { products: readonly AdminHomeSectionCandidate[]; sectionSlug: string; assignedProductIds: readonly string[] }) {
   const router = useRouter();
   const [estado, accion, pendiente] = useActionState(agregarProductoSeccionInicio, {});
   const candidates = products.filter((product) => !assignedProductIds.includes(product.id));
@@ -20,11 +20,11 @@ export function HomeSectionToolbar({ products, sectionSlug, assignedProductIds }
   }, [estado.exito, router]);
 
   return (
-    <details className="group relative">
+    <details className="group relative w-full sm:w-auto">
       <summary className={cn(buttonVariants(), "flex cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>
         <Plus aria-hidden="true" />Agregar producto
       </summary>
-      <form action={accion} className="absolute right-0 z-10 mt-2 w-full min-w-72 rounded-xl border border-border bg-card p-4 shadow-lg sm:w-80">
+      <form action={accion} className="mt-2 w-full min-w-0 rounded-xl border border-border bg-card p-4 shadow-lg sm:w-72 lg:absolute lg:right-0 lg:z-10">
         <input type="hidden" name="seccionSlug" value={sectionSlug} />
         <label htmlFor={`home-section-selector-${sectionSlug}`} className="text-sm font-medium text-foreground">Seleccionar producto</label>
         <select required id={`home-section-selector-${sectionSlug}`} name="productoId" defaultValue="" disabled={candidates.length === 0 || pendiente} className="mt-2 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50">

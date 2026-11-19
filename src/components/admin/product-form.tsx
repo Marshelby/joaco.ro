@@ -107,56 +107,65 @@ export function ProductForm({ product, categorias, modal }: { product?: Producto
     ? "space-y-3 rounded-lg border border-border p-3 sm:p-4"
     : "space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6";
 
+  const avisoError = error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>;
+  const campos = (
+    <fieldset disabled={Boolean(modal && guardando)} className={modal ? "min-w-0 space-y-3" : "min-w-0 space-y-5"}>
+      <input name="id" type="hidden" value={product?.id ?? ""} />
+      <input name="slug" type="hidden" value={slug} />
+      <input name="rutaImagen" type="hidden" value={product?.rutaImagen ?? ""} />
+
+      <section className={seccion}>
+        <h2 className="text-base font-semibold text-foreground">Información</h2>
+        {product && (
+          <div className="flex items-center gap-3">
+            <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+              <CatalogImage image={product.rutaImagen ? { src: product.rutaImagen, alt: "", fit: "contain" } : undefined} fallback="package" sizes="56px" fallbackIconClassName="size-6" />
+            </div>
+            <span className="text-sm text-muted-foreground">{product.rutaImagen ? "Imagen actual" : "Sin imagen"}</span>
+          </div>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="sm:col-span-2">Nombre<input required name="nombre" value={nombre} onChange={(event) => actualizarNombre(event.target.value)} className={campo} /></label>
+          <label className="sm:col-span-2">Descripción<textarea name="descripcion" defaultValue={product?.descripcion ?? ""} className="mt-2 min-h-20 w-full rounded-lg border border-input bg-background p-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></label>
+          <label>Categoría<select required name="categoriaId" defaultValue={product?.categoriaId ?? ""} className={campo}><option value="">Selecciona una categoría</option>{categorias.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>)}</select></label>
+          <div className="self-end text-sm text-muted-foreground">{product ? <>Slug: <span className="font-mono text-foreground">{product.slug}</span></> : <>Slug generado: <span className="font-mono text-foreground">{slug || "se generará desde el nombre"}</span></>}</div>
+        </div>
+      </section>
+
+      <section className={seccion}>
+        <h2 className="text-base font-semibold text-foreground">Presentación principal y precios</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label>Nombre de presentación<input required name="presentacionNombre" defaultValue={presentacion?.nombre ?? "1 unidad"} className={campo} /></label>
+          <label>Cantidad<input required min="0.001" step="0.001" name="cantidad" type="number" defaultValue={presentacion?.cantidad ?? 1} className={campo} /></label>
+          <label>Unidad<select required name="unidad" defaultValue={presentacion?.unidad ?? "UND"} className={campo}><option value="KG">KG</option><option value="GR">GR</option><option value="UND">UND</option></select></label>
+          <div className="hidden sm:block" aria-hidden="true" />
+          <label>Precio neto CLP<input required min="0" step="1" inputMode="numeric" name="precioNeto" type="number" value={precioNeto} onChange={(event) => actualizarPrecioNeto(event.target.value)} className={campo} /></label>
+          <div>
+            <label htmlFor="precio-final">Precio final con IVA</label>
+            <input required id="precio-final" min="0" step="1" inputMode="numeric" name="precioFinal" type="number" value={precioFinal} onChange={(event) => { setPrecioFinal(event.target.value); setPrecioFinalManual(true); }} className={campo} />
+            <div className="mt-2 flex flex-wrap items-center gap-2"><p className="text-xs text-muted-foreground">{precioFinalManual ? "Ajuste manual" : "Calculado con IVA 19%"}</p><Button type="button" variant="ghost" size="sm" onClick={recalcularIva}>Recalcular IVA 19%</Button></div>
+          </div>
+        </div>
+      </section>
+
+      <section className={seccion}>
+        <h2 className="text-base font-semibold text-foreground">Visibilidad</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[["activo", product?.activo ?? true, "Activo"], ["disponible", product?.disponible ?? true, "Disponible"], ["destacado", product?.destacado ?? false, "Destacado"], ["masVendido", product?.masVendido ?? false, "Más vendido"], ["nuevo", product?.nuevo ?? false, "Nuevo"]].map(([name, checked, label]) => <label key={String(name)} className="flex min-h-11 items-center gap-2 text-sm text-foreground"><input name={String(name)} type="checkbox" defaultChecked={Boolean(checked)} />{String(label)}</label>)}
+          <label className="sm:col-span-2 sm:max-w-xs">Orden de visualización<input required min="0" name="orden" type="number" defaultValue={product?.orden ?? 0} className={campo} /></label>
+        </div>
+      </section>
+    </fieldset>
+  );
+
   return (
     <form action={modal ? undefined : accion} onSubmit={enviar} onChange={modal?.onChange} aria-busy={guardando} className={modal ? "flex min-h-0 flex-1 flex-col" : "space-y-5"} aria-label="Formulario de producto">
-      {error && <p role="alert" className={modal ? "mx-4 my-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive" : "rounded-lg bg-destructive/10 p-3 text-sm text-destructive"}>{error}</p>}
-      <fieldset disabled={Boolean(modal && guardando)} className={modal ? "min-h-0 min-w-0 space-y-3 overflow-y-auto overscroll-contain p-4" : "min-w-0 space-y-5"}>
-        <input name="id" type="hidden" value={product?.id ?? ""} />
-        <input name="slug" type="hidden" value={slug} />
-        <input name="rutaImagen" type="hidden" value={product?.rutaImagen ?? ""} />
-
-        <section className={seccion}>
-          <h2 className="text-base font-semibold text-foreground">Información</h2>
-          {product && (
-            <div className="flex items-center gap-3">
-              <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-                <CatalogImage image={product.rutaImagen ? { src: product.rutaImagen, alt: "", fit: "contain" } : undefined} fallback="package" sizes="56px" fallbackIconClassName="size-6" />
-              </div>
-              <span className="text-sm text-muted-foreground">{product.rutaImagen ? "Imagen actual" : "Sin imagen"}</span>
-            </div>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="sm:col-span-2">Nombre<input required name="nombre" value={nombre} onChange={(event) => actualizarNombre(event.target.value)} className={campo} /></label>
-            <label className="sm:col-span-2">Descripción<textarea name="descripcion" defaultValue={product?.descripcion ?? ""} className="mt-2 min-h-20 w-full rounded-lg border border-input bg-background p-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></label>
-            <label>Categoría<select required name="categoriaId" defaultValue={product?.categoriaId ?? ""} className={campo}><option value="">Selecciona una categoría</option>{categorias.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>)}</select></label>
-            <div className="self-end text-sm text-muted-foreground">{product ? <>Slug: <span className="font-mono text-foreground">{product.slug}</span></> : <>Slug generado: <span className="font-mono text-foreground">{slug || "se generará desde el nombre"}</span></>}</div>
-          </div>
-        </section>
-
-        <section className={seccion}>
-          <h2 className="text-base font-semibold text-foreground">Presentación principal y precios</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label>Nombre de presentación<input required name="presentacionNombre" defaultValue={presentacion?.nombre ?? "1 unidad"} className={campo} /></label>
-            <label>Cantidad<input required min="0.001" step="0.001" name="cantidad" type="number" defaultValue={presentacion?.cantidad ?? 1} className={campo} /></label>
-            <label>Unidad<select required name="unidad" defaultValue={presentacion?.unidad ?? "UND"} className={campo}><option value="KG">KG</option><option value="GR">GR</option><option value="UND">UND</option></select></label>
-            <div className="hidden sm:block" aria-hidden="true" />
-            <label>Precio neto CLP<input required min="0" step="1" inputMode="numeric" name="precioNeto" type="number" value={precioNeto} onChange={(event) => actualizarPrecioNeto(event.target.value)} className={campo} /></label>
-            <div>
-              <label htmlFor="precio-final">Precio final con IVA</label>
-              <input required id="precio-final" min="0" step="1" inputMode="numeric" name="precioFinal" type="number" value={precioFinal} onChange={(event) => { setPrecioFinal(event.target.value); setPrecioFinalManual(true); }} className={campo} />
-              <div className="mt-2 flex flex-wrap items-center gap-2"><p className="text-xs text-muted-foreground">{precioFinalManual ? "Ajuste manual" : "Calculado con IVA 19%"}</p><Button type="button" variant="ghost" size="sm" onClick={recalcularIva}>Recalcular IVA 19%</Button></div>
-            </div>
-          </div>
-        </section>
-
-        <section className={seccion}>
-          <h2 className="text-base font-semibold text-foreground">Visibilidad</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[["activo", product?.activo ?? true, "Activo"], ["disponible", product?.disponible ?? true, "Disponible"], ["destacado", product?.destacado ?? false, "Destacado"], ["masVendido", product?.masVendido ?? false, "Más vendido"], ["nuevo", product?.nuevo ?? false, "Nuevo"]].map(([name, checked, label]) => <label key={String(name)} className="flex min-h-11 items-center gap-2 text-sm text-foreground"><input name={String(name)} type="checkbox" defaultChecked={Boolean(checked)} />{String(label)}</label>)}
-            <label className="sm:col-span-2 sm:max-w-xs">Orden de visualización<input required min="0" name="orden" type="number" defaultValue={product?.orden ?? 0} className={campo} /></label>
-          </div>
-        </section>
-      </fieldset>
+      {modal ? (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain p-4">
+          {avisoError}
+          {campos}
+        </div>
+      ) : <>{avisoError}{campos}</>}
       <footer className={modal ? "flex shrink-0 flex-wrap justify-end gap-2 border-t border-border p-3 sm:px-4" : "flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end"}>
         {modal
           ? <Button type="button" variant="outline" disabled={guardando} onClick={modal.onCancel}>Cancelar</Button>

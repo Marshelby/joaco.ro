@@ -66,7 +66,7 @@ export function ProductList({ products, categorias }: { products: readonly Produ
           <Dialog.Portal>
             <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/25" />
             <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">
-              <Dialog.Popup className="motion-dialog-content flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl outline-none sm:max-h-[85dvh]">
+              <Dialog.Popup className="motion-dialog-content flex min-h-0 max-h-[calc(100dvh_-_1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl outline-none sm:max-h-[min(85dvh,calc(100dvh_-_2rem))]">
                 <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2">
                   <div className="min-w-0">
                     <Dialog.Title className="text-lg font-semibold">Editar producto</Dialog.Title>

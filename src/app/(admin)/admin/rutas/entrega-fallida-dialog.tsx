@@ -11,9 +11,9 @@ import { registrarEntregaFallida, type SolicitudEntregaFallida } from "./fallida
 const motivos = ["Cliente ausente", "Cliente rechazó pedido", "Dirección incorrecta", "Problema de acceso", "Otro"];
 const campo = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background p-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, numero, cliente, ubicacion, productos, totalReferencia, ocultarReferencia = false, onRegistrada, maxObservaciones = 2000, registrar = registrarEntregaFallida }: {
+export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, numero, cliente, ubicacion, productos, totalReferencia, ocultarReferencia = false, botonConFondo = true, onRegistrada, maxObservaciones = 2000, registrar = registrarEntregaFallida }: {
   habilitada: boolean; pedidoId: string; versionEsperada: number; numero: string; cliente: string;
-  ubicacion: string | null; productos: number; totalReferencia: number; ocultarReferencia?: boolean; onRegistrada?: () => void; registrar?: typeof registrarEntregaFallida; maxObservaciones?: number;
+  ubicacion: string | null; productos: number; totalReferencia: number; ocultarReferencia?: boolean; botonConFondo?: boolean; onRegistrada?: () => void; registrar?: typeof registrarEntregaFallida; maxObservaciones?: number;
 }) {
   const id = useId();
   const router = useRouter();
@@ -50,7 +50,7 @@ export function EntregaFallidaDialog({ habilitada, pedidoId, versionEsperada, nu
     });
   }
   return <Dialog.Root open={abierto} onOpenChange={(valor) => { if (!bloqueo.current) setAbierto(valor); }}>
-    <Dialog.Trigger disabled={!habilitada || exito} className={buttonVariants({ variant: "outline" })}>No entregado</Dialog.Trigger>
+    <Dialog.Trigger disabled={!habilitada || exito} className={buttonVariants(botonConFondo ? { variant: null, className: "bg-red-700 text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600" } : { variant: "outline" })}>No entregado</Dialog.Trigger>
     <Dialog.Portal keepMounted>
       <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/30" />
       <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">

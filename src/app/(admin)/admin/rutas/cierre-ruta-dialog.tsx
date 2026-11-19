@@ -63,7 +63,7 @@ export function CierreRutaDialog({ fecha, cerrada }: { fecha: string; cerrada: b
             <ul className="space-y-3">{resumen.pedidos.map(p => <li key={`${p.id}:${p.version}`} className="space-y-2 rounded-lg border p-3 text-sm">
               <p className="font-semibold">{p.numero} · {p.cliente}</p>
               <p>{p.estado === "entregado" ? "Entregado" : p.estado === "entrega_fallida" ? `No entregado · ${p.motivo ?? "Consultar historial"}` : `Pendiente · ${p.estado}`}</p>
-              {!finalizada && !enviado && p.estado === "en_reparto" ? <EntregaFallidaDialog habilitada={!pendiente} pedidoId={p.id} versionEsperada={p.version} numero={p.numero} cliente={p.cliente} ubicacion={null} productos={0} totalReferencia={0} ocultarReferencia onRegistrada={revisar} /> : null}
+              {!finalizada && !enviado && p.estado === "en_reparto" ? <EntregaFallidaDialog habilitada={!pendiente} pedidoId={p.id} versionEsperada={p.version} numero={p.numero} cliente={p.cliente} ubicacion={null} productos={0} totalReferencia={0} ocultarReferencia botonConFondo={false} onRegistrada={revisar} /> : null}
             </li>)}</ul>
             {finalizada ? <p role="status" className="break-words text-sm">Cerrada el {resumen.cerrada_en} · Actor {resumen.cerrada_por}</p> : <>
               {pendientes.length > 0 ? <p className="text-sm">Registra cada pendiente como No entregado con su motivo, o completa su entrega antes de cerrar. Otros estados requieren revisión administrativa.</p> : null}

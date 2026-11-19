@@ -53,7 +53,7 @@ export function EntregaVisualDialog(props: Props) {
     setAbierto(valor);
     try { setPendiente(!!sessionStorage.getItem(`entrega-pendiente:${props.pedidoId}`)); } catch { /* Se conserva el estado actual. */ }
   }}>
-    <Dialog.Trigger type="button" disabled={!!aviso || (!props.habilitada && !pendiente)} className={buttonVariants({ variant: "outline" })}>Entregado</Dialog.Trigger>
+    <Dialog.Trigger type="button" disabled={!!aviso || (!props.habilitada && !pendiente)} className={buttonVariants({ variant: null, className: "bg-green-700 text-white hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600" })}>Entregado</Dialog.Trigger>
     {props.motivoBloqueo ? <p role="status" className="w-full text-xs text-muted-foreground">{props.motivoBloqueo}</p> : null}
     {aviso ? <p role="status" className="w-full text-sm font-semibold">{aviso}</p> : null}
     <Dialog.Portal>

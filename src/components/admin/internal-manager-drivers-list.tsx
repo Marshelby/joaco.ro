@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { PermissionForm } from "@/app/(admin)/admin/repartidores/permission-form";
 import { buscarUsuariosReparto } from "./internal-manager-drivers-search";
+import { useInternalManagerUserSearch, type UsuarioGestorInterno as Usuario } from "./internal-manager-user-search";
 
-type Usuario = { usuario_id: string; nombre: string | null; correo: string | null };
 export type DriverManagement = {
   repartidores: (Usuario & { activo: boolean; administrador: boolean })[];
   usuarios: Usuario[];
@@ -41,19 +41,7 @@ export function InternalManagerDriversList({ gestion, initialQuery }: { gestion:
     setNotice(activo ? "Permiso habilitado." : "Permiso revocado.");
   }
 
-  useEffect(() => {
-    if (search.length < 2) return;
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await buscarUsuariosReparto(search);
-        if (!cancelled) setResult({ query: search, usuarios: response.usuarios ?? [], error: response.error ?? "" });
-      } catch {
-        if (!cancelled) setResult({ query: search, usuarios: [], error: "No se pudo buscar usuarios. Revisa tu conexión e intenta nuevamente." });
-      }
-    }, 250);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [search, retry]);
+  useInternalManagerUserSearch(search, retry, buscarUsuariosReparto, setResult);
 
   const matchesQuery = (u: Usuario) => [u.nombre, u.correo].some(value => value?.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const matches = search.length >= 2 ? enabled.filter(matchesQuery) : [];

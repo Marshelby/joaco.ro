@@ -1,4 +1,5 @@
 "use server";
+import { esFechaCalendario } from "@/lib/operational-date";
 import { revalidatePath } from "next/cache";
 import { exigirRepartidor } from "@/lib/reparto/server";
 
@@ -12,7 +13,7 @@ export async function operarReparto(s: SolicitudReparto): Promise<RespuestaRepar
   const db = await exigirRepartidor();
   if (s?.accion === "fallida" && (!["Cliente ausente", "Cliente rechazó pedido", "Dirección incorrecta", "Problema de acceso", "Otro"].includes(s.motivo ?? "") || typeof s.observaciones !== "string" || s.observaciones.length > 1900 || (s.motivo === "Otro" && !s.observaciones.trim()))) return { error: "Selecciona un motivo y completa Otro. Máximo 1900 caracteres." };
   if (s?.ruta) {
-    if (!uuid(s.ruta) || !uuid(s.clave) || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
+    if (!uuid(s.ruta) || !uuid(s.clave) || !esFechaCalendario(s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
       !["entregar", "fallida", "cerrar"].includes(s.accion) || (s.accion !== "cerrar" && (!uuid(s.pedido) || !Number.isSafeInteger(s.version) || s.version! < 0))) return { error: "Solicitud inválida. Actualiza la ruta." };
     try {
       const { data, error } = await db.rpc("operar_ruta_multiple", { p_solicitud: {
@@ -34,7 +35,7 @@ export async function operarReparto(s: SolicitudReparto): Promise<RespuestaRepar
       return { ok: true };
     } catch { return { error: "Respuesta no recibida. Reintenta la misma solicitud." }; }
   }
-  if (!s || (typeof s.fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s.fecha) || !Number.isFinite(Date.parse(s.fecha)) || new Date(s.fecha).toISOString().slice(0, 10) !== s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
+  if (!s || !esFechaCalendario(s.fecha) || !Number.isSafeInteger(s.asignacion) || s.asignacion < 1 ||
     !["entregar", "fallida", "revisar_cierre", "cerrar"].includes(s.accion) ||
     (s.accion !== "revisar_cierre" && (!uuid(s.clave) || !Number.isSafeInteger(s.version) || (s.version! < 0 || s.version! >= Number.MAX_SAFE_INTEGER))) ||
     (["entregar", "fallida"].includes(s.accion) && !uuid(s.pedido)) ||

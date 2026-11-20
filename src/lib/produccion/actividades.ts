@@ -1,3 +1,4 @@
+import { formatearInstanteSantiago } from "@/lib/operational-date";
 import { cultivos } from "./cultivos";
 import type { Unidad } from "./contrato";
 export const etiquetasActividad = { colecta_huevos: "Colecta de huevos", alimentacion: "Alimentación", compra_alimento: "Compra de alimento", plantacion: "Plantación", cosecha: "Cosecha", perdidas: "Pérdidas", fertilizacion: "Fertilización", riego: "Riego", tratamiento: "Tratamiento", libre: "Actividad libre" };
@@ -22,5 +23,5 @@ export type VersionActividad = ActividadDiaria & {
   autor_id: string;
 };
 export function registroVisible(fecha: string) {
-  return new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "medium", timeStyle: "short" }).format(new Date(fecha));
+  return formatearInstanteSantiago(fecha, { dateStyle: "medium", timeStyle: "short", hourCycle: "h23" });
 }

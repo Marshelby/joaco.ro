@@ -1,3 +1,4 @@
+import { esFechaCalendario, sumarDiasCalendario } from "@/lib/operational-date";
 import { JornadaControles } from "@/components/admin/jornada-controles";
 import { ROUTES } from "@/config/routes";
 import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
@@ -29,26 +30,15 @@ import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
 
 
 
-function fechaValida(fecha: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(fecha)
-    && Number(fecha.slice(0, 4)) >= 1
-    && !Number.isNaN(Date.parse(`${fecha}T12:00:00Z`))
-    && new Date(`${fecha}T12:00:00Z`).toISOString().slice(0, 10) === fecha;
-}
-
 export default async function AdminRoutesPage({ searchParams }: {
   searchParams: Promise<{ fecha?: string | string[] }>;
 }) {
   const params = await searchParams;
   const hoy = obtenerFechaLocalActual();
   const fecha = params.fecha ?? hoy;
-  if (typeof fecha !== "string" || !fechaValida(fecha)) notFound();
+  if (typeof fecha !== "string" || !esFechaCalendario(fecha)) notFound();
   // Aritmética de días civiles, independiente del cambio de hora de Santiago.
-  const dias = Array.from({ length: 7 }, (_, indice) => {
-    const dia = new Date(`${hoy}T12:00:00Z`);
-    dia.setUTCDate(dia.getUTCDate() + indice);
-    return dia.toISOString().slice(0, 10);
-  });
+  const dias = Array.from({ length: 7 }, (_, indice) => sumarDiasCalendario(hoy, indice));
   const [entrega, carga, conteo] = await Promise.all([
     obtenerDetalleEntregaAdmin(fecha), leerCargaJornada(fecha),
     obtenerConteoPedidosPorFecha(hoy, dias[6]),

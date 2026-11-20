@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState, useTransition, type FormEvent } fro
 
 import { gestionarCategoria, type OperacionCategoria } from "@/app/(admin)/admin/gestor-publico/categorias-actions";
 import { Button } from "@/components/ui/button";
+import { DiscardChangesDialog, useConfirmation } from "@/components/ui/confirmation-dialog";
 import type { CategoriaGestor, ProductoClasificable } from "@/lib/admin/catalogo";
 import { normalizeCatalogText } from "@/lib/catalog";
 
@@ -165,6 +166,7 @@ function CategoryDialog({ modal, cerrar, completar, devolverFoco, ...clasificaci
   const [busqueda, setBusqueda] = useState("");
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
   const [confirmacion, setConfirmacion] = useState<Extract<OperacionCategoria, { tipo: "guardar" }> | null>(null);
+  const descarte = useConfirmation();
   const categoria = "categoria" in modal ? modal.categoria : null;
   const asignando = modal.tipo === "asignar";
   const eliminando = modal.tipo === "eliminar";
@@ -271,17 +273,20 @@ function CategoryDialog({ modal, cerrar, completar, devolverFoco, ...clasificaci
     : asignando ? "Selecciona productos y elige la categoría de destino."
       : "Los cambios de productos se aplican al guardar.";
 
-  function puedeCerrar() {
-    return !enviando.current && (
-      (!datosModificados.current && seleccion.size === 0) || window.confirm("¿Descartar los cambios sin guardar?")
-    );
+  function solicitarCierre(alCerrar: () => void) {
+    if (enviando.current) return false;
+    if (datosModificados.current || seleccion.size > 0) {
+      descarte.ask(alCerrar);
+      return false;
+    }
+    alCerrar();
+    return true;
   }
 
   return (
     <Dialog.Root open disablePointerDismissal onOpenChange={(abierto, detalles) => {
       if (abierto) return;
-      if (puedeCerrar()) cerrar();
-      else detalles.cancel();
+      if (!solicitarCierre(cerrar)) detalles.cancel();
     }}>
       <Dialog.Portal>
         <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/25" />
@@ -376,17 +381,17 @@ function CategoryDialog({ modal, cerrar, completar, devolverFoco, ...clasificaci
                 }}>Volver a editar</Button>
               ) : <Dialog.Close disabled={pendiente} render={<Button variant="outline" />}>Cancelar</Dialog.Close>}
               {desactualizado ? (
-                <Button disabled={pendiente} onClick={() => {
-                  if (!puedeCerrar()) return;
+                <Button disabled={pendiente} onClick={() => solicitarCierre(() => {
                   router.refresh();
                   cerrar();
-                }}>Volver a cargar</Button>
+                })}>Volver a cargar</Button>
               ) : (
                 <Button type="submit" form={idFormulario} variant={eliminando ? "destructive" : "default"} disabled={pendiente || (asignando && (!categorias.length || !seleccion.size))}>
                   {pendiente ? "Guardando…" : eliminando ? "Eliminar categoría" : asignando ? "Asignar categoría" : confirmacion ? "Confirmar y guardar" : "Guardar categoría"}
                 </Button>
               )}
             </footer>
+            <DiscardChangesDialog confirmation={descarte} />
           </Dialog.Popup>
         </Dialog.Viewport>
       </Dialog.Portal>

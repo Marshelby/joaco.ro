@@ -1,3 +1,4 @@
+import { esFechaCalendario, formatearInstanteSantiago, sumarDiasCalendario } from "@/lib/operational-date";
 import { AdminCustomerDetail } from "@/components/admin/customer-detail";
 import { AdminOrderDetail } from "@/components/admin/order-detail";
 import { OrderDetailModal } from "@/components/admin/order-detail-modal";
@@ -36,7 +37,7 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
   const params = await searchParams;
   const hoy = obtenerFechaLocalActual();
   const fecha = params.fecha ?? hoy;
-  if (typeof fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(Date.parse(`${fecha}T12:00:00Z`)) || new Date(`${fecha}T12:00:00Z`).toISOString().slice(0, 10) !== fecha || fecha.startsWith("0000")) notFound();
+  if (!esFechaCalendario(fecha)) notFound();
   const db = await exigirAdminReparto();
   const { data, error } = await db.rpc("leer_rutas_multiples", { p_fecha: fecha });
   if (error || data?.contrato !== 3 || !Array.isArray(data.rutas) || !Array.isArray(data.repartidores)) {
@@ -53,7 +54,7 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
   const entrega = await obtenerDetalleEntregaAdmin(fecha);
   const contabilidad = await obtenerContabilidadRutas(fecha, entrega.pedidos.map(p => p.id));
   const utilidadDia = await obtenerPresentacionUtilidadDia(fecha);
-  const dias = Array.from({ length: 7 }, (_, n) => { const d = new Date(`${hoy}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); });
+  const dias = Array.from({ length: 7 }, (_, n) => sumarDiasCalendario(hoy, n));
   const conteo = await obtenerConteoPedidosPorFecha(hoy, dias[6]);
   const asignados = new Set(modelo.rutas.flatMap(r => r.pedidos));
   const disponibles = entrega.pedidos.filter(p => !asignados.has(p.id) && ["recibido", "en_revision", "programado", "confirmado", "preparando", "listo_despacho"].includes(p.estado));
@@ -123,7 +124,7 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
       {ruta.estado === "planificacion" && <RutaMultipleForm comando={comando("preparar")} etiqueta="Iniciar preparación de esta ruta" disabled={!permiso.permitida} />}
       {ruta.estado === "en_reparto" && <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">Salida registrada. Asigna los pedidos nuevos a otra ruta independiente desde «Crear ruta».</p>}
       {ruta.estado === "cerrada" && <p className="text-sm text-muted-foreground">Ruta cerrada: sus pedidos y operaciones están bloqueados. Usa «Crear ruta» para una nueva salida.</p>}
-      {!!ruta.historial.length && <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Historial de operaciones de esta ruta</summary><ol className="space-y-3 text-sm">{ruta.historial.map(e => <li key={e.clave} className="break-words rounded-lg border p-3"><p>{new Date(e.instante).toLocaleString("es-CL", { timeZone: "America/Santiago" })} · {describirAccionRuta(e.accion)} · {e.resultado.ok ? "Confirmada" : "Sin confirmar"}</p><p>Responsable: {nombreResponsable(e.actor)} · Versión: {e.resultado.version}</p>{e.pedido && <p>Pedido: {porId.get(e.pedido)?.numeroPedido ?? e.pedido}</p>}{e.resultado.modalidad && <p>{e.resultado.modalidad.replaceAll("_", " ")} · Pedidos incorporados: {e.resultado.pedidos_agregados?.map(id => porId.get(id)?.numeroPedido ?? id).join(", ")}</p>}{e.motivo && <p>Motivo: {e.motivo}</p>}</li>)}</ol></details>}
+      {!!ruta.historial.length && <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Historial de operaciones de esta ruta</summary><ol className="space-y-3 text-sm">{ruta.historial.map(e => <li key={e.clave} className="break-words rounded-lg border p-3"><p>{formatearInstanteSantiago(e.instante, { dateStyle: "short", timeStyle: "medium", hourCycle: "h23" })} · {describirAccionRuta(e.accion)} · {e.resultado.ok ? "Confirmada" : "Sin confirmar"}</p><p>Responsable: {nombreResponsable(e.actor)} · Versión: {e.resultado.version}</p>{e.pedido && <p>Pedido: {porId.get(e.pedido)?.numeroPedido ?? e.pedido}</p>}{e.resultado.modalidad && <p>{e.resultado.modalidad.replaceAll("_", " ")} · Pedidos incorporados: {e.resultado.pedidos_agregados?.map(id => porId.get(id)?.numeroPedido ?? id).join(", ")}</p>}{e.motivo && <p>Motivo: {e.motivo}</p>}</li>)}</ol></details>}
     </section>}
     <JornadaModos key={ruta?.id ?? fecha} titulo={ruta?.nombre ?? "Pedidos del día"} mensaje={ruta ? permiso.mensaje : "Abre una ruta para preparar sus pedidos. Los pedidos nuevos quedan disponibles hasta asignarlos."} preparacion={<>
       {!pedidos.length && <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No hay pedidos en esta selección. Asigna pedidos disponibles o consulta otra fecha.</p>}<ul className="space-y-2">{pedidos.map((p, n) => <DeliveryOrderCard key={p.id} pedido={p} resumenContable={<RutasContabilidadPedido resumen={contabilidad?.[p.id]} />} operativa soloPreparacion numeroPreparacion={n + 1} rutaMultiple soloLecturaRuta={!ruta || ruta.estado !== "preparacion"} />)}</ul>

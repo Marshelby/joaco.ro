@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
+import { ConfirmationDialog, useSubmitConfirmation } from "@/components/ui/confirmation-dialog";
 import { PendingButton } from "@/components/ui/pending-button";
 import { actualizarPermisoAdministrador, buscarUsuariosAdministracion } from "./internal-manager-administrators-actions";
 import { useInternalManagerUserSearch, type UsuarioGestorInterno } from "./internal-manager-user-search";
@@ -35,6 +36,7 @@ function PermisoAdministrador({ usuario, activo, onUpdated }: {
   const clave = useRef<string | null>(null);
   const [error, setError] = useState("");
   const identidad = usuario.correo || usuario.nombre || usuario.usuario_id;
+  const confirmation = useSubmitConfirmation();
 
   async function guardar() {
     setError("");
@@ -52,12 +54,19 @@ function PermisoAdministrador({ usuario, activo, onUpdated }: {
     }
   }
 
-  return <form action={guardar} onSubmit={event => {
-    if (!window.confirm(`¿${activo ? "Conceder" : "Revocar"} el rol administrador a ${identidad}?`)) event.preventDefault();
-  }}>
-    <BotonPermiso activo={activo} identidad={identidad} />
-    {error && <p role="alert" className="max-w-64 text-xs text-destructive">{error}</p>}
-  </form>;
+  return <>
+    <form action={guardar} onSubmit={confirmation.onSubmit}>
+      <BotonPermiso activo={activo} identidad={identidad} />
+      {error && <p role="alert" className="max-w-64 text-xs text-destructive">{error}</p>}
+    </form>
+    <ConfirmationDialog
+      confirmation={confirmation}
+      title={activo ? "¿Conceder el rol de administrador?" : "¿Revocar el rol de administrador?"}
+      description={activo ? `${identidad} obtendrá acceso a la administración.` : `${identidad} perderá el acceso a la administración.`}
+      confirmLabel={activo ? "Conceder rol" : "Revocar rol"}
+      destructive={!activo}
+    />
+  </>;
 }
 
 const resultadoVacio = { query: "", usuarios: [] as UsuarioGestorInterno[], error: "" };

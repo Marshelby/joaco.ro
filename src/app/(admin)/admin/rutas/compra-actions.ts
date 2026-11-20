@@ -1,5 +1,6 @@
 "use server";
 
+import { esFechaCalendario } from "@/lib/operational-date";
 import { totalCompraCLP } from "@/lib/admin/compra-importes";
 import { revalidatePath } from "next/cache";
 import { exigirAdminReparto } from "@/lib/reparto/server";
@@ -12,8 +13,7 @@ export async function guardarCompraDia(datos: FormData): Promise<{ error?: strin
   const cantidadTexto = String(datos.get("cantidad") ?? "").trim();
   const precioTexto = String(datos.get("precio") ?? "").trim();
   const decimal = /^\d{1,9}(\.\d{1,3})?$/;
-  const fechaReal = new Date(`${fecha}T12:00:00Z`);
-  if (!Number.isFinite(fechaReal.getTime()) || fechaReal.toISOString().slice(0, 10) !== fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !/^[a-f0-9]{32}$/.test(clave) ||
+  if (!esFechaCalendario(fecha) || !/^[a-f0-9]{32}$/.test(clave) ||
       !/^[a-f0-9]{32}$/.test(revision) || !/^\d+$/.test(versionTexto) ||
       !Number.isSafeInteger(Number(versionTexto)) || Number(versionTexto) > 2147483646 ||
       !decimal.test(cantidadTexto) || !decimal.test(precioTexto)) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDateTimeCL } from "@/lib/formatters";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -73,6 +74,6 @@ function ControlCarga({ fecha, carga, habilitada, identidades = {} }: Props) {
     {lista && <div className="space-y-2 border-t pt-3"><label className="block text-sm">Motivo para volver a preparación<textarea className="mt-1 block min-h-20 w-full rounded border bg-background p-3" maxLength={2000} value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={pendiente || !habilitada} /></label><Button variant="secondary" disabled={pendiente || !habilitada || !motivo.trim()} onClick={() => operar("reabrir")}>Volver a preparación conservando cantidades e importes</Button></div>}
     {salio && <p className="text-sm">{carga.estado === "cerrada" ? "Ruta cerrada. Consulta su resultado desde Rutas." : "Salida registrada. Consulta el resultado y termina la ruta desde Rutas."}</p>}
     <p role="status" className="text-sm">{pendiente ? "Registrando operación…" : mensaje}</p>
-    {carga.historial.length > 0 && <details><summary className="cursor-pointer text-sm">Auditoría de carga</summary><ol className="space-y-2 pt-3 text-sm">{carga.historial.map((h) => <li key={h.version} className="break-words">Revisión {h.version} · {h.accionDescripcion ?? "Operación administrativa"} · {h.instante} · Responsable: {h.actorNombre ?? "Responsable sin nombre disponible"}{h.solicitud.motivo ? ` · ${h.solicitud.motivo}` : ""}</li>)}</ol></details>}
+    {carga.historial.length > 0 && <details><summary className="cursor-pointer text-sm">Auditoría de carga</summary><ol className="space-y-2 pt-3 text-sm">{carga.historial.map((h) => <li key={h.version} className="break-words">Revisión {h.version} · {h.accionDescripcion ?? "Operación administrativa"} · {formatDateTimeCL(h.instante)} · Responsable: {h.actorNombre ?? "Responsable sin nombre disponible"}{h.solicitud.motivo ? ` · ${h.solicitud.motivo}` : ""}</li>)}</ol></details>}
   </section>;
 }

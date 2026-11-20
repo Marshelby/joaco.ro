@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+
+import { ConfirmationDialog, useSubmitConfirmation } from "@/components/ui/confirmation-dialog";
 import { actualizarPermisoReparto, gestionarReparto } from "./actions";
 
 type Usuario = { usuario_id: string; nombre: string | null; correo: string | null };
 
 export function PermissionForm({ usuarios, activo = true, compact = false, onUpdated }: { usuarios: Usuario[]; activo?: boolean; compact?: boolean; onUpdated?: (usuario: Usuario, activo: boolean) => void }) {
   const [error, setError] = useState("");
+  const confirmation = useSubmitConfirmation(!activo);
   async function guardar(formData: FormData) {
     setError("");
     try {
@@ -18,21 +21,30 @@ export function PermissionForm({ usuarios, activo = true, compact = false, onUpd
       setError("No se pudo confirmar el cambio. Revisa tu conexión e intenta nuevamente.");
     }
   }
-  return <form action={onUpdated ? guardar : gestionarReparto} className={compact ? "min-w-0 max-w-full" : "space-y-3"} onSubmit={event => {
-    if (!activo && !window.confirm("¿Revocar el permiso de reparto? El usuario perderá acceso a sus asignaciones.")) event.preventDefault();
-  }}>
-    <input type="hidden" name="accion" value="rol" />
-    <input type="hidden" name="activo" value={String(activo)} />
-    {usuarios.length === 1 && (compact || !activo) ? <input type="hidden" name="usuario" value={usuarios[0].usuario_id} /> :
-      <label className="block">Usuario registrado
-        <select name="usuario" required defaultValue="" className="mt-2 min-h-12 w-full rounded border bg-background p-3">
-          <option value="" disabled>Selecciona un usuario</option>
-          {usuarios.map(u => <option key={u.usuario_id} value={u.usuario_id}>{u.nombre || "Sin nombre"} · {u.correo || "Sin correo"}</option>)}
-        </select>
-      </label>}
-    {error && <p role="alert" className="max-w-64 text-xs text-destructive">{error}</p>}
-    <Submit activo={activo} compact={compact} usuario={compact ? usuarios[0] : undefined} />
-  </form>;
+  return (
+    <>
+      <form action={onUpdated ? guardar : gestionarReparto} className={compact ? "min-w-0 max-w-full" : "space-y-3"} onSubmit={confirmation.onSubmit}>
+        <input type="hidden" name="accion" value="rol" />
+        <input type="hidden" name="activo" value={String(activo)} />
+        {usuarios.length === 1 && (compact || !activo) ? <input type="hidden" name="usuario" value={usuarios[0].usuario_id} /> :
+          <label className="block">Usuario registrado
+            <select name="usuario" required defaultValue="" className="mt-2 min-h-12 w-full rounded border bg-background p-3">
+              <option value="" disabled>Selecciona un usuario</option>
+              {usuarios.map(u => <option key={u.usuario_id} value={u.usuario_id}>{u.nombre || "Sin nombre"} · {u.correo || "Sin correo"}</option>)}
+            </select>
+          </label>}
+        {error && <p role="alert" className="max-w-64 text-xs text-destructive">{error}</p>}
+        <Submit activo={activo} compact={compact} usuario={compact ? usuarios[0] : undefined} />
+      </form>
+      <ConfirmationDialog
+        confirmation={confirmation}
+        title="¿Revocar el permiso de reparto?"
+        description="El usuario perderá acceso a sus asignaciones."
+        confirmLabel="Revocar permiso"
+        destructive
+      />
+    </>
+  );
 }
 
 function Submit({ activo, compact, usuario }: { activo: boolean; compact: boolean; usuario?: Usuario }) {

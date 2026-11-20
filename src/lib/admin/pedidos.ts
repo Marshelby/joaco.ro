@@ -1,7 +1,7 @@
 import { obtenerContextoEntrega, type ContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
-import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
+import { hoySantiago } from "@/lib/operational-date";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import type { ModoCantidadSnapshot, PreparacionEstado } from "@/lib/order-preparation";
 import type { MetodoPagoPrevisto } from "@/lib/payment-intent";
@@ -217,16 +217,7 @@ function mapPedidoListado(fila: PedidoListadoFila): PedidoAdminListado {
   };
 }
 
-export function obtenerFechaLocalActual() {
-  const partes = new Intl.DateTimeFormat("en-CA", {
-    timeZone: DELIVERY_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const valor = (type: Intl.DateTimeFormatPartTypes) => partes.find((parte) => parte.type === type)?.value ?? "";
-  return `${valor("year")}-${valor("month")}-${valor("day")}`;
-}
+export const obtenerFechaLocalActual = hoySantiago;
 
 function esEstadoIncluidoEnEntrega(estado: EstadoPedidoAdmin) {
   return estado !== "cancelado";

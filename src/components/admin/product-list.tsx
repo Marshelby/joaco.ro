@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
+import { DiscardChangesDialog, useConfirmation } from "@/components/ui/confirmation-dialog";
 import type { CategoriaAdmin, ProductoAdmin } from "@/lib/admin/catalogo";
 
 import { ProductForm } from "./product-form";
@@ -20,6 +21,7 @@ export function ProductList({ products, categorias }: { products: readonly Produ
   const cambios = useRef(false);
   const guardando = useRef(false);
   const [ocupado, setOcupado] = useState(false);
+  const descarte = useConfirmation();
 
   function cerrar() {
     setEditor(undefined);
@@ -30,7 +32,10 @@ export function ProductList({ products, categorias }: { products: readonly Produ
 
   function solicitarCierre() {
     if (guardando.current) return false;
-    if (cambios.current && !window.confirm("¿Descartar los cambios sin guardar?")) return false;
+    if (cambios.current) {
+      descarte.ask(cerrar);
+      return false;
+    }
     cerrar();
     return true;
   }
@@ -82,6 +87,7 @@ export function ProductList({ products, categorias }: { products: readonly Produ
                   onSaving: (saving) => { guardando.current = saving; setOcupado(saving); },
                   onSaved: () => { setAviso("Producto guardado."); cerrar(); },
                 }} />
+                <DiscardChangesDialog confirmation={descarte} />
               </Dialog.Popup>
             </Dialog.Viewport>
           </Dialog.Portal>

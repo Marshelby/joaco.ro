@@ -1,3 +1,4 @@
+import { esFechaCalendario } from "@/lib/operational-date";
 import type { Metadata } from "next";
 import { JornadaCargaControl } from "@/components/admin/jornada-carga-control";
 import { leerCargaJornada } from "@/lib/admin/cargas";
@@ -16,16 +17,9 @@ import { obtenerIdentidadActual } from "@/lib/account/identity";
 
 export const metadata: Metadata = { title: "Jornada de entrega" };
 
-function esFechaReal(fecha: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
-  const [ano, mes, dia] = fecha.split("-").map(Number);
-  const date = new Date(Date.UTC(ano, mes - 1, dia));
-  return date.getUTCFullYear() === ano && date.getUTCMonth() === mes - 1 && date.getUTCDate() === dia;
-}
-
 export default async function AdminDeliveryDayPage({ params }: { params: Promise<{ fecha: string }> }) {
   const { fecha } = await params;
-  if (!esFechaReal(fecha)) notFound();
+  if (!esFechaCalendario(fecha)) notFound();
 
   const [entrega, identidad, carga] = await Promise.all([obtenerDetalleEntregaAdmin(fecha), obtenerIdentidadActual(), leerCargaJornada(fecha)]);
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(fecha);

@@ -1,4 +1,4 @@
-import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
+import { hoySantiago } from "@/lib/operational-date";
 import { getClosedPresentationKind } from "@/lib/cart-quantity";
 
 export const PREPARACION_ESTADOS = ["pendiente", "completa", "incompleta"] as const;
@@ -31,11 +31,7 @@ export function resolverModoCantidadPreparacion({
 
 // Orientación de interfaz; las RPC vuelven a validar con el reloj de PostgreSQL.
 export function obtenerPermisoTemporalPreparacion(fechaEntrega: string | null, momento = new Date()) {
-  const partes = new Intl.DateTimeFormat("en-CA", {
-    timeZone: DELIVERY_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(momento);
-  const parte = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((p) => p.type === tipo)?.value ?? "";
-  const hoy = `${parte("year")}-${parte("month")}-${parte("day")}`;
+  const hoy = hoySantiago(momento);
   const permitida = fechaEntrega === hoy;
   const mensaje = permitida
     ? "Fecha habilitada para preparar hoy (America/Santiago). Requiere un pedido confirmado o en preparación."

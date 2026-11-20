@@ -1,24 +1,17 @@
-import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
-
-function dateOnlyToDate(fecha: string) {
-  return new Date(`${fecha}T12:00:00.000Z`);
-}
-
+import { formatearFechaCalendario } from "@/lib/operational-date";
 export function formatFechaEntregaLarga(fecha: string) {
-  const texto = new Intl.DateTimeFormat("es-CL", {
+  const texto = formatearFechaCalendario(fecha, {
     weekday: "long",
     day: "numeric",
     month: "long",
-    timeZone: DELIVERY_TIME_ZONE,
-  }).format(dateOnlyToDate(fecha));
+  });
   return texto.charAt(0).toLocaleUpperCase("es-CL") + texto.slice(1);
 }
 
 export function formatFechaEntregaCorta(fecha: string) {
-  return new Intl.DateTimeFormat("es-CL", {
+  return formatearFechaCalendario(fecha, {
     weekday: "short",
     day: "numeric",
     month: "short",
-    timeZone: DELIVERY_TIME_ZONE,
-  }).format(dateOnlyToDate(fecha)).replace(",", "");
+  }).replace(",", "");
 }

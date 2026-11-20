@@ -1,10 +1,8 @@
+import { esFechaCalendario } from "@/lib/operational-date";
 import { z } from "zod";
 import { normalizarTelefonoWhatsapp } from "@/lib/whatsapp";
 
-export const fechaISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((valor) => {
-  const fecha = new Date(`${valor}T12:00:00Z`);
-  return Number.isFinite(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
-});
+export const fechaISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(esFechaCalendario);
 export const itemSolicitud = z.strictObject({ presentacion_id: z.uuid().transform((id) => id.toLowerCase()), cantidad: z.number().finite().positive().max(100000) });
 export const datosSolicitud = z.strictObject({
   nombre: z.string().trim().min(1).max(160),

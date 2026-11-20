@@ -1,11 +1,10 @@
 import "server-only";
+import { sumarDiasCalendario } from "@/lib/operational-date";
 import { administradorProduccion } from "./servidor";
 import { fechaValida, hoySantiago, type Lugar, type Unidad } from "./contrato";
 export type Diario = { unidad_id: string; fecha_operativa: string; tipo_actividad: string; cultivo: string | null; medida: string | null; cantidad: number | null; registros: number; cantidades_conocidas: number; importe: number | null; sin_importe: number };
 export type Resumen = { lugares: Lugar[]; unidades: Unidad[]; configuraciones: { unidad_id: string; vigente_desde: string; cultivo: string; capacidad: number | null; cantidad_gallinas: number | null }[]; diario: Diario[] };
-export function desplazar(fecha: string, dias: number) {
- const d = new Date(`${fecha}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+dias); return d.toISOString().slice(0,10);
-}
+export const desplazar = sumarDiasCalendario;
 export function rangoResumen(p: Record<string,string | string[] | undefined>) {
  if(Object.values(p).some(v=>Array.isArray(v))) throw new Error("Revisa los filtros repetidos.");
  const valor = (k:string) => typeof p[k] === "string" ? p[k] as string : "";

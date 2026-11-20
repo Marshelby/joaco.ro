@@ -1,4 +1,5 @@
 import "server-only";
+import { esFechaCalendario } from "@/lib/operational-date";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type FiltrosNoEntregados = { q?: string; desde?: string; hasta?: string; pagina?: string };
@@ -13,7 +14,7 @@ export async function obtenerNoEntregados(filtros: FiltrosNoEntregados) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   const { data: admin, error: adminError } = await supabase.rpc("es_admin");
   if (authError || !user || adminError || admin !== true) throw new Error("NO_AUTORIZADO");
-  const fechaValida = (s?: string) => !s || (/^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s);
+  const fechaValida = (fecha?: string) => !fecha || esFechaCalendario(fecha);
   if (!fechaValida(filtros.desde) || !fechaValida(filtros.hasta) || (filtros.desde && filtros.hasta && filtros.desde > filtros.hasta)) return { error: "Revisa el rango de fechas de entrega.", pedidos: [], total: 0, pagina: 1 };
   const pagina = Math.min(100000, Math.max(1, Number(filtros.pagina) || 1));
   const { data, error } = await supabase.rpc("leer_no_entregados_admin", {

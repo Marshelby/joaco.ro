@@ -95,7 +95,7 @@ export function mapStorefrontProduct(row: CatalogRow): MockProduct | null {
     presentationName: presentation.nombre,
     presentationQuantity: Number(presentation.cantidad),
     presentationUnit: presentation.unidad,
-    badge: row.nuevo ? "Nuevo" : row.destacado ? "Destacado" : undefined,
+    badge: row.nuevo ? "Nuevo" : row.destacado ? "Destacado" : row.mas_vendido ? "Más vendido" : undefined,
     availability: row.disponible ? "available_subject_to_confirmation" : "out_of_stock",
     adminStatus: row.activo ? "active" : "hidden",
     featured: row.destacado,

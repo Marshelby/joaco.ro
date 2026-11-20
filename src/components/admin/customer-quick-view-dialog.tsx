@@ -5,6 +5,7 @@ import { ExternalLink, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { obtenerVistaRapidaClienteAdmin, type ResultadoVistaRapidaClienteAdmin } from "@/app/(admin)/admin/clientes/actions";
+import { CustomerHistorySection } from "@/components/admin/customer-history-section";
 import { ActionLink } from "@/components/ui/action-link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ROUTES } from "@/config/routes";
@@ -44,18 +45,18 @@ export function CustomerQuickViewDialog({ clienteId, nombre }: CustomerQuickView
       <Dialog.Portal>
         <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/25" />
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">
-          <Dialog.Popup className="motion-dialog-content max-h-[calc(100dvh-1rem)] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-xl outline-none sm:max-h-[85vh] sm:p-6">
-            <div className="sticky top-0 z-10 -mx-5 -mt-5 flex items-start justify-between gap-4 border-b border-border bg-card px-5 py-4 sm:-mx-6 sm:-mt-6 sm:px-6">
+          <Dialog.Popup className="motion-dialog-content max-h-[calc(100dvh-1rem)] flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl outline-none sm:max-h-[85dvh]">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-card px-4 py-3 sm:px-6">
               <div>
-                <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground">Cliente</Dialog.Title>
+                <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground">Ficha de cliente</Dialog.Title>
                 <Dialog.Description className="mt-1 text-sm text-muted-foreground">Consulta rápida de información administrativa.</Dialog.Description>
               </div>
-              <Dialog.Close type="button" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-[background-color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Cerrar">
+              <Dialog.Close type="button" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-[background-color,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease-standard)] hover:bg-muted active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Cerrar ficha de cliente">
                 <X className="size-5" aria-hidden="true" />
               </Dialog.Close>
             </div>
 
-            <div className="pt-5 sm:pt-6">
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
               {vista.estado === "inicial" || vista.estado === "cargando" ? <CustomerQuickViewSkeleton /> : null}
               {vista.estado === "error" ? <CustomerQuickViewError onRetry={cargarCliente} /> : null}
               {vista.estado === "no_encontrado" ? <p role="status" className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">Este cliente ya no está disponible.</p> : null}
@@ -83,5 +84,77 @@ function etiquetaEstado(estado: string) {
 function CustomerQuickViewContent({ cliente }: { cliente: Extract<ResultadoVistaRapidaClienteAdmin, { estado: "listo" }>["cliente"] }) {
   const saldo = describirSaldoCuenta(cliente.saldoActual);
 
-  return <div className="space-y-5"><section className="rounded-xl border border-border p-4"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold tracking-tight text-foreground">{cliente.nombre}</h2><span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{cliente.activo ? "Activo" : "Inactivo"}</span></div><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-muted-foreground">Email</dt><dd className="mt-1 break-words text-foreground">{cliente.email ?? "Sin email"}</dd></div><div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1 text-foreground">{cliente.telefono ?? "Sin teléfono"}</dd></div><div><dt className="text-muted-foreground">Acceso web</dt><dd className="mt-1 text-foreground">{cliente.usuarioId ? "Activo" : "Sin acceso"}</dd></div></dl></section><section className="rounded-xl border border-border p-4"><h2 className="text-lg font-semibold tracking-tight text-foreground">Resumen de cuenta</h2><div className="mt-4 grid gap-4 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Saldo actual</p><p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{formatCLP(saldo.monto)}</p><p className="mt-1 text-sm font-medium text-foreground">{saldo.texto}</p></div><div><p className="text-sm text-muted-foreground">Pedidos</p><p className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalPedidos)}</p></div><div><p className="text-sm text-muted-foreground">Pagos confirmados</p><p className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalPagosConfirmados)}</p></div></div></section><section className="rounded-xl border border-border p-4"><h2 className="text-lg font-semibold tracking-tight text-foreground">Actividad reciente</h2><div className="mt-4 grid gap-5 lg:grid-cols-2"><div><h3 className="text-sm font-semibold text-foreground">Pedidos</h3>{cliente.pedidos.length > 0 ? <ul className="mt-2 space-y-2">{cliente.pedidos.map((pedido) => <li key={pedido.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm"><div><p className="font-medium text-foreground">{pedido.numeroPedido}</p><p className="mt-0.5 text-muted-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{etiquetaEstado(pedido.estado)}</span><span className="font-semibold text-foreground">{formatCLP(pedido.total)}</span></div></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">Sin pedidos registrados.</p>}</div><div><h3 className="text-sm font-semibold text-foreground">Movimientos</h3>{cliente.movimientos.length > 0 ? <ul className="mt-2 space-y-2">{cliente.movimientos.map((movimiento) => <li key={`${movimiento.tipo}:${movimiento.id}`} className="rounded-lg bg-muted/50 px-3 py-2 text-sm"><p className="font-medium text-foreground">{movimiento.referencia}</p><p className="mt-0.5 text-muted-foreground">{movimiento.concepto}</p><p className="mt-1 font-semibold text-foreground">{movimiento.cargo > 0 ? `+${formatCLP(movimiento.cargo)}` : `-${formatCLP(movimiento.abono)}`}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">Sin movimientos registrados.</p>}</div></div></section><ActionLink href={ROUTES.adminCustomer(cliente.id)} variant="quiet" className="-ml-3"><ExternalLink className="size-4" aria-hidden="true" />Abrir ficha completa</ActionLink></div>;
+  return (
+    <div className="min-w-0 space-y-5 wrap-anywhere">
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{cliente.nombre}</h2>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{cliente.activo ? "Activo" : "Inactivo"}</span>
+        </div>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+          <div><dt className="text-muted-foreground">Email</dt><dd className="mt-1 text-foreground">{cliente.email ?? "Sin email"}</dd></div>
+          <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1 text-foreground">{cliente.telefono ?? "Sin teléfono"}</dd></div>
+          <div><dt className="text-muted-foreground">Acceso web</dt><dd className="mt-1 text-foreground">{cliente.usuarioId ? "Activo" : "Sin acceso"}</dd></div>
+        </dl>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Resumen de cuenta</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm tabular-nums sm:grid-cols-3">
+          <div className="col-span-2 sm:col-span-1">
+            <dt className="text-muted-foreground">Saldo actual</dt>
+            <dd className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{formatCLP(saldo.monto)}</dd>
+            <dd className="mt-1 font-medium text-foreground">{saldo.texto}</dd>
+          </div>
+          <div><dt className="text-muted-foreground">Pedidos</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalPedidos)}</dd></div>
+          <div><dt className="text-muted-foreground">Pagos confirmados</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalPagosConfirmados)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Actividad reciente</h2>
+        <div className="grid items-start gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground">Pedidos</h3>
+            {cliente.pedidos.length > 0 ? (
+              <ul className="mt-2 space-y-2">
+                {cliente.pedidos.map((pedido) => (
+                  <li key={pedido.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/25 px-3 py-2 text-sm">
+                    <div>
+                      <p className="font-medium text-foreground">{pedido.numeroPedido}</p>
+                      <time dateTime={pedido.fechaCreacion} className="mt-0.5 block text-muted-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</time>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{etiquetaEstado(pedido.estado)}</span>
+                      <span className="font-semibold tabular-nums text-foreground">{formatCLP(pedido.total)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="mt-2 text-sm text-muted-foreground">Sin pedidos registrados.</p>}
+          </div>
+
+          <CustomerHistorySection section="movimientos" count={cliente.movimientos.length} nested>
+            {cliente.movimientos.length > 0 ? (
+              <ul className="space-y-2">
+                {cliente.movimientos.map((movimiento) => (
+                  <li key={`${movimiento.tipo}:${movimiento.id}`} className="rounded-xl border border-border bg-muted/25 px-3 py-2 text-sm">
+                    <p className="font-medium text-foreground">{movimiento.referencia}</p>
+                    <p className="mt-0.5 text-muted-foreground">{movimiento.concepto}</p>
+                    <time dateTime={movimiento.fecha} className="mt-0.5 block text-muted-foreground">{formatDateTimeCL(movimiento.fecha)}</time>
+                    <p className="mt-1 font-semibold tabular-nums text-foreground">{movimiento.cargo > 0 ? `+${formatCLP(movimiento.cargo)}` : `-${formatCLP(movimiento.abono)}`}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="text-sm text-muted-foreground">Sin movimientos registrados.</p>}
+          </CustomerHistorySection>
+        </div>
+      </section>
+
+      <ActionLink href={ROUTES.adminCustomer(cliente.id)} variant="quiet" className="-ml-3">
+        <ExternalLink className="size-4" aria-hidden="true" />
+        Abrir ficha completa
+      </ActionLink>
+    </div>
+  );
 }

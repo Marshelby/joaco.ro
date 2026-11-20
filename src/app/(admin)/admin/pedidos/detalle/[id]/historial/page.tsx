@@ -4,13 +4,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ActionLink } from "@/components/ui/action-link";
 import { obtenerHistorialPedido } from "@/lib/admin/pedido-historial";
-import { DELIVERY_TIME_ZONE } from "@/config/delivery-schedule";
+import { formatearInstanteSantiago } from "@/lib/operational-date";
 
 export const metadata: Metadata = { title: "Historial del pedido" };
-
-const fechaChile = new Intl.DateTimeFormat("es-CL", {
-  timeZone: DELIVERY_TIME_ZONE, dateStyle: "long", timeStyle: "medium", hour12: false,
-});
 
 export default async function HistorialPedidoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volver?: string | string[] }> }) {
   const { id } = await params;
@@ -40,7 +36,7 @@ export default async function HistorialPedidoPage({ params, searchParams }: { pa
           <h2 className="font-semibold">{evento.tipo}</h2>
           <span className={`rounded-full px-2 py-1 text-xs font-medium ${evento.provisional ? "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100" : "bg-primary/10 text-primary"}`}>{evento.provisional ? "Provisional / pendiente" : "Registro confirmado"}</span>
         </div>
-        <time dateTime={evento.fecha} className="mt-2 block text-sm text-muted-foreground">{fechaChile.format(new Date(evento.fecha))}</time>
+        <time dateTime={evento.fecha} className="mt-2 block text-sm text-muted-foreground">{formatearInstanteSantiago(evento.fecha, { dateStyle: "long", timeStyle: "medium", hourCycle: "h23" })}</time>
         {evento.actor ? <p className="mt-2 break-all text-xs text-muted-foreground">Actor (ID): {evento.actor}</p> : null}
         {evento.detalles.length ? <ul className="mt-3 space-y-2 text-sm leading-6 [overflow-wrap:anywhere]">{evento.detalles.map((detalle, indice) => <li key={indice}>{detalle}</li>)}</ul> : null}
       </li>)}

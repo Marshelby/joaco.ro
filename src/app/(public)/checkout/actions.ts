@@ -1,5 +1,6 @@
 "use server";
 
+import { esFechaCalendario } from "@/lib/operational-date";
 import { revalidatePath } from "next/cache";
 
 import { normalizarMetodosPagoPrevistos } from "@/lib/payment-intent";
@@ -44,12 +45,6 @@ function obtenerItems(datos: FormData) {
   }
 }
 
-function fechaEntregaValida(valor: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
-  const fecha = new Date(`${valor}T12:00:00.000Z`);
-  return !Number.isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
-}
-
 export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData): Promise<EstadoCrearPedido> {
   const items = obtenerItems(datos);
   const claveIdempotencia = String(datos.get("claveIdempotencia") ?? "").trim();
@@ -60,7 +55,7 @@ export async function crearPedidoCheckout(_: EstadoCrearPedido, datos: FormData)
 
   if (!items || !claveIdempotencia) return { error: "No fue posible preparar el pedido. Revisa el carrito e inténtalo nuevamente." };
   if (!direccionClienteId) return { error: "Selecciona una dirección con ubicación marcada para confirmar el pedido." };
-  if (!fechaEntregaValida(fechaEntrega)) return { error: "Selecciona una fecha de entrega para confirmar el pedido." };
+  if (!esFechaCalendario(fechaEntrega)) return { error: "Selecciona una fecha de entrega para confirmar el pedido." };
   if (!metodosPagoPrevistos) return { error: "Selecciona al menos una forma de pago." };
 
   const supabase = await crearClienteSupabaseServidor();

@@ -1,4 +1,6 @@
 import "server-only";
+
+import { leerInstante } from "@/lib/operational-date";
 import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
 
@@ -77,7 +79,10 @@ export async function obtenerHistorialPedido(id: string) {
   if (preparacion.error) fuenteNoDisponible("el historial de preparación", preparacion.error);
   const eventos: EventoPedido[] = [];
   function agregar(clave: string, fecha: unknown, tipo: string, actor: unknown, detalles: string[], provisional = false) {
-    if (typeof fecha !== "string" || !Number.isFinite(Date.parse(fecha))) return;
+    if (typeof fecha !== "string" || !fecha.trim()) return;
+    if (!Number.isFinite(leerInstante(fecha))) {
+      avisos.push("Hay eventos con fecha inválida o sin zona horaria. Se muestran al final del historial.");
+    }
     eventos.push({ id: clave, fecha, tipo, actor: typeof actor === "string" ? actor : undefined, detalles, provisional });
   }
   const contextoEntrega = await obtenerContextoEntrega(id).catch((error: unknown) => {
@@ -198,5 +203,12 @@ export async function obtenerHistorialPedido(id: string) {
   if (!contextoEntrega.disponible) avisos.push("Observaciones de entrega no disponibles; el historial mostrado es parcial.");
   const nombreResponsable = await obtenerNombresResponsables(eventos.map(e => e.actor));
   for (const evento of eventos) evento.actor = nombreResponsable(evento.actor);
-  return { numeroPedido: String(pedido.numero_pedido), avisos: [...new Set(avisos)], eventos: eventos.sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id)) };
+  eventos.sort((a, b) => {
+    const primero = leerInstante(a.fecha);
+    const segundo = leerInstante(b.fecha);
+    if (!Number.isFinite(primero)) return Number.isFinite(segundo) ? 1 : a.id.localeCompare(b.id);
+    if (!Number.isFinite(segundo)) return -1;
+    return primero - segundo || a.id.localeCompare(b.id);
+  });
+  return { numeroPedido: String(pedido.numero_pedido), avisos: [...new Set(avisos)], eventos };
 }

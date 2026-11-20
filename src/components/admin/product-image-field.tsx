@@ -1,25 +1,136 @@
-import { ImagePlus } from "lucide-react";
-import { CatalogImage } from "@/components/media/catalog-image";
-import { Button } from "@/components/ui/button";
-import type { ProductFormValues } from "@/types/admin-product-form";
+"use client";
 
-export function ProductImageField({ values }: { values: ProductFormValues }) {
+import { useEffect, useRef, useState } from "react";
+import { reemplazarImagenProducto } from "@/app/(admin)/admin/productos/actions";
+import { CatalogImage } from "@/components/media/catalog-image";
+import { PendingButton } from "@/components/ui/pending-button";
+import { Button } from "@/components/ui/button";
+import { TIPO_IMAGEN_PRODUCTO, validarArchivoImagenProducto } from "@/lib/product-image";
+
+type Props = {
+  product?: { id: string; rutaImagen: string | null };
+  errorServidor?: string;
+  saving: boolean;
+  onSelectionChange: () => void;
+  onSaving: (saving: boolean) => void;
+};
+
+export function ProductImageField({ product, errorServidor, saving, onSelectionChange, onSaving }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [ruta, setRuta] = useState(product?.rutaImagen ?? null);
+  const [archivo, setArchivo] = useState<File>();
+  const [vistaPrevia, setVistaPrevia] = useState<string>();
+  const [errorArchivo, setErrorArchivo] = useState<string>();
+  const [errorGuardado, setErrorGuardado] = useState<string>();
+  const [aviso, setAviso] = useState<string>();
+  const guardando = useRef(false);
+
+  useEffect(() => {
+    if (vistaPrevia) return () => URL.revokeObjectURL(vistaPrevia);
+  }, [vistaPrevia]);
+
+  async function seleccionar(input: HTMLInputElement) {
+    const elegido = input.files?.[0];
+    onSelectionChange();
+    setArchivo(undefined);
+    setVistaPrevia(undefined);
+    setErrorArchivo(undefined);
+    setErrorGuardado(undefined);
+    setAviso(undefined);
+    input.setCustomValidity("");
+    if (!elegido) return;
+
+    let error = validarArchivoImagenProducto(elegido);
+    if (!error) {
+      if (!product) input.setCustomValidity("Espera mientras se verifica la imagen.");
+      try {
+        const cabecera = new Uint8Array(await elegido.slice(0, 12).arrayBuffer());
+        const formato = String.fromCharCode(...cabecera);
+        if (formato.slice(0, 4) !== "RIFF" || formato.slice(8, 12) !== "WEBP") {
+          throw new Error("Formato inválido");
+        }
+        const imagen = await createImageBitmap(elegido);
+        imagen.close();
+      } catch {
+        error = "Selecciona un archivo WebP válido.";
+      }
+    }
+    if (input.files?.[0] !== elegido) return;
+    if (!product) input.setCustomValidity(error ?? "");
+    setErrorArchivo(error);
+    if (!error) {
+      setVistaPrevia(URL.createObjectURL(elegido));
+      setArchivo(elegido);
+    }
+  }
+
+  function quitarSeleccion() {
+    const input = inputRef.current;
+    if (!input) return;
+    input.value = "";
+    void seleccionar(input);
+  }
+
+  async function guardarImagen() {
+    if (!product || !archivo || guardando.current) return;
+    guardando.current = true;
+    onSaving(true);
+    setErrorGuardado(undefined);
+    setErrorArchivo(undefined);
+    setAviso(undefined);
+    try {
+      const datos = new FormData();
+      datos.set("imagen", archivo);
+      const resultado = await reemplazarImagenProducto(product.id, ruta, datos);
+      if ("error" in resultado) {
+        if (resultado.errorImagen) setErrorArchivo(resultado.errorImagen);
+        else setErrorGuardado(resultado.error);
+        return;
+      }
+      setRuta(resultado.ruta);
+      quitarSeleccion();
+      setAviso("Imagen guardada.");
+    } catch {
+      setErrorGuardado("No se pudo confirmar el cambio de imagen. Reabre el editor para comprobar el resultado.");
+    } finally {
+      guardando.current = false;
+      onSaving(false);
+    }
+  }
+
+  const error = errorArchivo ?? errorServidor;
+  const src = vistaPrevia ?? ruta;
   return (
-    <section aria-labelledby="product-image-title" className="rounded-xl border border-border bg-card p-5 sm:p-6">
-      <div className="space-y-1">
-        <h2 id="product-image-title" className="text-lg font-semibold tracking-tight text-foreground">Imagen</h2>
-        <p className="text-sm leading-6 text-muted-foreground">Una imagen principal para reconocer el producto.</p>
-      </div>
-      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative size-24 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
-          <CatalogImage image={values.image} fallback={values.imageFallback} sizes="96px" fallbackIconClassName="size-10" />
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+          <CatalogImage image={src ? { src, alt: vistaPrevia ? "Vista previa" : "Imagen actual", fit: "contain" } : undefined} fallback="package" sizes="56px" fallbackIconClassName="size-6" />
         </div>
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-foreground">Imagen actual</p>
-          <Button type="button" variant="outline"><ImagePlus aria-hidden="true" />Cambiar imagen</Button>
-          <p className="text-xs leading-5 text-muted-foreground">La selección de imagen se conectará cuando exista almacenamiento.</p>
-        </div>
+        <label className="min-w-0 flex-1 basis-48 text-sm font-medium">
+          {ruta ? "Reemplazar imagen" : "Seleccionar imagen"}
+          <input
+            ref={inputRef}
+            name={product ? undefined : "imagen"}
+            type="file"
+            accept={`.webp,${TIPO_IMAGEN_PRODUCTO}`}
+            className="mt-1 block w-full text-xs file:me-2 file:rounded-md file:border file:border-border file:bg-background file:px-2 file:py-1.5"
+            onChange={(event) => {
+              if (product) event.stopPropagation();
+              void seleccionar(event.currentTarget);
+            }}
+          />
+          <span className="mt-1 block text-xs text-muted-foreground">WebP de hasta 500000 bytes.</span>
+        </label>
       </div>
-    </section>
+      {(archivo || error) && <div className="flex flex-wrap gap-2">
+        {product && archivo && !error && <PendingButton type="button" size="sm" variant="outline" pending={saving} pendingLabel="Guardando imagen…" onClick={guardarImagen}>Guardar imagen</PendingButton>}
+        <Button type="button" size="sm" variant="ghost" onClick={quitarSeleccion}>Quitar selección</Button>
+      </div>}
+      {error && <p role="alert" className="text-sm text-destructive">
+        {error} Abre <a href="https://squoosh.app" target="_blank" rel="noopener noreferrer" className="underline">Squoosh</a>, sube la imagen, selecciona WebP, ajusta la calidad si hace falta y descarga el archivo.
+      </p>}
+      {errorGuardado && <p role="alert" className="text-sm text-destructive">{errorGuardado}</p>}
+      {aviso && <p role="status" className="text-sm text-muted-foreground">{aviso}</p>}
+    </div>
   );
 }

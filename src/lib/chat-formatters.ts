@@ -1,26 +1,12 @@
+import { formatDateCL } from "@/lib/formatters";
+import { formatearInstanteSantiago, leerInstante, partesSantiago } from "@/lib/operational-date";
+
 export function formatHoraMensaje(value: string) {
-  return new Intl.DateTimeFormat("es-CL", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "America/Santiago",
-  }).format(new Date(value));
+  return formatearInstanteSantiago(value, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
-export function formatDiaMensaje(value: string) {
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "America/Santiago",
-  }).format(new Date(value));
-}
+export const formatDiaMensaje = formatDateCL;
 
 export function claveDiaMensaje(value: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "America/Santiago",
-  }).format(new Date(value));
+  return partesSantiago(leerInstante(value)).fecha;
 }

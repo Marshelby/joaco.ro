@@ -1,3 +1,4 @@
+import { esFechaCalendario, formatearFechaCalendario, formatearInstanteSantiago } from "@/lib/operational-date";
 export function formatCLP(value: number) {
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
@@ -6,21 +7,19 @@ export function formatCLP(value: number) {
   }).format(value);
 }
 
+const fechaLarga = { day: "numeric", month: "long", year: "numeric" } as const;
+
 export function formatDateCL(value: string) {
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(value));
+  return esFechaCalendario(value)
+    ? formatearFechaCalendario(value, fechaLarga)
+    : formatearInstanteSantiago(value, fechaLarga);
 }
 
-export function formatDateTimeCL(value: string) {
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+export function formatDateTimeCL(value: string | null | undefined) {
+  return formatearInstanteSantiago(value, {
+    ...fechaLarga,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
-  }).format(new Date(value));
+    hourCycle: "h23",
+  });
 }

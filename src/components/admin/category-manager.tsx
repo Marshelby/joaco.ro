@@ -120,11 +120,11 @@ export function CategoryManager({ categorias, productos }: Clasificacion) {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" disabled={reordenando || ordenDesactualizado || posicion === 0} aria-label={`Subir ${categoria.nombre}`} onClick={() => mover(categoria, -1)}>
-                  <ArrowUp aria-hidden="true" /> Subir
+                <Button variant="outline" disabled={reordenando || ordenDesactualizado || posicion === 0} type="button" size="icon" className="size-11" title="Subir" aria-label={`Subir ${categoria.nombre}`} onClick={() => mover(categoria, -1)}>
+                  <ArrowUp aria-hidden="true" />
                 </Button>
-                <Button variant="outline" disabled={reordenando || ordenDesactualizado || posicion === categorias.length - 1} aria-label={`Bajar ${categoria.nombre}`} onClick={() => mover(categoria, 1)}>
-                  <ArrowDown aria-hidden="true" /> Bajar
+                <Button variant="outline" disabled={reordenando || ordenDesactualizado || posicion === categorias.length - 1} type="button" size="icon" className="size-11" title="Bajar" aria-label={`Bajar ${categoria.nombre}`} onClick={() => mover(categoria, 1)}>
+                  <ArrowDown aria-hidden="true" />
                 </Button>
                 <Button variant="outline" disabled={reordenando} aria-label={`Editar ${categoria.nombre}`} onClick={(e) => abrir({ tipo: "editar", categoria }, e.currentTarget)}>Editar</Button>
                 <Button variant="destructive" disabled={reordenando} aria-label={`Eliminar ${categoria.nombre}`} onClick={(e) => abrir({ tipo: "eliminar", categoria }, e.currentTarget)}>Eliminar</Button>
@@ -246,7 +246,7 @@ function CategoryDialog({ modal, cerrar, completar, devolverFoco, ...clasificaci
       datos: {
         nombre: String(datos.get("nombre") ?? ""),
         descripcion: String(datos.get("descripcion") ?? ""),
-        orden: Number(datos.get("orden")),
+        orden: categoria?.orden ?? 0,
         activa: datos.has("activa"),
       },
       productos: productos.filter((producto) => seleccion.has(producto.id)).map((producto) => ({
@@ -329,15 +329,9 @@ function CategoryDialog({ modal, cerrar, completar, devolverFoco, ...clasificaci
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="block text-sm font-medium">Nombre<input name="nombre" className={campo} required defaultValue={categoria?.nombre} /></label>
                           <label className="block text-sm font-medium">Descripción<textarea name="descripcion" className={campo} rows={2} defaultValue={categoria?.descripcion ?? ""} /></label>
-                          <div className="flex flex-wrap items-end gap-4 sm:col-span-2">
-                            <label className="block text-sm font-medium">
-                              Orden de visualización
-                              <input name="orden" type="number" step={1} min={-2147483648} max={2147483647} required className={campo} defaultValue={categoria?.orden ?? 0} />
-                            </label>
-                            <label className="flex min-h-11 items-center gap-2 text-sm font-medium">
-                              <input name="activa" type="checkbox" defaultChecked={categoria?.activa ?? true} /> Activa en el catálogo
-                            </label>
-                          </div>
+                          <label className="flex min-h-11 items-center gap-2 text-sm font-medium sm:col-span-2">
+                            <input name="activa" type="checkbox" defaultChecked={categoria?.activa ?? true} /> Activa en el catálogo
+                          </label>
                         </div>
                       )}
                       <div className="space-y-2 border-t border-border pt-4">

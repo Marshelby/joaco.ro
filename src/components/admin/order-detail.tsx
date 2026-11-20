@@ -1,3 +1,5 @@
+import { DeliveryResult } from "@/components/admin/delivery-result";
+import { obtenerResultadosEntrega } from "@/lib/admin/resultado-entrega";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { AdminChat } from "@/components/admin/messages/admin-chat";
 import { obtenerDetalleChatAdmin } from "@/lib/admin/mensajes";
@@ -32,7 +34,10 @@ import { ExternalLink } from "lucide-react";
 export async function AdminOrderDetail({ id, modal = false }: { id: string; modal?: boolean }) {
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
-  const [contextoEntrega, contabilidad, historial] = await Promise.all([obtenerContextoEntrega(id), obtenerResumenContablePedido(id), obtenerHistorialPedido(id)]);
+  const [contextoEntrega, contabilidad, historial, resultados] = await Promise.all([
+    obtenerContextoEntrega(id), obtenerResumenContablePedido(id), obtenerHistorialPedido(id),
+    obtenerResultadosEntrega(pedido.estado === "entregado" ? [id] : []),
+  ]);
 
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
@@ -63,10 +68,10 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       {pedido.estado === "entrega_fallida" ? <UndeliveredOrderActions pedidoId={pedido.id} /> : null}
       {pedido.estado === "cancelado" ? <p className="text-sm text-muted-foreground">Pedido cancelado. Consulta el historial para revisar el motivo y el tratamiento de pagos y créditos; la cancelación no realiza devoluciones automáticas.</p> : null}
 
+      {pedido.estado === "entregado" && <DeliveryResult resultado={resultados[id]} original={pedido.total} />}
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="resumen-contable-title">
         <h2 id="resumen-contable-title" className="text-sm font-semibold">Resumen contable de la entrega</h2>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <div><dt className="text-muted-foreground">Repartidor que confirmó la entrega</dt><dd>{contabilidad?.repartidor ? <>{contabilidad.repartidor.nombre}<span className="block break-all text-xs text-muted-foreground">ID: {contabilidad.repartidor.id}</span></> : "No registrado"}</dd></div>
           <div><dt className="text-muted-foreground">Importe definitivo vigente</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : "No registrado"}</dd></div>
           <div><dt className="text-muted-foreground">Cobros confirmados registrados en la entrega</dt><dd>{contabilidad?.cobros_entrega == null ? "No registrado" : contabilidad.cobros_entrega.length ? contabilidad.cobros_entrega.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin cobros confirmados"}</dd></div>
           <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd>{contabilidad?.cobros_entrega != null ? formatCLP(contabilidad.cobros_entrega.reduce((total, c) => total + c.monto, 0)) : "No registrado"}</dd></div>

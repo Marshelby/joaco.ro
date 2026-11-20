@@ -1,3 +1,4 @@
+import { DeliveryResult } from "@/components/admin/delivery-result";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { RutasDetailLink } from "@/components/admin/rutas-detail-link";
 import type { ReactNode } from "react";
@@ -44,6 +45,10 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   const estadoCantidad = sinStockResuelto ? "No entregado — Sin stock" : !pedido.items.length || pedido.items.some(i => i.cantidadPreparada === null)
     ? "Sin preparar" : pedido.items.every(i => i.cantidadPreparada === 0) ? "Cero registrado" : preparados === pedido.items.length ? "Listo" : "Parcial";
 
+  const resultadoEntrega = pedido.estado === "entregado"
+    ? <DeliveryResult resultado={pedido.resultadoEntrega} original={pedido.total} />
+    : null;
+
   if (soloPreparacion) return (
     <li data-preparacion-pedido={pedido.id} className="overflow-hidden rounded-xl border border-border bg-card">
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
@@ -58,6 +63,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           <span>{preparados}/{pedido.items.length} preparados</span>
         </div>
       </header>
+      {resultadoEntrega && <div className="px-3 pt-3">{resultadoEntrega}</div>}
+      {pedido.estado === "entregado" && resumenContable}
       <div id={`preparacion-${pedido.id}`} className="scroll-mt-24 px-3">
         {pedido.items.length ? <ul className="divide-y divide-border">
           {pedido.items.map(item => <PreparationCompactItemControl key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} soloPreparacion soloLectura={!((pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta)} />)}
@@ -145,6 +152,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           </ContenedorProductos>
         </div>
       </Contenedor>
+      {resultadoEntrega}
       {resumenContable}
     </li>
   );

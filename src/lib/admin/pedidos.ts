@@ -1,3 +1,4 @@
+import { obtenerResultadosEntrega, type ResultadoEntrega } from "@/lib/admin/resultado-entrega";
 import { obtenerContextoEntrega, type ContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
@@ -57,6 +58,7 @@ export type RevisionPreparacion = { version: number; actor_id: string; actorNomb
 
 export type PedidoEntregaAdmin = PedidoAdminListado & {
   contextoEntrega: ContextoEntrega;
+  resultadoEntrega: ResultadoEntrega | null;
   versionPreparacion: number;
   historialPreparacion: RevisionPreparacion[];
   importeOperativoPreparacion: number | null;
@@ -353,19 +355,24 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     versionPreparacion: 0,
     historialPreparacion: [],
     importeOperativoPreparacion: null,
+    resultadoEntrega: null,
     contextoEntrega: { disponible: false, observacion: null, salida: null, venta: null },
     items: [],
   }));
   const importesCalculados = new Map<string, string | null>();
-  await Promise.all(pedidos.map(async (pedido) => {
-    const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
-    if (errorMeta) throw errorMeta;
-    for (const [id, importe] of Object.entries(meta.importes ?? {})) importesCalculados.set(id, importe === null ? null : String(importe));
-    pedido.contextoEntrega = await obtenerContextoEntrega(pedido.id);
-    pedido.versionPreparacion = Number(meta.version);
-    pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
-    pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
-  }));
+  const [resultadosEntrega] = await Promise.all([
+    obtenerResultadosEntrega(pedidos.filter(p => p.estado === "entregado").map(p => p.id)),
+    Promise.all(pedidos.map(async (pedido) => {
+      const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
+      if (errorMeta) throw errorMeta;
+      for (const [id, importe] of Object.entries(meta.importes ?? {})) importesCalculados.set(id, importe === null ? null : String(importe));
+      pedido.contextoEntrega = await obtenerContextoEntrega(pedido.id);
+      pedido.versionPreparacion = Number(meta.version);
+      pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
+      pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
+    })),
+  ]);
+  for (const pedido of pedidos) pedido.resultadoEntrega = resultadosEntrega[pedido.id] ?? null;
   const nombreResponsable = await obtenerNombresResponsables(pedidos.flatMap(p => p.historialPreparacion.map(h => h.actor_id)));
   for (const p of pedidos) for (const h of p.historialPreparacion) h.actorNombre = nombreResponsable(h.actor_id);
   const idsPedidos = pedidos.map((pedido) => pedido.id);

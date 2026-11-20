@@ -19,11 +19,12 @@ export type ParadaRuta = {
   entregado: boolean;
   fallida: boolean;
   detalle: ReactNode;
+  resultado?: { clase: string; encabezado: ReactNode };
 };
 
 const Mapa = dynamic(() => import("./ruta-dia-map-leaflet"), {
   ssr: false,
-  loading: () => <div className="h-full animate-pulse bg-muted" aria-label="Cargando mapa de la ruta" />,
+  loading: () => <div className="h-full motion-safe:animate-pulse bg-muted" aria-label="Cargando mapa de la ruta" />,
 });
 
 export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId, versionRuta, soloLectura = false }: { paradas: ParadaRuta[]; fecha: string; cerrada?: boolean; rutaId?: string; versionRuta?: number; soloLectura?: boolean }) {
@@ -185,7 +186,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
       </div>
       <aside className={`flex w-full min-h-0 min-w-0 shrink-0 flex-col border-t border-border lg:border-t-0 lg:border-l ${panelAbierto ? "lg:w-96" : "lg:w-44"}`} aria-label="Paradas de la ruta">
         <button type="button" className="flex min-h-12 w-full items-center justify-between gap-3 p-3 text-sm font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" aria-expanded={panelAbierto} aria-controls="listado-paradas-ruta" onClick={() => setPanelAbierto((abierto) => !abierto)}>
-          Paradas ({paradas.length})<ChevronDown className={`size-4 shrink-0 transition-transform ${panelAbierto ? "rotate-180" : ""}`} aria-hidden="true" />
+          Paradas ({paradas.length})<ChevronDown className={`size-4 shrink-0 motion-safe:transition-transform ${panelAbierto ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
         <div id="listado-paradas-ruta" hidden={!panelAbierto} className="min-h-0 flex-1 overflow-hidden">
           <ol ref={listado} className="relative max-h-[36dvh] space-y-2 overflow-y-auto overscroll-contain p-2 lg:h-full lg:max-h-none"
@@ -206,7 +207,7 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
             }}>
             {paradas.map((parada) => {
               const activa = seleccionada === parada.id;
-              return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.fallida ? "border-destructive/40 bg-destructive/5 text-destructive" : parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card"}`}>
+              return <li key={parada.id} data-parada={parada.id} className={`rounded-lg border ${activa ? "ring-2 ring-primary ring-inset" : ""} ${parada.resultado?.clase ?? (parada.fallida ? "border-destructive/40 bg-destructive/5 text-destructive" : parada.entregado ? "border-green-600/40 bg-green-50 text-green-950 dark:bg-green-950/30 dark:text-green-100" : "border-border bg-card")}`}>
                 <div className="flex items-center">
                 {!soloLectura && <button type="button" aria-label={`Mover parada ${parada.numero}: ${parada.cliente}`} disabled={cerrada || !lista || guardando}
                   className={`min-h-12 min-w-11 shrink-0 touch-none select-none rounded-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 ${arrastrada === parada.id ? "cursor-grabbing bg-muted" : "cursor-grab"}`}
@@ -226,11 +227,13 @@ export function RutaDiaMap({ paradas: originales, fecha, cerrada = false, rutaId
                     void guardar();
                   }}><GripVertical className="mx-auto size-5" aria-hidden="true" /></button>}
                 <button type="button" aria-expanded={activa} aria-controls={`detalle-parada-${parada.id}`} onClick={() => activa ? setSeleccionada(null) : seleccionar(parada.id)} className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-lg p-3 text-left focus-visible:outline-2 focus-visible:outline-ring">
-                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${parada.fallida ? "bg-destructive text-white" : parada.entregado ? "bg-green-700 text-white" : "bg-muted text-foreground"}`}>{parada.numero}</span>
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${parada.resultado ? "bg-muted text-foreground" : parada.fallida ? "bg-destructive text-white" : parada.entregado ? "bg-green-700 text-white" : "bg-muted text-foreground"}`}>{parada.numero}</span>
+                  {parada.resultado?.encabezado ?? <>
                   <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold">{parada.cliente}</span><span className="block break-words text-xs opacity-80">{parada.ubicacion || "Sin ubicación comercial registrada"}</span></span>
                   {parada.fallida ? <span className="shrink-0 text-xs font-semibold">Entrega fallida</span> : null}
                   {parada.entregado ? <CheckCircle2 className="size-4 shrink-0" aria-label="Entregado" /> : null}
-                  <ChevronDown className={`size-4 shrink-0 transition-transform ${activa ? "rotate-180" : ""}`} aria-hidden="true" />
+                  </>}
+                  <ChevronDown className={`size-4 shrink-0 motion-safe:transition-transform ${activa ? "rotate-180" : ""}`} aria-hidden="true" />
                 </button>
                 </div>
                 <div id={`detalle-parada-${parada.id}`} hidden={!activa}>{parada.detalle}

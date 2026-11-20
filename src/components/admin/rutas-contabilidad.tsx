@@ -9,12 +9,12 @@ function PagosPorMetodo({ aplicaciones }: { aplicaciones: ContabilidadRutaPedido
   return <div className="mt-1 space-y-1 font-normal text-muted-foreground">{montos.size ? [...montos].map(([metodo, monto]) => <p key={metodo} className="break-words">{metodo.replaceAll("_", " ").replace(/^./, letra => letra.toUpperCase())} {formatCLP(monto)}</p>) : <p>Sin pagos aplicados</p>}</div>;
 }
 
-export function RutasContabilidadPedido({ resumen, totalCobrado }: { resumen?: ContabilidadRutaPedido | null; totalCobrado?: number | null }) {
+export function RutasContabilidadPedido({ resumen, totalCobrado, ocultarImporte = false }: { resumen?: ContabilidadRutaPedido | null; totalCobrado?: number | null; ocultarImporte?: boolean }) {
   if (!resumen) return <p className="px-3 py-2 text-xs text-muted-foreground">Contabilidad no disponible · Consulta el detalle del pedido.</p>;
   if (!resumen.venta_reconocida) return <p className="px-3 py-2 text-xs text-muted-foreground">{resumen.regimen === "legado" ? "Pedido legado sin venta reconocida verificable" : "Sin venta reconocida"} · Sin valor del pedido verificable.</p>;
   return <div className="space-y-1 border-t bg-muted/20 px-3 py-2 text-xs tabular-nums" aria-label="Contabilidad del pedido">
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <div><dt className="text-muted-foreground">Importe definitivo</dt><dd className="break-words font-semibold">{resumen.importe_definitivo === null ? "No registrado" : formatCLP(resumen.importe_definitivo)}</dd></div>
+      {!ocultarImporte && <div><dt className="text-muted-foreground">Importe definitivo</dt><dd className="break-words font-semibold">{resumen.importe_definitivo === null ? "No registrado" : formatCLP(resumen.importe_definitivo)}</dd></div>}
       {totalCobrado !== undefined && <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd className="break-words font-semibold">{totalCobrado === null ? "No registrado" : formatCLP(totalCobrado)}</dd></div>}
       <div><dt className="text-muted-foreground">Pagos aplicados</dt><dd className="break-words font-semibold">{resumen.total_aplicado === null ? "No registrado" : formatCLP(resumen.total_aplicado)}<PagosPorMetodo aplicaciones={resumen.aplicaciones} /></dd></div>
       <div><dt className="text-muted-foreground">Saldo pendiente</dt><dd className="break-words font-semibold">{resumen.saldo_pedido === null ? "No registrado" : formatCLP(resumen.saldo_pedido)}</dd></div>

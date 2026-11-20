@@ -1,4 +1,5 @@
-import { DeliveryResult } from "@/components/admin/delivery-result";
+import { claseResultadoEntrega, DeliveryResultHeader, esResultadoEntrega } from "@/components/admin/delivery-result";
+import { DeliveryOrderResultDetails, presentarResultadoJornada } from "@/components/admin/delivery-order-result";
 import { esFechaCalendario, sumarDiasCalendario } from "@/lib/operational-date";
 import { JornadaControles } from "@/components/admin/jornada-controles";
 import { ROUTES } from "@/config/routes";
@@ -92,36 +93,45 @@ export default async function AdminRoutesPage({ searchParams }: {
     {entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <>
       <section aria-label="Pedidos de la fecha" className="space-y-3">
         <h2 className="text-lg font-semibold">Preparación de pedidos</h2>
-        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} resumenContable={<RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} totalCobrado={pedido.resultadoEntrega?.total_cobrado ?? null} />} operativa soloPreparacion rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
+        <ul className="space-y-2">{entrega.pedidos.map((pedido, indice) => <DeliveryOrderCard key={pedido.id} pedido={pedido} contabilidad={contabilidad?.[pedido.id] ?? null} operativa soloPreparacion rutaMultiple soloLecturaRuta={carga.estado !== "preparacion"} numeroPreparacion={indice + 1} />)}</ul>
       </section>
     </>}
     {carga.estado === "preparacion" && <RutaPreparacionControl key={`${fecha}-${carga.version}-${entrega.pedidos.map(p => p.versionPreparacion).join("-")}`} fecha={fecha} ruta={{ id: "", nombre: "Ruta de la jornada", version: carga.version, pedidos: entrega.pedidos.filter(p => !["cancelado", "entrega_fallida", "entregado", "en_reparto"].includes(p.estado)).map(p => p.id) }} pedidos={entrega.pedidos.filter(p => !["cancelado", "entrega_fallida", "entregado", "en_reparto"].includes(p.estado))} habilitada={permiso.permitida} />}
     </>} salida={<section className="space-y-3 rounded-xl border bg-card p-4"><h3 className="font-semibold">Despacho efectivo</h3><JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} /></section>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
-      <RutaDiaMap cerrada={carga.estado === "cerrada"} fecha={fecha} paradas={entrega.pedidos.filter(p => carga.pedidos.find(c => c.id === p.id)?.incluido !== false).map((pedido, indice) => ({
-        id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
-        ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
-        entregado: pedido.estado === "entregado",
-        fallida: pedido.estado === "entrega_fallida",
-        ...(coordenadas.get(pedido.id) ?? { latitude: null, longitude: null }),
-        detalle: (
-              <div className="space-y-3 border-t border-current/10 p-3">
-                <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
-                <details className="rounded-lg border border-border p-3">
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Ver productos</summary>
-                  <ul className="divide-y divide-border">{pedido.items.map(item => <DeliveryProductDetail key={item.id} item={item} contexto={pedido.contextoEntrega} coloresLegacy />)}</ul>
-                  <DeliveryOrderTotals pedido={pedido} />
-                </details>
-                {pedido.estado === "entregado" && <DeliveryResult resultado={pedido.resultadoEntrega} original={pedido.total} />}
-                <RutasContabilidadPedido resumen={contabilidad?.[pedido.id]} totalCobrado={pedido.resultadoEntrega?.total_cobrado ?? null} /><DeliveryObservation contexto={pedido.contextoEntrega} />
-                <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
-                  {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
-                  <Button type="button" variant="outline" disabled>Contactar</Button>
-                  <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
-                  <EntregaFallidaDialog habilitada={carga.estado !== "cerrada" && pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
+      <RutaDiaMap cerrada={carga.estado === "cerrada"} fecha={fecha} paradas={entrega.pedidos.filter(p => carga.pedidos.find(c => c.id === p.id)?.incluido !== false).map((pedido, indice) => {
+        const cuenta = contabilidad?.[pedido.id];
+        const resultado = esResultadoEntrega(pedido.estado) ? presentarResultadoJornada(pedido, cuenta) : null;
+        return {
+          resultado: resultado ? {
+            clase: claseResultadoEntrega(resultado.datos.tipo),
+            encabezado: <DeliveryResultHeader tipo={resultado.datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={resultado.importe} />,
+          } : undefined,
+          id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
+          ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
+          entregado: pedido.estado === "entregado",
+          fallida: pedido.estado === "entrega_fallida",
+          ...(coordenadas.get(pedido.id) ?? { latitude: null, longitude: null }),
+          detalle: (
+                <div className="space-y-3 border-t border-current/10 p-3">
+                  {resultado ? <DeliveryOrderResultDetails pedido={pedido} datos={resultado.datos} contabilidad={cuenta} /> : <>
+                  <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
+                  <details className="rounded-lg border border-border p-3">
+                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Ver productos</summary>
+                    <ul className="divide-y divide-border">{pedido.items.map(item => <DeliveryProductDetail key={item.id} item={item} contexto={pedido.contextoEntrega} coloresLegacy />)}</ul>
+                    <DeliveryOrderTotals pedido={pedido} />
+                  </details>
+                  <RutasContabilidadPedido resumen={cuenta} totalCobrado={null} /><DeliveryObservation contexto={pedido.contextoEntrega} />
+                  </>}
+                  <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
+                    {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
+                    <Button type="button" variant="outline" disabled>Contactar</Button>
+                    <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
+                    <EntregaFallidaDialog habilitada={carga.estado !== "cerrada" && pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
+                  </div>
                 </div>
-              </div>
-        ),
-      }))} />
+          ),
+        };
+      })} />
     </section>} />
     </div>
   </div>;

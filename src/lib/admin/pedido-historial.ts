@@ -1,5 +1,6 @@
 import "server-only";
 
+import { leerIntentosPedidoAdmin } from "@/lib/admin/intentos-entrega";
 import { leerInstante } from "@/lib/operational-date";
 import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
@@ -148,7 +149,7 @@ export async function obtenerHistorialPedido(id: string) {
       ...lista(venta.productos).map((p) => `${texto(p.nombre_producto)}${p.nombre_presentacion ? ` · ${p.nombre_presentacion}` : ""} · Unidad: ${texto(p.unidad)} · Pedido: ${texto(p.cantidad_pedida)} · Preparado: ${texto(p.cantidad_preparada)} · Entregado: ${texto(p.cantidad_entregada)} · Importe definitivo: ${dinero(p.importe_definitivo)}`)]);
 
   // Lectura Fase 3: evidencia privada expuesta únicamente por RPC administrativa.
-  const { data: evidencia, error: errorEvidencia } = await supabase.rpc("leer_intentos_pedido_admin", { p_pedido_id: id });
+  const { data: evidencia, error: errorEvidencia } = await leerIntentosPedidoAdmin(id);
   if (errorEvidencia) {
     fuenteNoDisponible("la evidencia de intentos y cierres", errorEvidencia);
   } else {

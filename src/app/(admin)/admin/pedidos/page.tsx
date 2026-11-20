@@ -1,3 +1,5 @@
+import { DeliveryResult, DeliveryResultDetails, esResultadoEntrega, importeResultado, presentarResultadoEntrega } from "@/components/admin/delivery-result";
+import { obtenerResultadosEntrega } from "@/lib/admin/resultado-entrega";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { CreateOrderLink } from "@/components/admin/create-order-link";
 import { UndeliveredOrders } from "@/components/admin/undelivered-orders";
@@ -39,6 +41,8 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
 
   const pedidos = vista === "entregados" ? todosPedidos.filter(p => p.estado === "entregado") : todosPedidos;
 
+  const resultados = await obtenerResultadosEntrega(pedidos.filter(p => p.estado === "entregado").map(p => p.id));
+
   return (
     <div className="space-y-8">
       <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<CreateOrderLink />} />
@@ -52,18 +56,36 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         </div>
         {pedidos.length > 0 ? (
           <ul className="space-y-3" aria-label="Pedidos">
-            {pedidos.map((pedido) => (
-              <li key={pedido.id} className="rounded-xl border border-border bg-card p-4 sm:p-5">
-                <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(12rem,1fr)_auto] md:items-center md:gap-6">
-                  <div className="min-w-0">
-                    <OrderIdentity pedido={pedido} />
-                    <div className="mt-3"><OrderStatusBadge estado={pedido.estado} destacado /></div>
+            {pedidos.map((pedido) => {
+              if (esResultadoEntrega(pedido.estado)) {
+                const datos = presentarResultadoEntrega(pedido.estado, pedido.total, resultados[pedido.id]);
+                return <li key={pedido.id} className="min-w-0">
+                  <DeliveryResult tipo={datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={importeResultado(datos)}>
+                    <p className="text-xs text-muted-foreground">Creado el {formatDateTimeCL(pedido.fechaCreacion)}{pedido.fechaEntrega && ` · Entrega programada ${formatFechaEntregaLarga(pedido.fechaEntrega)}`}</p>
+                    {pedido.nombreUbicacionSnapshot && <p className="text-xs text-muted-foreground">{pedido.nombreUbicacionSnapshot}</p>}
+                    <DeliveryResultDetails datos={datos}>
+                      {datos.resultado?.total_cobrado != null && <p>Total cobrado en la entrega · <strong>{formatCLP(datos.resultado.total_cobrado)}</strong></p>}
+                    </DeliveryResultDetails>
+                    <div className="flex flex-wrap gap-2">
+                      <RecycleOrderLink pedidoId={pedido.id} />
+                      <ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
+                    </div>
+                  </DeliveryResult>
+                </li>;
+              }
+              return (
+                <li key={pedido.id} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(12rem,1fr)_auto] md:items-center md:gap-6">
+                    <div className="min-w-0">
+                      <OrderIdentity pedido={pedido} />
+                      <div className="mt-3"><OrderStatusBadge estado={pedido.estado} destacado /></div>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
+                    <div className="flex flex-wrap gap-2"><ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink></div>
                   </div>
-                  <dl className="grid grid-cols-2 gap-3 text-sm sm:block"><div><dt className="text-muted-foreground">Fecha</dt><dd className="mt-1 font-medium text-foreground">{formatDateTimeCL(pedido.fechaCreacion)}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div><div className="sm:mt-2"><dt className="text-muted-foreground">Total original</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(pedido.total)}</dd></div></dl>
-                  <div className="flex flex-wrap gap-2">{["entregado", "entrega_fallida"].includes(pedido.estado) ? <RecycleOrderLink pedidoId={pedido.id} /> : null}<ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink></div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         ) : <EmptyState title={soloRecibidos ? "No hay pedidos recibidos" : "No hay pedidos"} description={soloRecibidos ? "Los nuevos pedidos aparecerán aquí para su revisión." : "Cuando existan pedidos, podrás revisarlos aquí."} />}
       </section>

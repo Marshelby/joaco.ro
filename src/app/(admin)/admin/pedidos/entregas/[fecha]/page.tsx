@@ -1,3 +1,5 @@
+import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
+import { esResultadoEntrega } from "@/components/admin/delivery-result";
 import { esFechaCalendario } from "@/lib/operational-date";
 import type { Metadata } from "next";
 import { JornadaCargaControl } from "@/components/admin/jornada-carga-control";
@@ -22,6 +24,8 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
   if (!esFechaCalendario(fecha)) notFound();
 
   const [entrega, identidad, carga] = await Promise.all([obtenerDetalleEntregaAdmin(fecha), obtenerIdentidadActual(), leerCargaJornada(fecha)]);
+  const resultados = entrega.pedidos.filter(pedido => esResultadoEntrega(pedido.estado));
+  const contabilidad = resultados.length ? await obtenerContabilidadRutas(fecha, resultados.map(pedido => pedido.id)) : null;
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(fecha);
   const tituloFecha = formatFechaEntregaLarga(fecha).toLocaleLowerCase("es-CL");
   const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
@@ -54,7 +58,7 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
           <section className="space-y-4" aria-labelledby="pedidos-jornada-title">
             <div><h2 id="pedidos-jornada-title" className="text-xl font-semibold tracking-tight text-foreground">Pedidos</h2><p className="mt-1 text-sm text-muted-foreground">Ordenados por creación; todavía no representa una ruta logística.</p></div>
             <ul className="space-y-3" aria-label="Pedidos de la jornada">
-              {entrega.pedidos.map((pedido) => <DeliveryOrderCard key={pedido.id} pedido={pedido} nombreEmisor={nombreEmisor} />)}
+              {entrega.pedidos.map((pedido) => <DeliveryOrderCard key={pedido.id} pedido={pedido} nombreEmisor={nombreEmisor} contabilidad={contabilidad?.[pedido.id]} />)}
             </ul>
           </section>
         </>

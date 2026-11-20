@@ -1,4 +1,5 @@
-import { DeliveryResult } from "@/components/admin/delivery-result";
+import { obtenerUltimoFalloEntrega } from "@/lib/admin/intentos-entrega";
+import { DeliveryResult, DeliveryResultDetails, esResultadoEntrega, presentarResultadoEntrega, productoSolicitado } from "@/components/admin/delivery-result";
 import { obtenerResultadosEntrega } from "@/lib/admin/resultado-entrega";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { AdminChat } from "@/components/admin/messages/admin-chat";
@@ -34,10 +35,17 @@ import { ExternalLink } from "lucide-react";
 export async function AdminOrderDetail({ id, modal = false }: { id: string; modal?: boolean }) {
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
-  const [contextoEntrega, contabilidad, historial, resultados] = await Promise.all([
+  const [contextoEntrega, contabilidad, historial, resultados, fallo] = await Promise.all([
     obtenerContextoEntrega(id), obtenerResumenContablePedido(id), obtenerHistorialPedido(id),
     obtenerResultadosEntrega(pedido.estado === "entregado" ? [id] : []),
+    pedido.estado === "entrega_fallida" ? obtenerUltimoFalloEntrega(id) : null,
   ]);
+
+  const resultado = esResultadoEntrega(pedido.estado) ? presentarResultadoEntrega(pedido.estado, pedido.total, resultados[id],
+    pedido.items.map(item => productoSolicitado(item.id, item.nombreProductoSnapshot, item.nombrePresentacionSnapshot, item.unidadSnapshot, item.cantidad, item.totalLinea)),
+    contextoEntrega) : null;
+  const importeRegistrado = resultado?.definitivo ?? null;
+  const cobradoRegistrado = resultado?.resultado?.total_cobrado ?? null;
 
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
@@ -51,7 +59,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       <header className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-3">
           <div className="[&_h1]:text-2xl sm:[&_h1]:text-3xl"><OrderIdentity pedido={pedido} heading="h1" /></div>
-          <OrderStatusBadge estado={pedido.estado} />
+          {!resultado && <OrderStatusBadge estado={pedido.estado} />}
           <p className="text-sm leading-6 text-muted-foreground">Creado el {formatDateTimeCL(pedido.fechaCreacion)} · Canal {obtenerEtiquetaCanalPedido(pedido.canalOrigen)}</p>
         </div>
         {!modal ? <ActionLink href={ROUTES.adminOrders} variant="secondary" className="shrink-0">Volver a pedidos</ActionLink> : null}
@@ -68,13 +76,15 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
       {pedido.estado === "entrega_fallida" ? <UndeliveredOrderActions pedidoId={pedido.id} /> : null}
       {pedido.estado === "cancelado" ? <p className="text-sm text-muted-foreground">Pedido cancelado. Consulta el historial para revisar el motivo y el tratamiento de pagos y créditos; la cancelación no realiza devoluciones automáticas.</p> : null}
 
-      {pedido.estado === "entregado" && <DeliveryResult resultado={resultados[id]} original={pedido.total} />}
+      {resultado && <DeliveryResult tipo={resultado.tipo}>
+        <DeliveryResultDetails datos={resultado} contexto={contextoEntrega} fallo={fallo} ocultarOriginal />
+      </DeliveryResult>}
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="resumen-contable-title">
         <h2 id="resumen-contable-title" className="text-sm font-semibold">Resumen contable de la entrega</h2>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <div><dt className="text-muted-foreground">Importe definitivo vigente</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : "No registrado"}</dd></div>
+          <div><dt className="text-muted-foreground">{contabilidad?.importe_definitivo == null && importeRegistrado != null ? "Importe definitivo registrado" : "Importe definitivo vigente"}</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : importeRegistrado != null ? formatCLP(importeRegistrado) : "No registrado"}</dd></div>
           <div><dt className="text-muted-foreground">Cobros confirmados registrados en la entrega</dt><dd>{contabilidad?.cobros_entrega == null ? "No registrado" : contabilidad.cobros_entrega.length ? contabilidad.cobros_entrega.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin cobros confirmados"}</dd></div>
-          <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd>{contabilidad?.cobros_entrega != null ? formatCLP(contabilidad.cobros_entrega.reduce((total, c) => total + c.monto, 0)) : "No registrado"}</dd></div>
+          <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd>{contabilidad?.cobros_entrega != null ? formatCLP(contabilidad.cobros_entrega.reduce((total, c) => total + c.monto, 0)) : cobradoRegistrado != null ? formatCLP(cobradoRegistrado) : "No registrado"}</dd></div>
           <div><dt className="text-muted-foreground">Pagos confirmados aplicados a este pedido</dt><dd>{contabilidad ? contabilidad.aplicaciones.length ? contabilidad.aplicaciones.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin aplicaciones confirmadas" : "No disponible"}</dd></div>
           <div><dt className="text-muted-foreground">Total aplicado al pedido</dt><dd>{contabilidad?.total_aplicado != null ? formatCLP(contabilidad.total_aplicado) : "No disponible"}</dd></div>
           <div><dt className="text-muted-foreground">Saldo pendiente de este pedido</dt><dd>{contabilidad?.saldo_pedido != null ? formatCLP(Math.max(0, contabilidad.saldo_pedido)) : "No disponible"}</dd></div>
@@ -85,7 +95,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
         {contabilidad?.regimen === "legado" ? <p className="mt-2 text-sm text-muted-foreground">Pedido histórico: el saldo sigue el régimen contable legado; no se reconstruye una venta definitiva sin snapshot.</p> : null}
         {!contabilidad ? <p className="mt-2 text-sm text-muted-foreground">Resumen no disponible: requiere instalar el SQL manual de resumen contable.</p> : null}
       </section>
-      <DeliveryObservation contexto={contextoEntrega} />
+      {!resultado && <DeliveryObservation contexto={contextoEntrega} />}
       {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} /> : null}
 
       <p className="text-sm text-muted-foreground">{permisoPreparacion.mensaje}</p>
@@ -144,7 +154,7 @@ export async function AdminOrderDetail({ id, modal = false }: { id: string; moda
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Pago previsto</dt><dd className="text-right font-medium text-foreground">{pagoPrevisto}</dd></div>
             <div className="flex justify-between gap-3 border-t border-border pt-2 font-semibold text-foreground"><dt className="text-muted-foreground">Total original</dt><dd>{formatCLP(pedido.total)}</dd></div>
             {pedido.subtotalFinal !== null ? <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subtotal final</dt><dd>{formatCLP(pedido.subtotalFinal)}</dd></div> : null}
-            {pedido.totalFinal !== null ? <div className="flex justify-between gap-3 text-base font-semibold text-foreground"><dt>Total final</dt><dd>{formatCLP(pedido.totalFinal)}</dd></div> : null}
+            {pedido.totalFinal !== null && pedido.totalFinal !== (contabilidad?.importe_definitivo ?? importeRegistrado) ? <div className="flex justify-between gap-3 text-base font-semibold text-foreground"><dt>Total final</dt><dd>{formatCLP(pedido.totalFinal)}</dd></div> : null}
           </dl>
           <p className="mt-3 text-sm text-muted-foreground">Los métodos de pago previstos no acreditan pagos.</p>
         </section>

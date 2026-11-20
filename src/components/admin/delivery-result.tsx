@@ -1,79 +1,142 @@
-import { useId } from "react";
-
-import { formatearCantidadConUnidadEntrega } from "@/lib/admin/pedidos";
+import type { ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+import { DeliveryObservation } from "@/components/admin/delivery-observation";
+import type { ContextoEntrega } from "@/lib/admin/entrega-contexto";
+import { formatearCantidadConUnidadEntrega, type EstadoPedidoAdmin } from "@/lib/admin/pedidos";
 import type { ResultadoEntrega } from "@/lib/admin/resultado-entrega";
-import { formatCLP } from "@/lib/formatters";
+import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
-const sinRegistro = "No registrado";
-const dinero = (valor: number | null) => valor === null ? sinRegistro : formatCLP(valor);
+type Producto = ResultadoEntrega["productos"][number];
+export type FalloEntrega = { motivo: string | null; observaciones: string | null; fecha: string | null; actor: string | null };
+export type ResultadoVisual = keyof typeof estilos;
 
-export function DeliveryResult({ resultado, original }: {
-  resultado?: ResultadoEntrega | null;
-  original: number;
-}) {
-  const titulo = useId();
-  const definitivo = resultado?.definitivo ?? null;
+const estilos = {
+  completa: { titulo: "Entrega completa", clase: "border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/30", etiqueta: "bg-emerald-100 text-emerald-950 dark:bg-emerald-900 dark:text-emerald-100" },
+  parcial: { titulo: "Entrega parcial", clase: "border-amber-600/50 bg-amber-50 dark:bg-amber-950/30", etiqueta: "bg-amber-100 text-amber-950 dark:bg-amber-900 dark:text-amber-100" },
+  diferencias: { titulo: "Entrega con diferencias", clase: "border-amber-600/50 bg-amber-50 dark:bg-amber-950/30", etiqueta: "bg-amber-100 text-amber-950 dark:bg-amber-900 dark:text-amber-100" },
+  fallida: { titulo: "No entregado", clase: "border-red-600/45 bg-red-50 dark:bg-red-950/30", etiqueta: "bg-red-100 text-red-950 dark:bg-red-900 dark:text-red-100" },
+  historica: { titulo: "Entrega registrada", clase: "border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/30", etiqueta: "bg-emerald-100 text-emerald-950 dark:bg-emerald-900 dark:text-emerald-100" },
+};
+
+export function esResultadoEntrega(estado: EstadoPedidoAdmin): estado is "entregado" | "entrega_fallida" {
+  return estado === "entregado" || estado === "entrega_fallida";
+}
+
+function diferenciaProducto(p: Producto) {
+  return (p.cantidad_pedida != null && p.cantidad_entregada != null && p.cantidad_pedida !== p.cantidad_entregada) ||
+    (p.importe_original != null && p.importe_definitivo != null && p.importe_original !== p.importe_definitivo);
+}
+
+export function presentarResultadoEntrega(estado: EstadoPedidoAdmin, original: number, resultado?: ResultadoEntrega | null, solicitados: readonly Producto[] = [], contexto?: ContextoEntrega) {
+  const registrados = new Map(resultado?.productos.map(p => [p.item_pedido_id, p]));
+  const entregados = new Map(contexto?.venta?.productos.map(p => [p.item_pedido_id, p]));
+  const productos = solicitados.map(p => {
+    const registro = registrados.get(p.item_pedido_id);
+    const entrega = entregados.get(p.item_pedido_id);
+    registrados.delete(p.item_pedido_id);
+    return {
+      ...p, ...registro,
+      cantidad_pedida: registro?.cantidad_pedida ?? p.cantidad_pedida,
+      cantidad_entregada: registro?.cantidad_entregada ?? entrega?.cantidad_entregada ?? null,
+      importe_original: registro?.importe_original ?? p.importe_original,
+      importe_definitivo: registro?.importe_definitivo ?? entrega?.importe_definitivo ?? null,
+    };
+  });
+  productos.push(...registrados.values());
+  const definitivo = resultado?.definitivo ?? contexto?.venta?.total ?? null;
   const diferencia = definitivo === null ? null : definitivo - original;
-  const productos = resultado?.productos ?? [];
-  const menorCantidad = productos.some(p => p.cantidad_pedida != null && p.cantidad_entregada != null && p.cantidad_entregada < p.cantidad_pedida);
-  const afectados = productos.filter(p =>
-    (p.cantidad_entregada != null && p.cantidad_pedida != null && p.cantidad_entregada !== p.cantidad_pedida) ||
-    (p.importe_definitivo != null && p.importe_original != null && p.importe_definitivo !== p.importe_original));
-  const diferencias = afectados.length > 0 || (diferencia !== null && diferencia !== 0);
   const faltanCantidades = !productos.length || productos.some(p => p.cantidad_pedida == null || p.cantidad_entregada == null);
-  const rol = resultado?.rol_actor;
-  const nombre = resultado?.actor?.nombre ?? sinRegistro;
+  const parcial = productos.some(p => p.cantidad_pedida != null && p.cantidad_entregada != null && p.cantidad_entregada < p.cantidad_pedida);
+  const tipo: ResultadoVisual = estado === "entrega_fallida" ? "fallida" : parcial ? "parcial"
+    : productos.some(diferenciaProducto) || (diferencia != null && diferencia !== 0) ? "diferencias"
+    : faltanCantidades ? "historica" : "completa";
+  return { tipo, productos, faltanCantidades, original, definitivo, diferencia, resultado };
+}
 
-  return (
-    <section aria-labelledby={titulo} className={diferencias
-      ? "space-y-3 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 p-4 text-sm [overflow-wrap:anywhere]"
-      : "space-y-1 rounded-lg border px-3 py-2 text-xs [overflow-wrap:anywhere]"}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 id={titulo} className={diferencias ? "text-base font-semibold" : "font-semibold"}>Resultado de la entrega</h2>
-        {diferencias && <span className="rounded-md bg-amber-200 px-2 py-1 font-bold text-amber-950">
-          {menorCantidad ? "Entrega parcial" : "Entrega con diferencias"}
-        </span>}
-      </div>
-      {diferencias && <>
-        <dl className="grid gap-2 sm:grid-cols-3">
-          <div><dt>Importe original</dt><dd className="font-semibold tabular-nums">{dinero(original)}</dd></div>
-          <div><dt>Importe definitivo</dt><dd className="font-semibold tabular-nums">{dinero(definitivo)}</dd></div>
-          <div><dt>Diferencia económica</dt><dd className="font-semibold tabular-nums">{diferencia !== null && diferencia > 0 ? "+" : ""}{dinero(diferencia)}</dd></div>
-        </dl>
-        {afectados.length > 0 && <div>
-          <h3 className="font-semibold">Productos afectados</h3>
-          <ul className="mt-1 divide-y divide-border">
-            {afectados.map(p => (
-              <li key={p.item_pedido_id} className="grid gap-1 py-2 sm:grid-cols-2">
-                <p className="font-medium">{[p.nombre_producto, p.nombre_presentacion].filter(Boolean).join(" · ") || sinRegistro}</p>
-                <dl className="grid grid-cols-2 gap-2">
-                  <div><dt>Solicitado</dt><dd>{p.cantidad_pedida == null ? sinRegistro : formatearCantidadConUnidadEntrega(p.cantidad_pedida, p.unidad)}</dd></div>
-                  <div><dt>Entregado</dt><dd>{p.cantidad_entregada == null ? sinRegistro : formatearCantidadConUnidadEntrega(p.cantidad_entregada, p.unidad)}</dd></div>
-                </dl>
-              </li>
-            ))}
-          </ul>
-        </div>}
-      </>}
-      {!diferencias && definitivo === null && <p className="text-muted-foreground">Importe definitivo: {sinRegistro}.</p>}
-      {faltanCantidades && <p className="text-muted-foreground">Cantidades de entrega: {sinRegistro}. El historial disponible no conserva el detalle necesario para verificar todos los productos.</p>}
-      <dl className="space-y-1">
-        <div className="flex flex-wrap gap-x-2">
-          <dt className="font-medium">Repartidor que confirmó la entrega</dt>
-          <dd>{rol === "repartidor" ? nombre : sinRegistro}</dd>
-        </div>
-        {rol === "admin" && <div className="flex flex-wrap gap-x-2">
-          <dt className="font-medium">Administrador que registró la entrega</dt><dd>{nombre}</dd>
-        </div>}
-        {!rol && resultado?.actor && <div className="flex flex-wrap gap-x-2">
-          <dt className="font-medium">Persona que registró la entrega (rol histórico sin verificar)</dt><dd>{nombre}</dd>
-        </div>}
-      </dl>
-      {rol !== "repartidor" && <p className="text-muted-foreground">
-        {rol === "admin" ? "El historial acredita un registro administrativo." : "El historial disponible no acredita una confirmación por un repartidor."}
-        {" "}La asignación de ruta identifica a las personas programadas para el reparto.
-      </p>}
-      {resultado?.actor && !resultado.actor.nombre && <p className="text-muted-foreground">El historial conserva la cuenta del actor, pero su nombre no está disponible.</p>}
-    </section>
-  );
+export function productoSolicitado(id: string, nombre: string, presentacion: string | null, unidad: string, cantidad: number, importe: number | null = null): Producto {
+  return { item_pedido_id: id, nombre_producto: nombre, nombre_presentacion: presentacion, unidad, cantidad_pedida: cantidad, cantidad_entregada: null, importe_original: importe, importe_definitivo: null };
+}
+
+type Presentacion = ReturnType<typeof presentarResultadoEntrega>;
+
+export function importeResultado(datos: Presentacion, vigente?: number | null) {
+  if (datos.tipo === "fallida") return { etiqueta: "Total original", valor: datos.original };
+  if (vigente != null) return { etiqueta: "Importe definitivo vigente", valor: vigente };
+  if (datos.definitivo != null) return { etiqueta: "Importe definitivo registrado", valor: datos.definitivo };
+  return { etiqueta: "Total original", valor: datos.original };
+}
+
+type Resumen = { tipo: ResultadoVisual; cliente?: string; numero?: string; parada?: number; importe?: ReturnType<typeof importeResultado> };
+
+export function DeliveryResultHeader({ tipo, cliente, numero, parada, importe }: Resumen) {
+  return <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 text-left [overflow-wrap:anywhere]">
+    {parada !== undefined && <span className="text-xs font-medium text-muted-foreground">Parada {parada}</span>}
+    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${estilos[tipo].etiqueta}`}>{estilos[tipo].titulo}</span>
+    {(cliente || numero) && <span className="min-w-0 flex-1 basis-28">
+      {cliente && <span className="block text-sm font-semibold">{cliente}</span>}
+      {numero && <span className="block text-xs text-muted-foreground">Pedido {numero}</span>}
+    </span>}
+    {importe && <span className="min-w-0">
+      <span className="block text-xs text-muted-foreground">{importe.etiqueta}</span>
+      <span className="block text-sm font-semibold tabular-nums">{formatCLP(importe.valor)}</span>
+    </span>}
+  </span>;
+}
+
+export function claseResultadoEntrega(tipo: ResultadoVisual) {
+  return estilos[tipo].clase;
+}
+
+export function DeliveryResult({ children, ...resumen }: Resumen & { children: ReactNode }) {
+  return <details className={`group/resultado min-w-0 rounded-xl border ${claseResultadoEntrega(resumen.tipo)}`}>
+    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+      <DeliveryResultHeader {...resumen} />
+      <span className="sr-only">Detalles de la entrega</span>
+      <ChevronDown className="size-4 shrink-0 group-open/resultado:rotate-180 motion-safe:transition-transform" aria-hidden="true" />
+    </summary>
+    <div className="space-y-3 border-t border-border bg-card/80 p-3 text-sm [overflow-wrap:anywhere]">{children}</div>
+  </details>;
+}
+
+function diferenciaFormateada(valor: number) {
+  return `${valor > 0 ? "+" : ""}${formatCLP(valor)}`;
+}
+
+export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal = false, children }: { datos: Presentacion; ocultarOriginal?: boolean; contexto?: ContextoEntrega; fallo?: FalloEntrega | null; children?: ReactNode }) {
+  const { tipo, productos, faltanCantidades, diferencia, original, resultado } = datos;
+  const rol = resultado?.rol_actor;
+  const actor = resultado?.actor;
+  const tieneAfectados = productos.some(diferenciaProducto);
+  const enviados = new Map(contexto?.salida?.map(p => [p.item_pedido_id, p.cantidad_preparada]));
+  return <div className="space-y-3 text-sm [overflow-wrap:anywhere]">
+    {fallo && <dl className="grid gap-2 sm:grid-cols-2">
+      {fallo.motivo && <div><dt className="text-muted-foreground">Motivo</dt><dd>{fallo.motivo}</dd></div>}
+      {fallo.fecha && <div><dt className="text-muted-foreground">Registro de no entrega</dt><dd>{formatDateTimeCL(fallo.fecha)}</dd></div>}
+      {fallo.actor && <div><dt className="text-muted-foreground">Responsable del registro</dt><dd>{fallo.actor}</dd></div>}
+      {fallo.observaciones && <div className="sm:col-span-2"><dt className="text-muted-foreground">Observaciones del registro</dt><dd className="whitespace-pre-wrap">{fallo.observaciones}</dd></div>}
+    </dl>}
+    {tipo !== "fallida" && actor && <p><strong>{rol === "repartidor" ? "Repartidor que confirmó" : rol === "admin" ? "Administrador que registró" : "Actor registrado"}</strong> · {actor.nombre ?? "Nombre no disponible"}</p>}
+    {tipo !== "fallida" && diferencia != null && diferencia !== 0 && <dl className="grid grid-cols-2 gap-2 tabular-nums">
+      {!ocultarOriginal && <div><dt className="text-muted-foreground">Total original</dt><dd className="font-semibold">{formatCLP(original)}</dd></div>}
+      <div><dt className="text-muted-foreground">Diferencia respecto del total original</dt><dd className="font-semibold">{diferenciaFormateada(diferencia)}</dd></div>
+    </dl>}
+    {productos.length > 0 && <div>
+      <p className="font-semibold">{tieneAfectados ? "Productos y diferencias" : "Productos"}</p>
+      <ul className="mt-1 divide-y divide-border">
+        {productos.map(p => <li key={p.item_pedido_id} className="grid gap-1 py-2 sm:grid-cols-2">
+          <p className="font-medium">{[p.nombre_producto, p.nombre_presentacion].filter(Boolean).join(" · ")}{diferenciaProducto(p) && <span className="block text-xs font-semibold text-amber-800 dark:text-amber-300">Producto afectado</span>}</p>
+          <dl className="grid grid-cols-2 gap-2 text-xs tabular-nums">
+            <div><dt>Solicitado</dt><dd>{p.cantidad_pedida == null ? "Sin registro" : formatearCantidadConUnidadEntrega(p.cantidad_pedida, p.unidad)}</dd></div>
+            <div><dt>Entregado</dt><dd>{p.cantidad_entregada == null ? "Sin registro" : formatearCantidadConUnidadEntrega(p.cantidad_entregada, p.unidad)}</dd></div>
+            {enviados.has(p.item_pedido_id) && <div><dt>Enviado</dt><dd>{formatearCantidadConUnidadEntrega(enviados.get(p.item_pedido_id)!, p.unidad)}</dd></div>}
+            {p.importe_original != null && p.importe_definitivo != null && p.importe_original !== p.importe_definitivo && <div className="col-span-2"><dt>Diferencia de importe</dt><dd>{diferenciaFormateada(p.importe_definitivo - p.importe_original)}</dd></div>}
+          </dl>
+        </li>)}
+      </ul>
+    </div>}
+    {tipo === "fallida" && !fallo?.motivo && <p className="text-xs text-muted-foreground">Motivo sin registro disponible.</p>}
+    {tipo !== "fallida" && faltanCantidades && <p className="text-xs text-muted-foreground">El historial disponible conserva un registro incompleto de las cantidades entregadas.</p>}
+    {contexto && (!fallo?.observaciones || contexto.observacion?.texto !== fallo.observaciones) && <DeliveryObservation contexto={contexto} />}
+    {children}
+  </div>;
 }

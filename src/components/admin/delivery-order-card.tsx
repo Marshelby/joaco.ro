@@ -1,7 +1,9 @@
-import { DeliveryResult } from "@/components/admin/delivery-result";
+import { DeliveryResult, esResultadoEntrega } from "@/components/admin/delivery-result";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { RutasDetailLink } from "@/components/admin/rutas-detail-link";
-import type { ReactNode } from "react";
+import { DeliveryOrderResultDetails, presentarResultadoJornada } from "@/components/admin/delivery-order-result";
+import { RutasContabilidadPedido } from "@/components/admin/rutas-contabilidad";
+import type { ContabilidadRutaPedido } from "@/lib/admin/rutas-contabilidad";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
@@ -27,7 +29,7 @@ function valoresRevision(valores: Record<string, unknown>) {
   return `${valores.confirmado_explicito ? "LISTO" : "PENDIENTE"} · Cantidad preparada: ${cantidad == null ? "sin confirmación" : String(cantidad)} · Importe operativo: ${typeof importe === "number" ? formatCLP(importe) : "sin confirmación"}`;
 }
 
-export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false, resumenContable, soloPreparacion = false }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean; resumenContable?: ReactNode; soloPreparacion?: boolean }) {
+export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, numeroPreparacion, rutaMultiple = false, soloLecturaRuta = false, contabilidad, soloPreparacion = false }: { pedido: PedidoEntregaAdmin; nombreEmisor?: string | null; operativa?: boolean; numeroPreparacion?: number; rutaMultiple?: boolean; soloLecturaRuta?: boolean; contabilidad?: ContabilidadRutaPedido | null; soloPreparacion?: boolean }) {
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const requierePreparacion = pedido.estado === "confirmado" || pedido.estado === "preparando";
   const pendienteDeConfirmacion = pedido.estado === "recibido";
@@ -41,13 +43,26 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   // El encabezado cuenta únicamente cantidades persistidas, sin depender de la confirmación final.
   const preparados = pedido.items.filter((item) => item.cantidadPreparada !== null && item.cantidadPreparada > 0 && item.cantidadPreparada >= item.cantidad).length;
 
-  const sinStockResuelto = pedido.estado === "entrega_fallida" && pedido.historialPreparacion.some(h => h.valores_nuevos.origen === "sin_stock_pre_despacho");
-  const estadoCantidad = sinStockResuelto ? "No entregado — Sin stock" : !pedido.items.length || pedido.items.some(i => i.cantidadPreparada === null)
+  const estadoCantidad = !pedido.items.length || pedido.items.some(i => i.cantidadPreparada === null)
     ? "Sin preparar" : pedido.items.every(i => i.cantidadPreparada === 0) ? "Cero registrado" : preparados === pedido.items.length ? "Listo" : "Parcial";
 
-  const resultadoEntrega = pedido.estado === "entregado"
-    ? <DeliveryResult resultado={pedido.resultadoEntrega} original={pedido.total} />
-    : null;
+  if (esResultadoEntrega(pedido.estado)) {
+    const { datos, importe } = presentarResultadoJornada(pedido, contabilidad);
+    return <li data-preparacion-pedido={pedido.id} id={`preparacion-${pedido.id}`} className="min-w-0 scroll-mt-24">
+      <DeliveryResult tipo={datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} parada={numeroPreparacion} importe={importe}>
+        <DeliveryOrderResultDetails pedido={pedido} datos={datos} contabilidad={contabilidad}>
+          <div className="flex flex-wrap gap-2">
+            {!soloPreparacion && <RecycleOrderLink pedidoId={pedido.id} />}
+            {rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink>
+              : <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="secondary">Ver pedido</ActionLink>}
+            {!soloPreparacion && pedido.clienteId && <CustomerQuickViewDialog clienteId={pedido.clienteId} nombre={pedido.nombreClienteSnapshot} />}
+            {!soloPreparacion && <ActionLink href={`/admin/pedidos/detalle/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>}
+          </div>
+          {!operativa && telefonoEntrega && <DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} />}
+        </DeliveryOrderResultDetails>
+      </DeliveryResult>
+    </li>;
+  }
 
   if (soloPreparacion) return (
     <li data-preparacion-pedido={pedido.id} className="overflow-hidden rounded-xl border border-border bg-card">
@@ -63,8 +78,6 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           <span>{preparados}/{pedido.items.length} preparados</span>
         </div>
       </header>
-      {resultadoEntrega && <div className="px-3 pt-3">{resultadoEntrega}</div>}
-      {pedido.estado === "entregado" && resumenContable}
       <div id={`preparacion-${pedido.id}`} className="scroll-mt-24 px-3">
         {pedido.items.length ? <ul className="divide-y divide-border">
           {pedido.items.map(item => <PreparationCompactItemControl key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} soloPreparacion soloLectura={!((pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta)} />)}
@@ -90,7 +103,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <span className="block">{preparados} / {pedido.items.length} preparados</span>
             <progress className="block h-1.5 w-full accent-primary" aria-label={`Preparación de ${pedido.numeroPedido}`} max={Math.max(pedido.items.length, 1)} value={preparados} />
           </span>
-          <ChevronDown className="col-start-3 row-start-1 size-4 text-muted-foreground transition-transform group-open/preparacion:rotate-180 md:col-start-5" aria-hidden="true" />
+          <ChevronDown className="col-start-3 row-start-1 size-4 text-muted-foreground motion-safe:transition-transform group-open/preparacion:rotate-180 md:col-start-5" aria-hidden="true" />
         </summary> : null}
         <div id={`preparacion-${pedido.id}`} className={compacta ? "scroll-mt-24 border-t border-border p-4 sm:p-5" : "scroll-mt-24"}>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.5fr)_minmax(10rem,1fr)_auto_auto] md:items-center md:gap-6">
@@ -107,7 +120,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="quiet" aria-label={`Ver detalle completo del pedido ${pedido.numeroPedido}`}>Ver detalle completo</ActionLink></> : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">{["entregado", "entrega_fallida"].includes(pedido.estado) ? <RecycleOrderLink pedidoId={pedido.id} /> : null}{rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink> : null}{resumenContable ? (pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>) : <ActionLink href={`/admin/pedidos/detalle/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink> : null}{contabilidad !== undefined ? (pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>) : <ActionLink href={`/admin/pedidos/detalle/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>}</div>
 
           {!operativa && telefonoEntrega ? <div className="mt-3 border-t border-border pt-3"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></div> : null}
 
@@ -134,7 +147,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             {<summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 text-sm font-semibold text-primary outline-none transition-colors hover:bg-muted hover:text-primary/75 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
               <span className="group-open/productos:hidden">Ver productos</span>
               <span className="hidden group-open/productos:inline">Ocultar productos</span>
-              <ChevronDown className="size-4 shrink-0 transition-transform group-open/productos:rotate-180" aria-hidden="true" />
+              <ChevronDown className="size-4 shrink-0 motion-safe:transition-transform group-open/productos:rotate-180" aria-hidden="true" />
             </summary>}
             <div className="mt-3 min-w-0 rounded-lg bg-muted/50 p-3">
               <h4 className="text-sm font-semibold text-foreground">Productos</h4>
@@ -152,8 +165,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
           </ContenedorProductos>
         </div>
       </Contenedor>
-      {resultadoEntrega}
-      {resumenContable}
+      {contabilidad !== undefined && <RutasContabilidadPedido resumen={contabilidad} />}
     </li>
   );
 }

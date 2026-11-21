@@ -5,6 +5,7 @@ import { isValidCartQuantity } from "@/lib/cart-quantity";
 import { getStorefrontProductsByPresentationIds } from "@/lib/storefront-catalog";
 import { obtenerClienteActual } from "@/lib/account/identity";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
+import type { SnapshotVenta } from "@/lib/admin/correcciones-types";
 import type { CartProductInput } from "@/types/cart";
 import type { PreparacionEstado } from "@/lib/order-preparation";
 import type { MetodoPagoPrevisto } from "@/lib/payment-intent";
@@ -41,6 +42,7 @@ export type ItemPedidoCuenta = {
   unidadSnapshot: string;
   rutaImagen: string | null;
   cantidad: number;
+  cantidadEntregada: number | null;
   precioFinalUnitarioSnapshot: number;
   totalLinea: number;
 };
@@ -118,6 +120,8 @@ type PedidoDetalleFila = Omit<PedidoListadoFila, "items_pedido"> & {
   latitud_entrega_snapshot: number | string | null;
   longitud_entrega_snapshot: number | string | null;
   observacion_general: string | null;
+  productos_entrega: SnapshotVenta["productos"] | null;
+  correcciones_venta_entregada: Array<{ productos: SnapshotVenta["productos"] }> | null;
   items_pedido: Array<{
     id: string;
     nombre_producto_snapshot: string;
@@ -182,15 +186,21 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,subtotal,costo_entrega,descuento,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen)),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
+    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,subtotal,costo_entrega,descuento,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,productos_entrega:venta_definitiva_snapshot->productos,correcciones_venta_entregada(productos:nuevos->productos),items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen)),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
     .eq("id", id)
     .eq("cliente_id", cliente.id)
+    .order("version", { referencedTable: "correcciones_venta_entregada", ascending: false })
+    .limit(1, { referencedTable: "correcciones_venta_entregada" })
     .maybeSingle();
 
   if (error) throw new Error("No fue posible cargar el pedido.");
   if (!data) return null;
 
   const fila = data as unknown as PedidoDetalleFila;
+  const productosEntrega = fila.productos_entrega === null
+    ? []
+    : fila.correcciones_venta_entregada?.[0]?.productos ?? fila.productos_entrega;
+  const cantidadesEntregadas = new Map(productosEntrega.map((item) => [item.item_pedido_id, item.cantidad_entregada]));
   return {
     ...mapPedidoListado(fila),
     subtotal: Number(fila.subtotal),
@@ -214,6 +224,7 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
       unidadSnapshot: item.unidad_snapshot,
       rutaImagen: item.productos?.ruta_imagen ?? null,
       cantidad: Number(item.cantidad),
+      cantidadEntregada: cantidadesEntregadas.get(item.id) ?? null,
       precioFinalUnitarioSnapshot: Number(item.precio_final_unitario_snapshot),
       totalLinea: Number(item.total_linea),
     })),

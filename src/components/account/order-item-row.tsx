@@ -16,7 +16,16 @@ export function OrderItemRow({ item }: { item: ItemPedidoCuenta }) {
       <div className="min-w-0">
         <h3 className="break-words text-sm font-medium leading-5 text-foreground">{item.nombreProductoSnapshot}</h3>
         <p className="mt-1 text-sm text-muted-foreground">{item.nombrePresentacionSnapshot ?? item.unidadSnapshot}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{formatQuantity(item.cantidad, item.unidadSnapshot)} × {formatCLP(item.precioFinalUnitarioSnapshot)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          <span className="font-medium">Solicitado</span>{" "}
+          {formatQuantity(item.cantidad, item.unidadSnapshot)} × {formatCLP(item.precioFinalUnitarioSnapshot)}
+        </p>
+        {item.cantidadEntregada !== null ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            <span className="font-medium">Entregado</span>{" "}
+            {formatQuantity(item.cantidadEntregada, item.unidadSnapshot)}
+          </p>
+        ) : null}
       </div>
       <p className="col-start-2 text-sm font-semibold text-foreground tabular-nums">{formatCLP(item.totalLinea)}</p>
     </li>

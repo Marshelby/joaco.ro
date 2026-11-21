@@ -2,7 +2,7 @@ import { claseResultadoEntrega, DeliveryResultHeader, esResultadoEntrega } from 
 import { DeliveryOrderResultDetails, presentarResultadoJornada } from "@/components/admin/delivery-order-result";
 import { esFechaCalendario, sumarDiasCalendario } from "@/lib/operational-date";
 import { JornadaControles } from "@/components/admin/jornada-controles";
-import { ROUTES } from "@/config/routes";
+import { RutasDetailLink } from "@/components/admin/rutas-detail-link";
 import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
 import { RutasContabilidadPedido, RutasContabilidadJornada } from "@/components/admin/rutas-contabilidad";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
@@ -123,7 +123,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                   <RutasContabilidadPedido vistaRuta resumen={cuenta} totalCobrado={null} /><DeliveryObservation contexto={pedido.contextoEntrega} />
                   </>}
                   <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
-                    {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
+                    {pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
                     <Button type="button" variant="outline" disabled>Contactar</Button>
                     <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
                     <EntregaFallidaDialog habilitada={carga.estado !== "cerrada" && pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />

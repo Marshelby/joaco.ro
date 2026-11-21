@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { bloqueJornada, encabezadoProductoJornada, importeJornada, presentacionProductoJornada, tonoJornada } from "@/components/admin/jornada-colores";
+import { baseEncabezadoProductoJornada, bloqueJornada, importeJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { totalCompraCLP } from "@/lib/admin/compra-importes";
 import { guardarCompraDia } from "@/app/(admin)/admin/rutas/compra-actions";
 
@@ -14,6 +14,11 @@ export type ProductoCompraDia = {
   venta?: number; venta_reconocida?: number | null; sin_desglose?: number;
 };
 const numero = (n: number) => new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 }).format(n);
+const tonoCompra = {
+  sinCompra: "border-[#F87171] bg-[#FEE2E2] text-[#7F1D1D]",
+  parcial: "border-[#D97706] bg-[#FEF3C7] text-[#78350F]",
+  completa: "border-[#4ADE80] bg-[#DCFCE7] text-[#14532D]",
+};
 
 export function DayPurchaseRow({ producto: p, fecha, proveedores }: { producto: ProductoCompraDia; fecha: string; proveedores?: { id: string; nombre: string }[] }) {
   const [abierto, setAbierto] = useState(false);
@@ -35,6 +40,14 @@ export function DayPurchaseRow({ producto: p, fecha, proveedores }: { producto: 
   const comprada = p.comprada ?? p.asignada ?? 0;
   const faltan = Math.max(0, Math.round((p.requerida - (p.asignada ?? 0)) * 1000) / 1000);
   const verificable = ["kg_fraccionable", "unidad", "presentacion_cerrada"].includes(p.modo);
+  // El contrato omite el precio de las compras cuya unidad o presentación no coincide.
+  const compraIncompatible = p.precio === null && (multiple ? comprada > 0 : p.asignada !== null);
+  let tonoProducto = tonoJornada.informativo;
+  if (verificable && !compraIncompatible && Number.isFinite(p.requerida) && p.requerida > 0 && Number.isFinite(comprada) && comprada >= 0) {
+    if (comprada === 0) tonoProducto = tonoCompra.sinCompra;
+    else if (comprada >= p.requerida) tonoProducto = tonoCompra.completa;
+    else tonoProducto = tonoCompra.parcial;
+  }
   const maximo = multiple ? Math.max(0, Math.round((p.requerida - comprada + (edicion?.cantidad_asignada ?? 0)) * 1000) / 1000) : p.requerida;
   function abrir(compra: CompraDia | null = null) {
     setEdicion(compra);
@@ -48,7 +61,7 @@ export function DayPurchaseRow({ producto: p, fecha, proveedores }: { producto: 
   }
   return <li className="min-w-0 space-y-2 border-b py-3 wrap-anywhere">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div className={encabezadoProductoJornada}><h3 className="text-sm font-semibold">{p.producto}</h3><p className={presentacionProductoJornada}>{p.presentacion ?? "Sin presentación histórica"} · {p.unidad}</p></div>
+      <div className={`${baseEncabezadoProductoJornada} ${tonoProducto}`}><h3 className="text-sm font-semibold">{p.producto}</h3><p className="text-xs">{p.presentacion ?? "Sin presentación histórica"} · {p.unidad}</p></div>
       <button type="button" disabled={!verificable || pendiente} aria-expanded={abierto} aria-controls={id} onClick={() => abierto ? setAbierto(false) : abrir(multiple && comprada >= p.requerida ? p.compras?.[0] ?? null : null)} className="max-w-full rounded-md border px-2 py-1 text-xs disabled:opacity-50">{multiple ? (comprada >= p.requerida && p.compras?.length ? "Editar compra" : comprada > 0 && faltan > 0 ? "Registrar compra restante" : "Registrar compra") : p.version ? "Editar compra" : "Registrar compra"}</button>
     </div>
     <dl className="grid grid-cols-2 gap-1.5 text-xs min-[400px]:grid-cols-3">

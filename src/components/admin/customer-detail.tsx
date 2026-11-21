@@ -30,16 +30,17 @@ function descripcionMovimiento(movimiento: MovimientoCuentaCliente) {
   return movimiento.concepto;
 }
 
-export async function AdminCustomerDetail({ id, readOnly = false }: { id: string; readOnly?: boolean }) {
+export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = false }: { id: string; readOnly?: boolean; desdeRutas?: boolean }) {
   const cliente = await obtenerClienteAdmin(id);
   if (!cliente) notFound();
   const [zonas, ficha] = await Promise.all([zonasComerciales(), leerFichaComercial(id)]);
   const saldo = describirSaldoCuenta(cliente.saldoActual);
+  const mostrarAccionesClientes = !readOnly && !desdeRutas;
   const interpretacion = saldo.texto === "Al día" ? "La cuenta está al día." : saldo.texto === "Debe" ? `Debe ${formatCLP(saldo.monto)} a Hidro Leufú.` : `Tiene ${formatCLP(saldo.monto)} a favor.`;
 
   return (
     <div className="@container min-w-0 space-y-6 sm:space-y-8">
-      <PageHeader className="min-w-0 items-start rounded-2xl border bg-card p-4 wrap-anywhere sm:flex-col sm:items-start sm:p-6 @5xl:flex-row @5xl:items-center" title={cliente.nombre} description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."} actions={<div className="flex min-w-0 flex-wrap gap-2">{!readOnly && <CreateOrderLink clienteId={cliente.id} />}{readOnly ? <OrderCustomerMessagesLink /> : <ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary">Enviar mensaje</ActionLink>}{!readOnly && <ActionLink href={ROUTES.adminCustomers} variant="secondary">Volver a clientes</ActionLink>}</div>} />
+      <PageHeader className="min-w-0 items-start rounded-2xl border bg-card p-4 wrap-anywhere sm:flex-col sm:items-start sm:p-6 @5xl:flex-row @5xl:items-center" title={cliente.nombre} description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."} actions={<div className="flex min-w-0 flex-wrap gap-2">{mostrarAccionesClientes && <CreateOrderLink clienteId={cliente.id} />}{readOnly ? <OrderCustomerMessagesLink /> : <ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary">Enviar mensaje</ActionLink>}{mostrarAccionesClientes && <ActionLink href={ROUTES.adminCustomers} variant="secondary">Volver a clientes</ActionLink>}</div>} />
       {!readOnly && <CustomerCommercialForm clienteId={cliente.id} zonas={zonas} />}
       {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{cliente.activo ? "Cliente activo" : "Cliente inactivo"}{ficha.cliente.observaciones ? ` · ${ficha.cliente.observaciones}` : ""}</p>}
       <CustomerCommercialAddresses key={ficha.revision} ficha={ficha} zonas={zonas} readOnly={readOnly} />

@@ -7,7 +7,7 @@ import { obtenerClienteActual } from "@/lib/account/identity";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { SnapshotVenta } from "@/lib/admin/correcciones-types";
 import type { CartProductInput } from "@/types/cart";
-import type { PreparacionEstado } from "@/lib/order-preparation";
+import type { ModoCantidadSnapshot, PreparacionEstado } from "@/lib/order-preparation";
 import type { MetodoPagoPrevisto } from "@/lib/payment-intent";
 
 export type EstadoPedidoCuenta =
@@ -40,11 +40,10 @@ export type ItemPedidoCuenta = {
   nombreProductoSnapshot: string;
   nombrePresentacionSnapshot: string | null;
   unidadSnapshot: string;
+  modoCantidadSnapshot: ModoCantidadSnapshot | null;
   rutaImagen: string | null;
   cantidad: number;
   cantidadEntregada: number | null;
-  precioFinalUnitarioSnapshot: number;
-  totalLinea: number;
 };
 
 export type HistorialEstadoPedidoCuenta = {
@@ -56,9 +55,8 @@ export type HistorialEstadoPedidoCuenta = {
 };
 
 export type PedidoCuentaDetalle = PedidoCuentaListado & {
-  subtotal: number;
-  costoEntrega: number;
-  descuento: number;
+  totalVentaDefinitiva: number | null;
+  regimenContable: "legado" | "entrega_v1";
   metodosPagoPrevistos: readonly MetodoPagoPrevisto[] | null;
   direccionSnapshot: string | null;
   comunaSnapshot: string | null;
@@ -106,9 +104,8 @@ type PedidoListadoFila = {
 };
 
 type PedidoDetalleFila = Omit<PedidoListadoFila, "items_pedido"> & {
-  subtotal: number | string;
-  costo_entrega: number | string;
-  descuento: number | string;
+  regimen_contable: PedidoCuentaDetalle["regimenContable"];
+  total_venta_definitiva: SnapshotVenta["total"] | null;
   metodos_pago_previstos: string[] | null;
   direccion_snapshot: string | null;
   comuna_snapshot: string | null;
@@ -121,16 +118,15 @@ type PedidoDetalleFila = Omit<PedidoListadoFila, "items_pedido"> & {
   longitud_entrega_snapshot: number | string | null;
   observacion_general: string | null;
   productos_entrega: SnapshotVenta["productos"] | null;
-  correcciones_venta_entregada: Array<{ productos: SnapshotVenta["productos"] }> | null;
+  correcciones_venta_entregada: Array<Pick<SnapshotVenta, "productos" | "total">> | null;
   items_pedido: Array<{
     id: string;
     nombre_producto_snapshot: string;
     nombre_presentacion_snapshot: string | null;
     unidad_snapshot: string;
+    modo_cantidad_snapshot: ModoCantidadSnapshot | null;
     productos: { ruta_imagen: string | null } | null;
     cantidad: number | string;
-    precio_final_unitario_snapshot: number | string;
-    total_linea: number | string;
   }> | null;
   historial_estados_pedido: Array<{
     id: string;
@@ -186,7 +182,7 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,subtotal,costo_entrega,descuento,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,productos_entrega:venta_definitiva_snapshot->productos,correcciones_venta_entregada(productos:nuevos->productos),items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,precio_final_unitario_snapshot,total_linea,productos(ruta_imagen)),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
+    .select("id,numero_pedido,estado,fecha_creacion,fecha_entrega,total,total_final,preparacion_estado,regimen_contable,metodos_pago_previstos,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,observacion_general,total_venta_definitiva:venta_definitiva_snapshot->total,productos_entrega:venta_definitiva_snapshot->productos,correcciones_venta_entregada(total:nuevos->total,productos:nuevos->productos),items_pedido(id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,modo_cantidad_snapshot,cantidad,productos(ruta_imagen)),historial_estados_pedido(id,estado_anterior,estado_nuevo,fecha_creacion,observacion)")
     .eq("id", id)
     .eq("cliente_id", cliente.id)
     .order("version", { referencedTable: "correcciones_venta_entregada", ascending: false })
@@ -197,15 +193,13 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
   if (!data) return null;
 
   const fila = data as unknown as PedidoDetalleFila;
-  const productosEntrega = fila.productos_entrega === null
-    ? []
-    : fila.correcciones_venta_entregada?.[0]?.productos ?? fila.productos_entrega;
+  const ultimaCorreccion = fila.correcciones_venta_entregada?.[0];
+  const productosEntrega = ultimaCorreccion?.productos ?? fila.productos_entrega ?? [];
   const cantidadesEntregadas = new Map(productosEntrega.map((item) => [item.item_pedido_id, item.cantidad_entregada]));
   return {
     ...mapPedidoListado(fila),
-    subtotal: Number(fila.subtotal),
-    costoEntrega: Number(fila.costo_entrega),
-    descuento: Number(fila.descuento),
+    totalVentaDefinitiva: ultimaCorreccion?.total ?? fila.total_venta_definitiva,
+    regimenContable: fila.regimen_contable,
     metodosPagoPrevistos: fila.metodos_pago_previstos as MetodoPagoPrevisto[] | null,
     direccionSnapshot: fila.direccion_snapshot,
     comunaSnapshot: fila.comuna_snapshot,
@@ -222,11 +216,10 @@ export async function obtenerPedidoCuenta(id: string): Promise<PedidoCuentaDetal
       nombreProductoSnapshot: item.nombre_producto_snapshot,
       nombrePresentacionSnapshot: item.nombre_presentacion_snapshot,
       unidadSnapshot: item.unidad_snapshot,
+      modoCantidadSnapshot: item.modo_cantidad_snapshot,
       rutaImagen: item.productos?.ruta_imagen ?? null,
       cantidad: Number(item.cantidad),
       cantidadEntregada: cantidadesEntregadas.get(item.id) ?? null,
-      precioFinalUnitarioSnapshot: Number(item.precio_final_unitario_snapshot),
-      totalLinea: Number(item.total_linea),
     })),
     historial: (fila.historial_estados_pedido ?? [])
       .map((item) => ({

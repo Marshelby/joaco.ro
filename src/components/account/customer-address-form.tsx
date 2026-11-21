@@ -8,6 +8,7 @@ import { guardarDireccionCliente } from "@/app/(customer)/mi-cuenta/actions";
 import { campoDireccion } from "@/components/account/address-form-styles";
 import { CustomerAddressMap, type AddressCoordinates } from "@/components/account/customer-address-map";
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog, useConfirmation } from "@/components/ui/confirmation-dialog";
 import { PendingButton } from "@/components/ui/pending-button";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,7 @@ export function CustomerAddressForm({ direccion, zonas, errorZonas, trigger, onC
   onClose: () => void;
 }) {
   const [estado, accion, pendiente] = useActionState(guardarDireccionCliente, {});
+  const discard = useConfirmation();
   const [mensajeCampo, setMensajeCampo] = useState<string>();
   const [initialFields] = useState(() => ({
     destinatario: direccion?.destinatario ?? "",
@@ -54,7 +56,10 @@ export function CustomerAddressForm({ direccion, zonas, errorZonas, trigger, onC
     referencia: direccion?.referencia ?? "",
     esPrincipal: direccion?.esPrincipal ?? false,
   }));
-  const initialCoordinates = { latitude: direccion?.latitud ?? null, longitude: direccion?.longitud ?? null };
+  const [initialCoordinates] = useState<AddressCoordinates>(() => ({
+    latitude: direccion?.latitud ?? null,
+    longitude: direccion?.longitud ?? null,
+  }));
   const [fields, setFields] = useState(initialFields);
   const [coordinates, setCoordinates] = useState<AddressCoordinates>(initialCoordinates);
   const { latitude, longitude } = coordinates;
@@ -71,14 +76,18 @@ export function CustomerAddressForm({ direccion, zonas, errorZonas, trigger, onC
   }
 
   function requestClose() {
-    if (pendiente) return;
+    if (pendiente || discard.request) return;
     const dirty = (Object.keys(initialFields) as (keyof typeof fields)[]).some((key) => fields[key] !== initialFields[key])
       || latitude !== initialCoordinates.latitude || longitude !== initialCoordinates.longitude;
-    if (!dirty || window.confirm("¿Descartar los cambios sin guardar?")) onClose();
+    if (dirty) {
+      discard.ask(onClose);
+    } else {
+      onClose();
+    }
   }
 
   return (
-    <Dialog.Root open disablePointerDismissal onOpenChange={(open, details) => {
+    <Dialog.Root open disablePointerDismissal={pendiente || Boolean(discard.request)} onOpenChange={(open, details) => {
       if (open) return;
       details.cancel();
       requestClose();
@@ -161,6 +170,14 @@ export function CustomerAddressForm({ direccion, zonas, errorZonas, trigger, onC
                 </div>
               </footer>
             </form>
+            <ConfirmationDialog
+              confirmation={discard}
+              title="¿Descartar cambios?"
+              description="Los cambios que realizaste no se guardarán."
+              cancelLabel="Seguir editando"
+              confirmLabel="Descartar cambios"
+              destructive
+            />
           </Dialog.Popup>
         </Dialog.Viewport>
       </Dialog.Portal>

@@ -59,11 +59,12 @@ export function useSubmitConfirmation(required = true) {
   return { ...confirmation, onSubmit };
 }
 
-export function ConfirmationDialog({ confirmation, title, description, confirmLabel, destructive = false }: {
+export function ConfirmationDialog({ confirmation, title, description, confirmLabel, cancelLabel = "Cancelar", destructive = false }: {
   confirmation: ReturnType<typeof useConfirmation>;
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
   destructive?: boolean;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
@@ -88,7 +89,7 @@ export function ConfirmationDialog({ confirmation, title, description, confirmLa
             </AlertDialog.Description>
             <div className="mt-4 grid gap-2 border-t border-border pt-4 sm:flex sm:justify-end">
               <AlertDialog.Close render={<Button ref={cancelButton} type="button" variant="outline" className="min-h-11" />}>
-                Cancelar
+                {cancelLabel}
               </AlertDialog.Close>
               <Button type="button" variant={destructive ? "destructive" : "default"} className="min-h-11" onClick={() => resolve(true)}>
                 {confirmLabel}

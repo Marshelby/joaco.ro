@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ROUTES } from "@/config/routes";
 import { formatCustomerAddressStreet, getCustomerAddressTypeLabel } from "@/lib/addresses";
 import { formatCLP, formatDateCL } from "@/lib/formatters";
+import { SHOW_CUSTOMER_BENEFITS } from "@/mocks/navigation";
 import type { AccountSummaryMock, CustomerAddressMock, CustomerBenefitMock, CustomerOrderMock } from "@/types/account";
 
 import { OrderStatusBadge } from "./order-status-badge";
@@ -84,7 +85,7 @@ export function AccountSummary({ summary, lastOrder, primaryAddress, featuredBen
         </section>
       </div>
 
-      <section aria-labelledby="benefit-title" className="rounded-xl border border-border bg-secondary/45 p-5 sm:p-6">
+      {SHOW_CUSTOMER_BENEFITS && <section aria-labelledby="benefit-title" className="rounded-xl border border-border bg-secondary/45 p-5 sm:p-6">
         <div className="flex gap-3">
           <Gift className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden="true" />
           <div>
@@ -97,7 +98,7 @@ export function AccountSummary({ summary, lastOrder, primaryAddress, featuredBen
             </Link>
           </div>
         </div>
-      </section>
+      </section>}
 
     </div>
   );

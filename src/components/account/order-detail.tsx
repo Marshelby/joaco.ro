@@ -19,6 +19,12 @@ export function OrderDetail({ order, modal = false }: { order: PedidoCuentaDetal
   const mapsUrl = getGoogleMapsLocationUrl(order.latitudEntrega, order.longitudEntrega);
   const pagoPrevisto = formatearMetodosPagoPrevistos(order.metodosPagoPrevistos) ?? "No registrado";
 
+  const total = order.totalVentaDefinitiva ?? order.totalFinal ?? order.total;
+  const etiquetaTotal = order.totalVentaDefinitiva !== null
+    || (order.regimenContable === "legado" && order.totalFinal !== null)
+    ? "Total final"
+    : order.regimenContable === "entrega_v1" ? "Total provisional" : "Total del pedido";
+
   return (
     <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
       <header className="rounded-2xl border border-primary/10 bg-primary/5 p-4 sm:p-5">
@@ -56,23 +62,13 @@ export function OrderDetail({ order, modal = false }: { order: PedidoCuentaDetal
         <aside className="min-w-0 space-y-5">
           <section aria-label="Resumen del pedido" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <dl className="grid gap-4 text-sm">
-              <div><dt className="text-muted-foreground">Total</dt><dd className="mt-1 text-lg font-semibold text-foreground">{formatCLP(order.totalFinal ?? order.total)}</dd></div>
+              <div><dt className="text-muted-foreground">{etiquetaTotal}</dt><dd className="mt-1 text-lg font-semibold text-foreground tabular-nums">{formatCLP(total)}</dd></div>
               {order.fechaEntrega ? <div><dt className="text-muted-foreground">Entrega programada</dt><dd className="mt-1 font-medium text-foreground">{formatFechaEntregaLarga(order.fechaEntrega)}</dd></div> : null}
               <div className="min-w-0"><dt className="text-muted-foreground">Pago previsto</dt><dd className="mt-1 font-medium text-foreground">{pagoPrevisto}</dd></div>
             </dl>
           </section>
 
           {order.preparacionEstado === "completa" || order.preparacionEstado === "incompleta" ? <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"><h2 className="text-base font-semibold text-foreground">Preparación del pedido</h2><div className="mt-3"><PreparationStatusBadge estado={order.preparacionEstado} /></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{order.preparacionEstado === "incompleta" ? "Tu pedido fue preparado con algunos faltantes." : "Tu pedido fue preparado completamente."}</p></section> : null}
-
-          <section aria-labelledby="costs-title" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-            <h2 id="costs-title" className="text-base font-semibold text-foreground">Resumen de costos</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Subtotal</dt><dd className="font-medium text-foreground">{formatCLP(order.subtotal)}</dd></div>
-              <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Entrega</dt><dd className="font-medium text-foreground">{order.costoEntrega > 0 ? formatCLP(order.costoEntrega) : "Sin costo"}</dd></div>
-              <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-foreground">{order.descuento > 0 ? `-${formatCLP(order.descuento)}` : "Sin descuento"}</dd></div>
-              <div className="flex items-center justify-between gap-4 border-t border-border pt-3"><dt className="font-semibold text-foreground">{order.totalFinal !== null ? "Total original" : "Total"}</dt><dd className="text-base font-semibold text-foreground">{formatCLP(order.total)}</dd></div>{order.totalFinal !== null ? <div className="flex items-center justify-between gap-4"><dt className="font-semibold text-foreground">Total final</dt><dd className="text-base font-semibold text-foreground">{formatCLP(order.totalFinal)}</dd></div> : null}
-            </dl>
-          </section>
 
           <section aria-labelledby="order-state-title" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"><h2 id="order-state-title" className="text-sm font-medium text-muted-foreground">Estado</h2><p className="mt-2 text-base font-semibold text-foreground">{getEtiquetaEstadoPedidoCuenta(order.estado)}</p></section>
 

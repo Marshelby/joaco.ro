@@ -10,11 +10,13 @@ export const PUBLIC_ACCOUNT_NAVIGATION = [
   { label: "Iniciar sesión", href: "/iniciar-sesion", icon: "account" },
 ] as const satisfies readonly NavigationItem[];
 
+export const SHOW_CUSTOMER_BENEFITS = false;
+
 export const CUSTOMER_NAVIGATION = [
   { label: "Resumen", href: ROUTES.account, icon: "home", description: "Vista general de tu cuenta." },
   { label: "Pedidos", href: ROUTES.accountOrders, icon: "orders", description: "Revisa el estado de tus compras." },
   { label: "Direcciones", href: ROUTES.accountAddresses, icon: "delivery", description: "Revisa tus direcciones de entrega." },
-  { label: "Beneficios", href: ROUTES.accountBenefits, icon: "account", description: "Compras acumuladas y cupones." },
+  ...(SHOW_CUSTOMER_BENEFITS ? [{ label: "Beneficios", href: ROUTES.accountBenefits, icon: "account", description: "Compras acumuladas y cupones." } as const] : []),
   { label: "Mensajes", href: ROUTES.accountMessages, icon: "messages", description: "Habla directamente con Hidro Leufú." },
 ] as const satisfies readonly NavigationItem[];
 

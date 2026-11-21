@@ -1,3 +1,5 @@
+import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
+import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
 import { DeliveryResult, esResultadoEntrega } from "@/components/admin/delivery-result";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
 import { RutasDetailLink } from "@/components/admin/rutas-detail-link";
@@ -55,6 +57,7 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
             {!soloPreparacion && <RecycleOrderLink pedidoId={pedido.id} />}
             {rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink>
               : <ActionLink href={ROUTES.adminOrder(pedido.id)} variant="secondary">Ver pedido</ActionLink>}
+            {rutaMultiple && fechaEntregaDefinitiva(pedido) && <OrderDeliveryImage pedidoId={pedido.id} />}
             {!soloPreparacion && pedido.clienteId && <CustomerQuickViewDialog clienteId={pedido.clienteId} nombre={pedido.nombreClienteSnapshot} />}
             {!soloPreparacion && <ActionLink href={`/admin/pedidos/detalle/${pedido.id}/historial`} variant="secondary">Ver historial</ActionLink>}
           </div>

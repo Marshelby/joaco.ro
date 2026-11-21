@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { ModoCantidadSnapshot } from "@/lib/order-preparation";
 import { obtenerIdsReparto, obtenerNombresRepartidores } from "@/lib/reparto/nombres";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -9,6 +10,7 @@ type Producto = {
   nombre_producto: string;
   nombre_presentacion: string | null;
   unidad: string;
+  modo_cantidad?: ModoCantidadSnapshot | null;
   cantidad_pedida: number | null;
   cantidad_entregada: number | null;
   importe_original: number | null;

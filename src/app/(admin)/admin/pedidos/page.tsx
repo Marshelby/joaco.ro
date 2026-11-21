@@ -1,3 +1,5 @@
+import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
+import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
 import { DeliveryResult, DeliveryResultDetails, esResultadoEntrega, importeResultado, presentarResultadoEntrega } from "@/components/admin/delivery-result";
 import { obtenerResultadosEntrega } from "@/lib/admin/resultado-entrega";
 import { RecycleOrderLink } from "@/components/admin/recycle-order-link";
@@ -69,6 +71,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                     <div className="flex flex-wrap gap-2">
                       <RecycleOrderLink pedidoId={pedido.id} />
                       <ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>
+                      {fechaEntregaDefinitiva(pedido) && <OrderDeliveryImage pedidoId={pedido.id} />}
                     </div>
                   </DeliveryResult>
                 </li>;

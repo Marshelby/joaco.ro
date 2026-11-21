@@ -18,11 +18,13 @@ import { OrderOperationalAction } from "@/components/admin/order-operational-act
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { CatalogImage } from "@/components/media/catalog-image";
 import { OrderIdentity } from "@/components/admin/order-identity";
+import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { formatearCantidadPedido, obtenerEtiquetaCanalPedido, obtenerPedidoAdmin } from "@/lib/admin/pedidos";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
+import { prepararGuiaEntrega } from "@/lib/admin/guia-entrega";
 import { getGoogleMapsLocationUrl } from "@/lib/maps";
 import { formatearMetodosPagoPrevistos } from "@/lib/payment-intent";
 import { obtenerIdentidadActual } from "@/lib/account/identity";
@@ -47,6 +49,9 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
     contextoEntrega) : null;
   const importeRegistrado = resultado?.definitivo ?? null;
   const cobradoRegistrado = resultado?.resultado?.total_cobrado ?? null;
+  const guia = identidad?.rol === "admin" && resultado
+    ? prepararGuiaEntrega(pedido, resultado, contabilidad)
+    : null;
 
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
@@ -74,6 +79,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
       <div className="flex flex-wrap items-start gap-2">
         {pedido.clienteId ? <OrderCustomerLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</OrderCustomerLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
         {pedido.estado === "entregado" ? <RecycleOrderLink pedidoId={pedido.id} /> : null}
+        {guia && <OrderDeliveryImage guia={guia} />}
         {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} editable={aceptarEditable} replaceDetail={modal} /> : null}
         {pedido.estado === "confirmado" ? pedido.fechaEntrega ? <ActionLink href={`/admin/rutas?fecha=${pedido.fechaEntrega}`}>Ir a ruta</ActionLink> : <span className="text-sm text-muted-foreground">Sin fecha de entrega para ir a ruta</span> : null}
         {["preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}

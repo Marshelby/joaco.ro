@@ -21,6 +21,7 @@ export type PedidoAdminListado = {
   estado: EstadoPedidoAdmin;
   total: number;
   fechaCreacion: string;
+  ventaReconocidaEn: string | null;
   fechaEntrega: string | null;
   preparacionEstado: PreparacionEstado | null;
   subtotalFinal: number | null;
@@ -132,6 +133,7 @@ type PedidoListadoFila = {
   estado: EstadoPedidoAdmin;
   total: number | string;
   fecha_creacion: string;
+  venta_reconocida_en: string | null;
   fecha_entrega: string | null;
   preparacion_estado: PreparacionEstado | null;
   subtotal_final: number | string | null;
@@ -215,6 +217,7 @@ function mapPedidoListado(fila: PedidoListadoFila): PedidoAdminListado {
     estado: fila.estado,
     total: Number(fila.total),
     fechaCreacion: fila.fecha_creacion,
+    ventaReconocidaEn: fila.venta_reconocida_en,
     fechaEntrega: fila.fecha_entrega,
     preparacionEstado: fila.preparacion_estado,
     subtotalFinal: fila.subtotal_final === null ? null : Number(fila.subtotal_final),
@@ -319,7 +322,7 @@ export async function obtenerPedidosAdmin(soloRecibidos: boolean) {
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await leerCompleto((desde, hasta) => {
     let consulta = supabase.from("pedidos")
-      .select("id,numero_pedido,nombre_cliente_snapshot,canal_origen,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
+      .select("id,numero_pedido,nombre_cliente_snapshot,canal_origen,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final")
       .order("fecha_creacion", { ascending: false }).order("id");
     if (soloRecibidos) consulta = consulta.eq("estado", estadoRecibido);
     return consulta.range(desde, hasta);
@@ -341,7 +344,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await leerCompleto((desde, hasta) => supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot")
     .eq("fecha_entrega", fecha)
     .neq("estado", "cancelado")
     .order("fecha_creacion", { ascending: true }).order("id").range(desde, hasta));
@@ -454,7 +457,7 @@ export async function obtenerPedidoAdmin(id: string): Promise<PedidoAdminDetalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,canal_origen,telefono_cliente_snapshot,email_cliente_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,referencia_direccion_snapshot,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,zona_entrega_snapshot,latitud_entrega_snapshot,longitud_entrega_snapshot,subtotal,costo_entrega,descuento,metodos_pago_previstos,observacion_general")
     .eq("id", id)
     .maybeSingle();
 

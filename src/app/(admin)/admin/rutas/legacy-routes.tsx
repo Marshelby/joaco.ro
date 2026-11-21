@@ -1,3 +1,5 @@
+import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
+import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
 import { claseResultadoEntrega, DeliveryResultHeader, esResultadoEntrega } from "@/components/admin/delivery-result";
 import { DeliveryOrderResultDetails, presentarResultadoJornada } from "@/components/admin/delivery-order-result";
 import { esFechaCalendario, sumarDiasCalendario } from "@/lib/operational-date";
@@ -124,6 +126,10 @@ export default async function AdminRoutesPage({ searchParams }: {
                   <RutasContabilidadPedido vistaRuta resumen={cuenta} totalCobrado={null} /><DeliveryObservation contexto={pedido.contextoEntrega} />
                   </>}
                   <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
+                    {fechaEntregaDefinitiva(pedido) && <>
+                      <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink>
+                      <OrderDeliveryImage pedidoId={pedido.id} />
+                    </>}
                     {pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
                     <Button type="button" variant="outline" disabled>Contactar</Button>
                     <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />

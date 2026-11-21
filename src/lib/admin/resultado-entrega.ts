@@ -20,14 +20,17 @@ export type ResultadoEntrega = {
   productos: Producto[];
   actor: Persona | null;
   rol_actor: "repartidor" | "admin" | null;
+  repartidor: Persona | null;
   total_cobrado: number | null;
 };
+
+type ResultadoEntregaRpc = Omit<ResultadoEntrega, "repartidor">;
 
 export async function obtenerResultadosEntrega(ids: string[]): Promise<Record<string, ResultadoEntrega>> {
   const unicos = [...new Set(ids)];
   if (!unicos.length) return {};
   const db = await crearClienteSupabaseServidor();
-  const resultados: Record<string, ResultadoEntrega> = {};
+  const resultados: Record<string, ResultadoEntregaRpc> = {};
   for (let inicio = 0; inicio < unicos.length; inicio += 100) {
     const { data, error } = await db.rpc("leer_resultados_entrega_admin", { p_pedidos: unicos.slice(inicio, inicio + 100) });
     if (error) {
@@ -36,12 +39,18 @@ export async function obtenerResultadosEntrega(ids: string[]): Promise<Record<st
     }
     Object.assign(resultados, data);
   }
-  const actores = Object.values(resultados).filter(r => r.actor && r.rol_actor !== "admin");
-  const reparto = actores.some(r => r.rol_actor == null) ? await obtenerIdsReparto() : null;
-  const repartidores = actores.flatMap(({ actor, rol_actor }) =>
-    actor && (rol_actor === "repartidor" || reparto?.has(actor.id)) ? [actor] : [],
-  );
-  const nombre = await obtenerNombresRepartidores(db, repartidores.map(actor => actor.id));
-  for (const actor of repartidores) actor.nombre = nombre(actor.id);
-  return resultados;
+  const entradas = Object.entries(resultados);
+  const reparto = entradas.some(([, r]) => r.actor && r.rol_actor == null) ? await obtenerIdsReparto() : null;
+  const repartidorPorPedido = new Map<string, string>();
+  for (const [pedidoId, { actor, rol_actor }] of entradas) {
+    // El padrón sólo ayuda a identificar al actor de la entrega en contratos antiguos.
+    if (actor?.id && (rol_actor === "repartidor" || (rol_actor == null && reparto?.has(actor.id)))) {
+      repartidorPorPedido.set(pedidoId, actor.id);
+    }
+  }
+  const nombre = await obtenerNombresRepartidores(db, [...repartidorPorPedido.values()]);
+  return Object.fromEntries(entradas.map(([pedidoId, resultado]) => {
+    const id = repartidorPorPedido.get(pedidoId);
+    return [pedidoId, { ...resultado, repartidor: id ? { id, nombre: nombre(id) } : null }];
+  }));
 }

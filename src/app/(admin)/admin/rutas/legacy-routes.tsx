@@ -100,13 +100,14 @@ export default async function AdminRoutesPage({ searchParams }: {
     </>} salida={<section className="space-y-3 rounded-xl border bg-card p-4"><h3 className="font-semibold">Despacho efectivo</h3><JornadaSalidaControl key={fecha} fecha={fecha} carga={carga} habilitada={permiso.permitida} /></section>} ruta={entrega.pedidos.length === 0 ? <EmptyState title="No hay pedidos para esta fecha" description="Los pedidos con fecha efectiva de entrega aparecerán aquí, desde su recepción." /> : <section aria-label="Ruta del día" className="space-y-3">
       <RutaDiaMap cerrada={carga.estado === "cerrada"} fecha={fecha} paradas={entrega.pedidos.filter(p => carga.pedidos.find(c => c.id === p.id)?.incluido !== false).map((pedido, indice) => {
         const cuenta = contabilidad?.[pedido.id];
+        const destinatario = pedido.destinatarioEntrega?.trim() ? pedido.destinatarioEntrega : pedido.nombreClienteSnapshot;
         const resultado = esResultadoEntrega(pedido.estado) ? presentarResultadoJornada(pedido, cuenta) : null;
         return {
           resultado: resultado ? {
             clase: claseResultadoEntrega(resultado.datos.tipo),
-            encabezado: <DeliveryResultHeader vistaRuta tipo={resultado.datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={resultado.importe} />,
+            encabezado: <DeliveryResultHeader vistaRuta tipo={resultado.datos.tipo} cliente={destinatario} numero={pedido.numeroPedido} importe={resultado.importe} />,
           } : undefined,
-          id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
+          id: pedido.id, numero: indice + 1, cliente: destinatario,
           ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
           entregado: pedido.estado === "entregado",
           fallida: pedido.estado === "entrega_fallida",

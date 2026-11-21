@@ -5,6 +5,7 @@ import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import type { ContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { formatearCantidadConUnidadEntrega, type EstadoPedidoAdmin } from "@/lib/admin/pedidos";
 import type { ResultadoEntrega } from "@/lib/admin/resultado-entrega";
+import { NOMBRE_REPARTIDOR_NO_REGISTRADO } from "@/lib/reparto/nombre";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 type Producto = ResultadoEntrega["productos"][number];
@@ -107,6 +108,7 @@ export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal 
   const { tipo, productos, faltanCantidades, diferencia, original, resultado } = datos;
   const rol = resultado?.rol_actor;
   const actor = resultado?.actor;
+  const repartidor = resultado?.repartidor;
   const tieneAfectados = productos.some(diferenciaProducto);
   const enviados = new Map(contexto?.salida?.map(p => [p.item_pedido_id, p.cantidad_preparada]));
   const estiloDato = (tono: keyof typeof tonoJornada, clase?: string) =>
@@ -119,7 +121,8 @@ export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal 
       {fallo.actor && <div><dt className="text-muted-foreground">Responsable del registro</dt><dd>{fallo.actor}</dd></div>}
       {fallo.observaciones && <div className={vistaRuta ? estiloDato("incidencia", "col-span-full") : "sm:col-span-2"}><dt className={vistaRuta ? "font-semibold" : "text-muted-foreground"}>Observaciones del registro</dt><dd className="whitespace-pre-wrap">{fallo.observaciones}</dd></div>}
     </dl>}
-    {tipo !== "fallida" && actor && <p><strong>{rol === "repartidor" ? "Repartidor que confirmó" : rol === "admin" ? "Administrador que registró" : "Actor registrado"}</strong> · {actor.nombre ?? "Nombre no disponible"}</p>}
+    {tipo !== "fallida" && (vistaRuta || repartidor) && <p><strong>Repartidor:</strong> {repartidor?.nombre ?? NOMBRE_REPARTIDOR_NO_REGISTRADO}</p>}
+    {tipo !== "fallida" && actor && !repartidor && (rol === "admin" || !vistaRuta) && <p><strong>{rol === "admin" ? "Administrador que registró" : "Actor registrado"}</strong> · {actor.nombre ?? "Nombre no disponible"}</p>}
     {tipo !== "fallida" && diferencia != null && diferencia !== 0 && <dl className={vistaRuta ? cuadriculaDetalleJornada : "grid grid-cols-2 gap-2 tabular-nums"}>
       {!ocultarOriginal && <div className={estiloDato("informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Total original</dt><dd className="font-semibold">{formatCLP(original)}</dd></div>}
       <div className={estiloDato(diferencia < 0 ? "incidencia" : "pendiente")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Diferencia respecto del total original</dt><dd className="font-semibold">{diferenciaFormateada(diferencia)}</dd></div>

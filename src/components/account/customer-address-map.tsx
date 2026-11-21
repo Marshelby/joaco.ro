@@ -10,6 +10,7 @@ export type AddressCoordinates = {
 
 export type CustomerAddressMapProps = AddressCoordinates & {
   renderLocationSearch?: (onSelect: (coordinates: { latitude: number; longitude: number }) => void) => ReactNode;
+  compact?: boolean;
   requireConfirmation?: boolean;
   locationConfirmed?: boolean;
   onConfirmLocation?: (coordinates: AddressCoordinates) => void;
@@ -20,10 +21,12 @@ const CustomerAddressMapLeaflet = dynamic(
   () => import("./customer-address-map-leaflet"),
   {
     ssr: false,
-    loading: () => <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" aria-label="Cargando mapa" />,
+    loading: () => <div className="h-[var(--address-map-height,20rem)] animate-pulse rounded-xl border border-border bg-muted" aria-label="Cargando mapa" />,
   },
 );
 
 export function CustomerAddressMap(props: CustomerAddressMapProps) {
-  return <CustomerAddressMapLeaflet {...props} />;
+  return props.compact
+    ? <div className="[--address-map-height:12rem]"><CustomerAddressMapLeaflet {...props} /></div>
+    : <CustomerAddressMapLeaflet {...props} />;
 }

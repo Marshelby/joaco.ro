@@ -15,11 +15,63 @@ function AccountOrderDetailSkeleton() {
 }
 
 function AccountAddressesSkeleton() {
-  return <LoadingFrame label="Cargando direcciones"><div aria-hidden="true" className="space-y-6"><PageHeaderSkeleton /><div className="space-y-4">{Array.from({ length: 3 }, (_, index) => <section key={index} className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6"><div className="flex flex-wrap justify-between gap-3"><div className="space-y-3"><Skeleton className="h-6 w-44" /><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-32" /></div><Skeleton className="h-11 w-20 rounded-lg" /></div><DataLineSkeleton /><div className="border-t border-border pt-3"><Skeleton className="h-5 w-32" /></div></section>)}</div></div></LoadingFrame>;
+  return (
+    <LoadingFrame label="Cargando direcciones">
+      <div aria-hidden="true" className="space-y-6">
+        <PageHeaderSkeleton />
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))] gap-4">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-primary/[0.03] px-4 py-2.5 sm:px-5">
+                <Skeleton className="h-5 w-36 max-w-1/2" />
+                <Skeleton className="h-9 w-20 rounded-lg" />
+              </div>
+              <div className="space-y-3 px-4 py-3 sm:px-5">
+                <div className="space-y-1">
+                  <Skeleton className="h-5 w-4/5" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-36" />
+                </div>
+              </div>
+              <div className="flex justify-end border-t border-border/70 px-4 py-1.5 sm:px-5">
+                <Skeleton className="h-9 w-24 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </LoadingFrame>
+  );
 }
 
 function AccountAddressFormSkeleton() {
-  return <LoadingFrame label="Cargando dirección"><div aria-hidden="true" className="space-y-6"><PageHeaderSkeleton /><section className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6"><div className="grid gap-5 sm:grid-cols-2">{Array.from({ length: 4 }, (_, index) => <div key={index} className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-11 w-full rounded-lg" /></div>)}</div><div className="space-y-2"><Skeleton className="h-4 w-28" /><Skeleton className="h-52 w-full rounded-xl" /></div><Skeleton className="h-11 w-44 rounded-lg" /></section></div></LoadingFrame>;
+  return (
+    <LoadingFrame label="Cargando dirección">
+      <div aria-hidden="true" className="space-y-6">
+        <PageHeaderSkeleton />
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-11 w-full rounded-lg" />
+              </div>
+            ))}
+            <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-3 sm:col-span-2 sm:p-4">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-80 w-full rounded-xl" />
+            </div>
+          </div>
+          <div className="border-t border-border/70 bg-primary/[0.03] px-4 py-3 sm:px-5">
+            <Skeleton className="h-11 w-44 rounded-lg" />
+          </div>
+        </div>
+      </div>
+    </LoadingFrame>
+  );
 }
 
 function LoadingFrame({ children, label }: { children: ReactNode; label: string }) {

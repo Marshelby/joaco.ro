@@ -52,7 +52,7 @@ function RecenterMap({ center, searchFocus }: { center: Coordinate; searchFocus:
   return null;
 }
 
-export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoordinatesChange, requireConfirmation = false, locationConfirmed = false, onConfirmLocation, renderLocationSearch }: CustomerAddressMapProps) {
+export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoordinatesChange, compact = false, requireConfirmation = false, locationConfirmed = false, onConfirmLocation, renderLocationSearch }: CustomerAddressMapProps) {
   const coordinates = { latitude, longitude };
   const hasLocation = hasCoordinates(coordinates);
   const center = hasLocation ? coordinates : DELIVERY_MAP_INITIAL_CENTER;
@@ -135,22 +135,22 @@ export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoord
   }
 
   return (
-    <section className="space-y-3 sm:col-span-2" aria-labelledby="address-map-title">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className={compact ? "space-y-2" : "space-y-3 sm:col-span-2"} aria-labelledby="address-map-title">
+      <div className={compact ? "flex flex-wrap items-center justify-between gap-2" : "flex flex-wrap items-center justify-between gap-3"}>
         <div>
           <h2 id="address-map-title" className="text-sm font-medium text-foreground">Ubicación de entrega</h2>
           <p className="mt-1 text-sm text-muted-foreground">Marca en el mapa el punto exacto de entrega.</p>
         </div>
-        <Button type="button" variant="secondary" onClick={useCurrentLocation} disabled={isLocating}>
+        <Button type="button" variant="secondary" onClick={useCurrentLocation} disabled={isLocating} className={compact ? "h-9 max-w-full whitespace-normal px-2.5" : undefined}>
           <LocateFixed aria-hidden="true" /> {isLocating ? "Obteniendo ubicación..." : "Usar mi ubicación actual"}
         </Button>
       </div>
       <div role="status" aria-live="polite" className="space-y-1 text-sm">
         {isLocating && <p className="text-muted-foreground">Buscando tu ubicación… Puedes seguir ajustando el pin manualmente.</p>}
         {locationAccuracy && locationAccuracy.latitude === latitude && locationAccuracy.longitude === longitude && <p className="text-amber-700 dark:text-amber-300">Ubicación aproximada. Precisión informada por el navegador: {locationAccuracy.meters} metros. Revisa y ajusta el pin{requireConfirmation ? " antes de confirmar" : " antes de guardar"}.</p>}
-        {!hasLocation ? <p className="text-amber-700 dark:text-amber-300">Esta dirección aún no tiene ubicación marcada. El centro del mapa es solo una referencia.</p> : <>
+        {!hasLocation ? !compact && <p className="text-amber-700 dark:text-amber-300">Esta dirección aún no tiene ubicación marcada. El centro del mapa es solo una referencia.</p> : <>
           <p className={`flex items-center gap-1.5 font-medium ${requireConfirmation && !locationConfirmed ? "text-amber-700 dark:text-amber-300" : "text-primary"}`}><MapPin aria-hidden="true" className="size-4" />{requireConfirmation ? (locationConfirmed ? "Ubicación confirmada" : "Punto provisional: confirma la ubicación antes de guardar.") : "Ubicación marcada"}</p>
-          <p className="font-mono text-muted-foreground">Latitud: {coordinates.latitude.toFixed(6)} · Longitud: {coordinates.longitude.toFixed(6)}</p>
+          {!compact && <p className="font-mono text-muted-foreground">Latitud: {coordinates.latitude.toFixed(6)} · Longitud: {coordinates.longitude.toFixed(6)}</p>}
         </>}
       </div>
       {requireConfirmation && <Button type="button" disabled={!hasLocation || locationConfirmed || isLocating} onClick={() => { if (hasCoordinates(coordinates)) onConfirmLocation?.(coordinates); }}>Confirmar ubicación</Button>}
@@ -161,7 +161,7 @@ export default function CustomerAddressMapLeaflet({ latitude, longitude, onCoord
         updateCoordinates(point);
         setSearchFocus(point);
       })}
-      <div className="h-80 overflow-hidden rounded-xl border border-border" aria-label="Mapa para marcar la ubicación de entrega">
+      <div className="h-[var(--address-map-height,20rem)] overflow-hidden rounded-xl border border-border" aria-label="Mapa para marcar la ubicación de entrega">
         <MapContainer center={[center.latitude, center.longitude]} zoom={hasLocation ? 16 : DELIVERY_MAP_INITIAL_ZOOM} scrollWheelZoom className="h-full w-full" aria-label="Mapa de ubicación de entrega">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapEvents onCoordinatesChange={updateCoordinates} />

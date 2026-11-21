@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { bloqueJornada, cuadriculaDetalleJornada, encabezadoProductoJornada, importeJornada, presentacionProductoJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { ChevronDown } from "lucide-react";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import type { ContextoEntrega } from "@/lib/admin/entrega-contexto";
@@ -66,9 +67,9 @@ export function importeResultado(datos: Presentacion, vigente?: number | null) {
   return { etiqueta: "Total original", valor: datos.original };
 }
 
-type Resumen = { tipo: ResultadoVisual; cliente?: string; numero?: string; parada?: number; importe?: ReturnType<typeof importeResultado> };
+type Resumen = { vistaRuta?: boolean; tipo: ResultadoVisual; cliente?: string; numero?: string; parada?: number; importe?: ReturnType<typeof importeResultado> };
 
-export function DeliveryResultHeader({ tipo, cliente, numero, parada, importe }: Resumen) {
+export function DeliveryResultHeader({ tipo, cliente, numero, parada, importe, vistaRuta }: Resumen) {
   return <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 text-left [overflow-wrap:anywhere]">
     {parada !== undefined && <span className="text-xs font-medium text-muted-foreground">Parada {parada}</span>}
     <span className={`rounded-md px-2 py-1 text-xs font-semibold ${estilos[tipo].etiqueta}`}>{estilos[tipo].titulo}</span>
@@ -78,7 +79,7 @@ export function DeliveryResultHeader({ tipo, cliente, numero, parada, importe }:
     </span>}
     {importe && <span className="min-w-0">
       <span className="block text-xs text-muted-foreground">{importe.etiqueta}</span>
-      <span className="block text-sm font-semibold tabular-nums">{formatCLP(importe.valor)}</span>
+      <span className={vistaRuta ? `${importeJornada} ${importe.etiqueta === "Total original" ? tonoJornada.informativo : tonoJornada.venta}` : "block text-sm font-semibold tabular-nums"}>{formatCLP(importe.valor)}</span>
     </span>}
   </span>;
 }
@@ -94,7 +95,7 @@ export function DeliveryResult({ children, ...resumen }: Resumen & { children: R
       <span className="sr-only">Detalles de la entrega</span>
       <ChevronDown className="size-4 shrink-0 group-open/resultado:rotate-180 motion-safe:transition-transform" aria-hidden="true" />
     </summary>
-    <div className="space-y-3 border-t border-border bg-card/80 p-3 text-sm [overflow-wrap:anywhere]">{children}</div>
+    <div className={resumen.vistaRuta ? "min-w-0 rounded-b-xl border-t border-border bg-card/80 px-2.5 py-2 wrap-anywhere sm:px-3" : "space-y-3 border-t border-border bg-card/80 p-3 text-sm [overflow-wrap:anywhere]"}>{children}</div>
   </details>;
 }
 
@@ -102,34 +103,43 @@ function diferenciaFormateada(valor: number) {
   return `${valor > 0 ? "+" : ""}${formatCLP(valor)}`;
 }
 
-export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal = false, children }: { datos: Presentacion; ocultarOriginal?: boolean; contexto?: ContextoEntrega; fallo?: FalloEntrega | null; children?: ReactNode }) {
+export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal = false, vistaRuta = false, children }: { datos: Presentacion; ocultarOriginal?: boolean; vistaRuta?: boolean; contexto?: ContextoEntrega; fallo?: FalloEntrega | null; children?: ReactNode }) {
   const { tipo, productos, faltanCantidades, diferencia, original, resultado } = datos;
   const rol = resultado?.rol_actor;
   const actor = resultado?.actor;
   const tieneAfectados = productos.some(diferenciaProducto);
   const enviados = new Map(contexto?.salida?.map(p => [p.item_pedido_id, p.cantidad_preparada]));
-  return <div className="space-y-3 text-sm [overflow-wrap:anywhere]">
-    {fallo && <dl className="grid gap-2 sm:grid-cols-2">
-      {fallo.motivo && <div><dt className="text-muted-foreground">Motivo</dt><dd>{fallo.motivo}</dd></div>}
+  const estiloDato = (tono: keyof typeof tonoJornada, clase?: string) =>
+    vistaRuta ? `${bloqueJornada} ${tonoJornada[tono]} ${clase ?? ""}` : clase;
+  const valor = vistaRuta ? "font-semibold" : undefined;
+  return <div className={vistaRuta ? "min-w-0 space-y-2 text-sm wrap-anywhere" : "space-y-3 text-sm [overflow-wrap:anywhere]"}>
+    {fallo && <dl className={vistaRuta ? cuadriculaDetalleJornada : "grid gap-2 sm:grid-cols-2"}>
+      {fallo.motivo && <div className={estiloDato("incidencia")}><dt className={vistaRuta ? "font-semibold" : "text-muted-foreground"}>Motivo</dt><dd>{fallo.motivo}</dd></div>}
       {fallo.fecha && <div><dt className="text-muted-foreground">Registro de no entrega</dt><dd>{formatDateTimeCL(fallo.fecha)}</dd></div>}
       {fallo.actor && <div><dt className="text-muted-foreground">Responsable del registro</dt><dd>{fallo.actor}</dd></div>}
-      {fallo.observaciones && <div className="sm:col-span-2"><dt className="text-muted-foreground">Observaciones del registro</dt><dd className="whitespace-pre-wrap">{fallo.observaciones}</dd></div>}
+      {fallo.observaciones && <div className={vistaRuta ? estiloDato("incidencia", "col-span-full") : "sm:col-span-2"}><dt className={vistaRuta ? "font-semibold" : "text-muted-foreground"}>Observaciones del registro</dt><dd className="whitespace-pre-wrap">{fallo.observaciones}</dd></div>}
     </dl>}
     {tipo !== "fallida" && actor && <p><strong>{rol === "repartidor" ? "Repartidor que confirmó" : rol === "admin" ? "Administrador que registró" : "Actor registrado"}</strong> · {actor.nombre ?? "Nombre no disponible"}</p>}
-    {tipo !== "fallida" && diferencia != null && diferencia !== 0 && <dl className="grid grid-cols-2 gap-2 tabular-nums">
-      {!ocultarOriginal && <div><dt className="text-muted-foreground">Total original</dt><dd className="font-semibold">{formatCLP(original)}</dd></div>}
-      <div><dt className="text-muted-foreground">Diferencia respecto del total original</dt><dd className="font-semibold">{diferenciaFormateada(diferencia)}</dd></div>
+    {tipo !== "fallida" && diferencia != null && diferencia !== 0 && <dl className={vistaRuta ? cuadriculaDetalleJornada : "grid grid-cols-2 gap-2 tabular-nums"}>
+      {!ocultarOriginal && <div className={estiloDato("informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Total original</dt><dd className="font-semibold">{formatCLP(original)}</dd></div>}
+      <div className={estiloDato(diferencia < 0 ? "incidencia" : "pendiente")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Diferencia respecto del total original</dt><dd className="font-semibold">{diferenciaFormateada(diferencia)}</dd></div>
     </dl>}
     {productos.length > 0 && <div>
       <p className="font-semibold">{tieneAfectados ? "Productos y diferencias" : "Productos"}</p>
       <ul className="mt-1 divide-y divide-border">
-        {productos.map(p => <li key={p.item_pedido_id} className="grid gap-1 py-2 sm:grid-cols-2">
-          <p className="font-medium">{[p.nombre_producto, p.nombre_presentacion].filter(Boolean).join(" · ")}{diferenciaProducto(p) && <span className="block text-xs font-semibold text-amber-800 dark:text-amber-300">Producto afectado</span>}</p>
-          <dl className="grid grid-cols-2 gap-2 text-xs tabular-nums">
-            <div><dt>Solicitado</dt><dd>{p.cantidad_pedida == null ? "Sin registro" : formatearCantidadConUnidadEntrega(p.cantidad_pedida, p.unidad)}</dd></div>
-            <div><dt>Entregado</dt><dd>{p.cantidad_entregada == null ? "Sin registro" : formatearCantidadConUnidadEntrega(p.cantidad_entregada, p.unidad)}</dd></div>
-            {enviados.has(p.item_pedido_id) && <div><dt>Enviado</dt><dd>{formatearCantidadConUnidadEntrega(enviados.get(p.item_pedido_id)!, p.unidad)}</dd></div>}
-            {p.importe_original != null && p.importe_definitivo != null && p.importe_original !== p.importe_definitivo && <div className="col-span-2"><dt>Diferencia de importe</dt><dd>{diferenciaFormateada(p.importe_definitivo - p.importe_original)}</dd></div>}
+        {productos.map(p => <li key={p.item_pedido_id} className={vistaRuta ? "grid min-w-0 items-start gap-1.5 py-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]" : "grid gap-1 py-2 sm:grid-cols-2"}>
+          <div className={vistaRuta ? "min-w-0" : "contents"}>
+            {vistaRuta && <div className={encabezadoProductoJornada}>
+              <p className="text-sm font-semibold">{p.nombre_producto}</p>
+              {p.nombre_presentacion && <p className={presentacionProductoJornada}>{p.nombre_presentacion}</p>}
+            </div>}
+            {(!vistaRuta || diferenciaProducto(p)) && <p className={vistaRuta ? "mt-0.5" : "font-medium"}>{!vistaRuta && [p.nombre_producto, p.nombre_presentacion].filter(Boolean).join(" · ")}{diferenciaProducto(p) && <span className="block text-xs font-semibold text-amber-800 dark:text-amber-300">Producto afectado</span>}</p>}
+          </div>
+          <dl className={vistaRuta ? cuadriculaDetalleJornada : "grid grid-cols-2 gap-2 text-xs tabular-nums"}>
+            <div className={estiloDato(p.cantidad_pedida == null ? "informativo" : "planificado")}><dt>Solicitado</dt><dd className={valor}>{p.cantidad_pedida == null ? "Sin registro" : formatearCantidadConUnidadEntrega(p.cantidad_pedida, p.unidad)}</dd></div>
+            <div className={estiloDato(p.cantidad_entregada == null ? "informativo" : "completado")}><dt>Entregado</dt><dd className={valor}>{p.cantidad_entregada == null ? "Sin registro" : formatearCantidadConUnidadEntrega(p.cantidad_entregada, p.unidad)}</dd></div>
+            {enviados.has(p.item_pedido_id) && <div className={estiloDato("informativo")}><dt>Enviado</dt><dd className={valor}>{formatearCantidadConUnidadEntrega(enviados.get(p.item_pedido_id)!, p.unidad)}</dd></div>}
+            {p.importe_original != null && p.importe_definitivo != null && p.importe_original !== p.importe_definitivo && <div className={estiloDato(p.importe_definitivo < p.importe_original ? "incidencia" : "pendiente", vistaRuta ? "col-span-full" : "col-span-2")}><dt>Diferencia de importe</dt><dd className={valor}>{diferenciaFormateada(p.importe_definitivo - p.importe_original)}</dd></div>}
           </dl>
         </li>)}
       </ul>

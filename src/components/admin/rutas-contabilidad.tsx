@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { bloqueJornada, importeJornada, tonoJornada } from "@/components/admin/jornada-colores";
+import { bloqueJornada, cuadriculaDetalleJornada, importeJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { ROUTES } from "@/config/routes";
 import type { ContabilidadRutaPedido, ContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
 import { formatCLP } from "@/lib/formatters";
@@ -10,15 +10,16 @@ function PagosPorMetodo({ aplicaciones, vistaJornada = false }: { aplicaciones: 
   return <div className="mt-1 space-y-1 font-normal text-muted-foreground">{montos.size ? [...montos].map(([metodo, monto]) => <p key={metodo} className="break-words">{metodo.replaceAll("_", " ").replace(/^./, letra => letra.toUpperCase())} <span className={vistaJornada ? `${importeJornada} ${tonoJornada.completado}` : undefined}>{formatCLP(monto)}</span></p>) : <p className={vistaJornada ? `${importeJornada} ${tonoJornada.informativo}` : undefined}>Sin pagos aplicados</p>}</div>;
 }
 
-export function RutasContabilidadPedido({ resumen, totalCobrado, ocultarImporte = false, vistaJornada = false }: { resumen?: ContabilidadRutaPedido | null; totalCobrado?: number | null; ocultarImporte?: boolean; vistaJornada?: boolean }) {
+export function RutasContabilidadPedido({ resumen, totalCobrado, ocultarImporte = false, vistaJornada = false, vistaRuta = false }: { resumen?: ContabilidadRutaPedido | null; totalCobrado?: number | null; ocultarImporte?: boolean; vistaJornada?: boolean; vistaRuta?: boolean }) {
   if (!resumen) return <p className="px-3 py-2 text-xs text-muted-foreground">Contabilidad no disponible · Consulta el detalle del pedido.</p>;
   if (!resumen.venta_reconocida) return <p className="px-3 py-2 text-xs text-muted-foreground">{resumen.regimen === "legado" ? "Pedido legado sin venta reconocida verificable" : "Sin venta reconocida"} · Sin valor del pedido verificable.</p>;
-  return <div className="space-y-1 border-t bg-muted/20 px-3 py-2 text-xs tabular-nums" aria-label="Contabilidad del pedido">
-    <dl className={`grid grid-cols-2 gap-2 ${vistaJornada ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
-      {!ocultarImporte && <div><dt className="text-muted-foreground">Importe definitivo</dt><dd className="break-words font-semibold"><span className={vistaJornada ? `${importeJornada} ${resumen.importe_definitivo === null ? tonoJornada.informativo : tonoJornada.venta}` : undefined}>{resumen.importe_definitivo === null ? "No registrado" : formatCLP(resumen.importe_definitivo)}</span></dd></div>}
-      {totalCobrado !== undefined && <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd className="break-words font-semibold">{totalCobrado === null ? "No registrado" : formatCLP(totalCobrado)}</dd></div>}
-      <div><dt className="text-muted-foreground">Pagos aplicados</dt><dd className="break-words font-semibold"><span className={vistaJornada ? `${importeJornada} ${resumen.total_aplicado === null ? tonoJornada.informativo : tonoJornada.completado}` : undefined}>{resumen.total_aplicado === null ? "No registrado" : formatCLP(resumen.total_aplicado)}</span><PagosPorMetodo aplicaciones={resumen.aplicaciones} vistaJornada={vistaJornada} /></dd></div>
-      <div><dt className="text-muted-foreground">Saldo pendiente</dt><dd className="break-words font-semibold"><span className={vistaJornada ? `${importeJornada} ${resumen.saldo_pedido === null ? tonoJornada.informativo : resumen.saldo_pedido > 0 ? tonoJornada.pendiente : tonoJornada.informativo}` : undefined}>{resumen.saldo_pedido === null ? "No registrado" : formatCLP(resumen.saldo_pedido)}</span></dd></div>
+  const importe = (tono: keyof typeof tonoJornada) => vistaRuta || vistaJornada ? `${importeJornada} ${tonoJornada[tono]}` : undefined;
+  return <div className={vistaRuta ? "min-w-0 rounded-lg border border-border bg-muted/20 p-2" : "space-y-1 border-t bg-muted/20 px-3 py-2 text-xs tabular-nums"} aria-label="Contabilidad del pedido">
+    <dl className={vistaRuta ? cuadriculaDetalleJornada : `grid grid-cols-2 gap-2 ${vistaJornada ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
+      {!ocultarImporte && <div><dt className="text-muted-foreground">Importe definitivo</dt><dd className="break-words font-semibold"><span className={importe(resumen.importe_definitivo === null ? "informativo" : "venta")}>{resumen.importe_definitivo === null ? "No registrado" : formatCLP(resumen.importe_definitivo)}</span></dd></div>}
+      {totalCobrado !== undefined && <div><dt className="text-muted-foreground">Total cobrado en la entrega</dt><dd className="break-words font-semibold"><span className={vistaRuta ? importe(totalCobrado === null ? "informativo" : "completado") : undefined}>{totalCobrado === null ? "No registrado" : formatCLP(totalCobrado)}</span></dd></div>}
+      <div><dt className="text-muted-foreground">Pagos aplicados</dt><dd className="break-words font-semibold"><span className={importe(resumen.total_aplicado === null ? "informativo" : "completado")}>{resumen.total_aplicado === null ? "No registrado" : formatCLP(resumen.total_aplicado)}</span><PagosPorMetodo aplicaciones={resumen.aplicaciones} vistaJornada={vistaJornada || vistaRuta} /></dd></div>
+      <div><dt className="text-muted-foreground">Saldo pendiente</dt><dd className="break-words font-semibold"><span className={importe(resumen.saldo_pedido != null && resumen.saldo_pedido > 0 ? "pendiente" : "informativo")}>{resumen.saldo_pedido === null ? "No registrado" : formatCLP(resumen.saldo_pedido)}</span></dd></div>
     </dl>
   </div>;
 }

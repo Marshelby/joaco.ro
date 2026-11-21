@@ -9,3 +9,7 @@ export const tonoJornada = {
 
 export const bloqueJornada = "min-w-0 rounded-lg border px-2 py-1.5 wrap-break-word";
 export const importeJornada = "inline-block rounded-md border px-1.5 py-0.5 font-semibold tabular-nums";
+
+export const encabezadoProductoJornada = "w-fit max-w-full min-w-0 rounded-md border border-[#D8E4D8] bg-[#F2F7F1] px-2 py-1 text-[#254232] wrap-anywhere dark:border-[#354B3D] dark:bg-[#223329] dark:text-[#E0EEE1]";
+export const presentacionProductoJornada = "text-xs text-[#466251] dark:text-[#B5CDBD]";
+export const cuadriculaDetalleJornada = "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-1.5 text-xs tabular-nums wrap-anywhere";

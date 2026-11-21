@@ -49,8 +49,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
   if (esResultadoEntrega(pedido.estado)) {
     const { datos, importe } = presentarResultadoJornada(pedido, contabilidad);
     return <li data-preparacion-pedido={pedido.id} id={`preparacion-${pedido.id}`} className="min-w-0 scroll-mt-24">
-      <DeliveryResult tipo={datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} parada={numeroPreparacion} importe={importe}>
-        <DeliveryOrderResultDetails pedido={pedido} datos={datos} contabilidad={contabilidad}>
+      <DeliveryResult vistaRuta={rutaMultiple} tipo={datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} parada={numeroPreparacion} importe={importe}>
+        <DeliveryOrderResultDetails vistaRuta={rutaMultiple} pedido={pedido} datos={datos} contabilidad={contabilidad}>
           <div className="flex flex-wrap gap-2">
             {!soloPreparacion && <RecycleOrderLink pedidoId={pedido.id} />}
             {rutaMultiple ? <RutasDetailLink tipo="pedido" id={pedido.id}>Ver pedido</RutasDetailLink>

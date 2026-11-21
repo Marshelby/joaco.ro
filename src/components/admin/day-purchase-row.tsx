@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { bloqueJornada, importeJornada, tonoJornada } from "@/components/admin/jornada-colores";
+import { bloqueJornada, encabezadoProductoJornada, importeJornada, presentacionProductoJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { totalCompraCLP } from "@/lib/admin/compra-importes";
 import { guardarCompraDia } from "@/app/(admin)/admin/rutas/compra-actions";
 
@@ -46,9 +46,9 @@ export function DayPurchaseRow({ producto: p, fecha, proveedores }: { producto: 
     setPrecio(String(compra?.precio_compra ?? (multiple ? "" : p.precio ?? "")));
     setAbierto(true);
   }
-  return <li className="min-w-0 space-y-2 border-b py-3">
+  return <li className="min-w-0 space-y-2 border-b py-3 wrap-anywhere">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><h3 className="text-sm font-medium">{p.producto}</h3><p className="text-xs text-muted-foreground">{p.presentacion ?? "Sin presentación histórica"} · {p.unidad}</p></div>
+      <div className={encabezadoProductoJornada}><h3 className="text-sm font-semibold">{p.producto}</h3><p className={presentacionProductoJornada}>{p.presentacion ?? "Sin presentación histórica"} · {p.unidad}</p></div>
       <button type="button" disabled={!verificable || pendiente} aria-expanded={abierto} aria-controls={id} onClick={() => abierto ? setAbierto(false) : abrir(multiple && comprada >= p.requerida ? p.compras?.[0] ?? null : null)} className="max-w-full rounded-md border px-2 py-1 text-xs disabled:opacity-50">{multiple ? (comprada >= p.requerida && p.compras?.length ? "Editar compra" : comprada > 0 && faltan > 0 ? "Registrar compra restante" : "Registrar compra") : p.version ? "Editar compra" : "Registrar compra"}</button>
     </div>
     <dl className="grid grid-cols-2 gap-1.5 text-xs min-[400px]:grid-cols-3">

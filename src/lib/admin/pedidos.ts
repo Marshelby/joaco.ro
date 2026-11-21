@@ -1,4 +1,7 @@
+import { cache } from "react";
+
 import { obtenerResultadosEntrega, type ResultadoEntrega } from "@/lib/admin/resultado-entrega";
+import { exigirSesionAdmin } from "@/lib/admin/sesion";
 import { obtenerContextoEntrega, type ContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerNombresResponsables } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
@@ -310,13 +313,15 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
   }));
 }
 
+const estadoRecibido = "recibido";
+
 export async function obtenerPedidosAdmin(soloRecibidos: boolean) {
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await leerCompleto((desde, hasta) => {
     let consulta = supabase.from("pedidos")
       .select("id,numero_pedido,nombre_cliente_snapshot,canal_origen,estado,total,fecha_creacion,fecha_entrega,preparacion_estado,subtotal_final,total_final")
       .order("fecha_creacion", { ascending: false }).order("id");
-    if (soloRecibidos) consulta = consulta.eq("estado", "recibido");
+    if (soloRecibidos) consulta = consulta.eq("estado", estadoRecibido);
     return consulta.range(desde, hasta);
   });
   if (error) throw error;
@@ -325,12 +330,12 @@ export async function obtenerPedidosAdmin(soloRecibidos: boolean) {
   return filas.map((fila) => mapPedidoListado({ ...fila, nombre_ubicacion_snapshot: ubicaciones.get(fila.id) }));
 }
 
-export async function obtenerCantidadPedidosRecibidos() {
-  const supabase = await crearClienteSupabaseServidor();
-  const { count, error } = await supabase.from("pedidos").select("id", { count: "exact", head: true }).eq("estado", "recibido");
+export const obtenerCantidadPedidosRecibidos = cache(async () => {
+  const supabase = await exigirSesionAdmin();
+  const { count, error } = await supabase.from("pedidos").select("id", { count: "exact", head: true }).eq("estado", estadoRecibido);
   if (error) throw error;
   return count ?? 0;
-}
+});
 
 export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<DetalleEntregaAdmin> {
   const supabase = await crearClienteSupabaseServidor();

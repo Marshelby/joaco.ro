@@ -104,7 +104,7 @@ export default async function AdminRoutesPage({ searchParams }: {
         return {
           resultado: resultado ? {
             clase: claseResultadoEntrega(resultado.datos.tipo),
-            encabezado: <DeliveryResultHeader tipo={resultado.datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={resultado.importe} />,
+            encabezado: <DeliveryResultHeader vistaRuta tipo={resultado.datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={resultado.importe} />,
           } : undefined,
           id: pedido.id, numero: indice + 1, cliente: pedido.nombreClienteSnapshot,
           ubicacion: pedido.nombreUbicacionSnapshot, pedido: pedido.numeroPedido,
@@ -112,15 +112,15 @@ export default async function AdminRoutesPage({ searchParams }: {
           fallida: pedido.estado === "entrega_fallida",
           ...(coordenadas.get(pedido.id) ?? { latitude: null, longitude: null }),
           detalle: (
-                <div className="space-y-3 border-t border-current/10 p-3">
-                  {resultado ? <DeliveryOrderResultDetails pedido={pedido} datos={resultado.datos} contabilidad={cuenta} /> : <>
+                <div className="min-w-0 space-y-2 border-t border-current/10 px-2.5 py-2 wrap-anywhere sm:px-3">
+                  {resultado ? <DeliveryOrderResultDetails vistaRuta pedido={pedido} datos={resultado.datos} contabilidad={cuenta} /> : <>
                   <p className="text-xs text-muted-foreground">Pedido {pedido.numeroPedido}</p>
                   <details className="rounded-lg border border-border p-3">
                     <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Ver productos</summary>
-                    <ul className="divide-y divide-border">{pedido.items.map(item => <DeliveryProductDetail key={item.id} item={item} contexto={pedido.contextoEntrega} coloresLegacy />)}</ul>
-                    <DeliveryOrderTotals pedido={pedido} />
+                    <ul className="divide-y divide-border">{pedido.items.map(item => <DeliveryProductDetail vistaRuta key={item.id} item={item} contexto={pedido.contextoEntrega} coloresLegacy />)}</ul>
+                    <DeliveryOrderTotals vistaRuta pedido={pedido} />
                   </details>
-                  <RutasContabilidadPedido resumen={cuenta} totalCobrado={null} /><DeliveryObservation contexto={pedido.contextoEntrega} />
+                  <RutasContabilidadPedido vistaRuta resumen={cuenta} totalCobrado={null} /><DeliveryObservation contexto={pedido.contextoEntrega} />
                   </>}
                   <div className="flex flex-wrap gap-2" role="group" aria-label={`Acciones del pedido ${pedido.numeroPedido}`}>
                     {pedido.clienteId ? <ActionLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</ActionLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}

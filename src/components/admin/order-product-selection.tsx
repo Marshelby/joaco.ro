@@ -109,7 +109,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
     && totalLineaPedido(elegida, cantidad, elegida.precioFinalReferencia) !== null;
 
   const totalesAplicados = resueltas.map((linea) => linea.actual ? leerPrecioPedido(linea.totalFinal) : null);
-  const sumaAplicada = totalesAplicados.reduce((total, importe) => total + (importe ?? 0), 0);
+  const sumaAplicada = totalesAplicados.reduce<number>((total, importe) => total + (importe ?? 0), 0);
   const subtotalAplicado = validas && totalesAplicados.every((total) => total !== null)
     && sumaAplicada <= IMPORTE_MAXIMO_PEDIDO ? sumaAplicada : null;
   const borrador = !aceptacion && validas ? crearBorradorPrecios(clienteId!, ubicacionId!, lineas, items) : null;

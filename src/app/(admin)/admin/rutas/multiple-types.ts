@@ -7,7 +7,7 @@ export type RutaMultiple = {
 };
 export type RutasMultiples = {
   contrato: 3; legado: boolean; rutas: RutaMultiple[];
-  repartidores: { usuario_id: string; nombre: string }[];
+  repartidores: { usuario_id: string }[];
 };
 export type SolicitudRutaMultiple = {
   accion: "crear" | "seleccionar" | "asignar" | "preparar" | "salir" | "cerrar" | "ordenar";

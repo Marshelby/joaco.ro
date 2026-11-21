@@ -202,7 +202,7 @@ export async function obtenerHistorialPedido(id: string) {
     }
   }
   if (!contextoEntrega.disponible) avisos.push("Observaciones de entrega no disponibles; el historial mostrado es parcial.");
-  const nombreResponsable = await obtenerNombresResponsables(eventos.map(e => e.actor));
+  const nombreResponsable = await obtenerNombresResponsables(eventos.map(e => e.actor), true);
   for (const evento of eventos) evento.actor = nombreResponsable(evento.actor);
   eventos.sort((a, b) => {
     const primero = leerInstante(a.fecha);

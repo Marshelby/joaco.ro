@@ -25,7 +25,7 @@ export async function obtenerContextoEntrega(id: string): Promise<ContextoEntreg
   const contexto = objeto(data), o = objeto(contexto.observacion), v = objeto(contexto.venta);
   const observacion = typeof o.texto === "string" && typeof o.actor_id === "string" && typeof o.fecha === "string"
     ? { texto: o.texto, actor_id: o.actor_id, fecha: o.fecha } : null;
-  const nombre = observacion ? await obtenerNombresResponsables([observacion.actor_id]) : null;
+  const nombre = observacion ? await obtenerNombresResponsables([observacion.actor_id], true) : null;
   return {
     disponible: true,
     observacion: observacion ? { ...observacion, autor: nombre!(observacion.actor_id) } : null,

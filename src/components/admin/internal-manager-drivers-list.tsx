@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { NOMBRE_REPARTIDOR_NO_REGISTRADO } from "@/lib/reparto/nombre";
 import { PermissionForm } from "@/app/(admin)/admin/repartidores/permission-form";
 import { buscarUsuariosReparto } from "./internal-manager-drivers-search";
 import { useInternalManagerUserSearch, type UsuarioGestorInterno as Usuario } from "./internal-manager-user-search";
@@ -12,7 +13,7 @@ export type DriverManagement = {
 
 function Identity({ usuario }: { usuario: Usuario }) {
   return <div className="min-w-0 flex-1">
-    <p className="break-words text-sm font-medium">{usuario.nombre || "Sin nombre registrado"}</p>
+    <p className="break-words text-sm font-medium">{usuario.nombre || NOMBRE_REPARTIDOR_NO_REGISTRADO}</p>
     <p className="break-all text-xs text-muted-foreground">{usuario.correo || "Sin correo registrado"}</p>
   </div>;
 }
@@ -30,7 +31,7 @@ export function InternalManagerDriversList({ gestion, initialQuery }: { gestion:
   const loading = search.length >= 2 && result.query !== search;
   // Conserva los cambios confirmados durante la revalidación del servidor.
   const drivers = [
-    ...gestion.repartidores.map(r => updates[r.usuario_id] ?? r),
+    ...gestion.repartidores.map(r => updates[r.usuario_id] ? { ...r, activo: updates[r.usuario_id].activo } : r),
     ...Object.values(updates).filter(r => !gestion.repartidores.some(existing => existing.usuario_id === r.usuario_id)),
   ];
   const enabled = drivers.filter(r => r.activo && !r.administrador);

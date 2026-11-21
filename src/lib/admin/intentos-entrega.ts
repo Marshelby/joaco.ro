@@ -20,6 +20,6 @@ export async function obtenerUltimoFalloEntrega(id: string) {
   const intento = data.intentos.at(-1);
   if (!intento) return null;
   const actorId = texto(intento.actor);
-  const nombres = actorId ? await obtenerNombresResponsables([actorId]) : null;
+  const nombres = actorId ? await obtenerNombresResponsables([actorId], true) : null;
   return { motivo: texto(intento.motivo), observaciones: texto(intento.observaciones), fecha: texto(intento.fecha), actor: actorId && nombres ? nombres(actorId) : null };
 }

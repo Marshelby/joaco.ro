@@ -1,5 +1,6 @@
 import "server-only";
 
+import { obtenerIdsReparto, obtenerNombresRepartidores } from "@/lib/reparto/nombres";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 type Persona = { id: string; nombre: string | null };
@@ -30,10 +31,17 @@ export async function obtenerResultadosEntrega(ids: string[]): Promise<Record<st
   for (let inicio = 0; inicio < unicos.length; inicio += 100) {
     const { data, error } = await db.rpc("leer_resultados_entrega_admin", { p_pedidos: unicos.slice(inicio, inicio + 100) });
     if (error) {
-      if (["PGRST202", "42883"].includes(error.code)) return resultados;
+      if (["PGRST202", "42883"].includes(error.code)) break;
       throw error;
     }
     Object.assign(resultados, data);
   }
+  const actores = Object.values(resultados).filter(r => r.actor && r.rol_actor !== "admin");
+  const reparto = actores.some(r => r.rol_actor == null) ? await obtenerIdsReparto() : null;
+  const repartidores = actores.flatMap(({ actor, rol_actor }) =>
+    actor && (rol_actor === "repartidor" || reparto?.has(actor.id)) ? [actor] : [],
+  );
+  const nombre = await obtenerNombresRepartidores(db, repartidores.map(actor => actor.id));
+  for (const actor of repartidores) actor.nombre = nombre(actor.id);
   return resultados;
 }

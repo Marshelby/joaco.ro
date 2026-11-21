@@ -51,6 +51,9 @@ export async function actualizarPerfilCliente(_: EstadoCuenta, datos: FormData):
   if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar tus datos." };
 
   revalidarCuenta();
+  revalidatePath("/admin/gestor-interno");
+  revalidatePath("/admin/rutas");
+  revalidatePath("/admin/pedidos", "layout");
   return { exito: "Datos actualizados." };
 }
 

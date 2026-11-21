@@ -15,6 +15,7 @@ import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/res
 import type { Metadata } from "next";
 import { RutasNavigation, RutasLink as Link, RutasFechaForm } from "./rutas-navigation";
 import { notFound } from "next/navigation";
+import { obtenerNombresRepartidores } from "@/lib/reparto/nombres";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 import { obtenerDetalleEntregaAdmin, obtenerFechaLocalActual, obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha } from "@/lib/admin/pedidos";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
@@ -52,7 +53,11 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
   if (params.ruta !== undefined && typeof params.ruta !== "string") notFound();
   const ruta = modelo.rutas.find(r => r.id === params.ruta);
   if (params.ruta && !ruta) notFound();
-  const nombreResponsable = await obtenerNombresResponsables(modelo.rutas.flatMap(r => r.historial.map(e => e.actor)));
+  const habilitados = new Set(modelo.repartidores.map(r => r.usuario_id));
+  const [nombreRepartidor, nombreResponsable] = await Promise.all([
+    obtenerNombresRepartidores(db, ruta ? [...habilitados, ...ruta.repartidores] : []),
+    obtenerNombresResponsables(ruta?.historial.map(e => e.actor) ?? [], true),
+  ]);
   const entrega = await obtenerDetalleEntregaAdmin(fecha);
   const contabilidad = await obtenerContabilidadRutas(fecha, entrega.pedidos.map(p => p.id));
   const utilidadDia = await obtenerPresentacionUtilidadDia(fecha);
@@ -118,10 +123,10 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
         { nombre: "En reparto", actual: ruta.estado === "en_reparto", detalle: `${ruta.contadores.pendientes} pedidos sin resolver` },
         { nombre: "Cierre", actual: ruta.estado === "cerrada", detalle: ruta.estado === "cerrada" ? "Ruta cerrada" : "Disponible al resolver todos los pedidos" },
       ].map(etapa => <li key={etapa.nombre} className={`rounded-lg border p-3 ${etapa.actual ? "border-primary bg-primary/10" : "border-border bg-muted/30"}`}><p className="font-semibold">{etapa.nombre}</p><p className="mt-1 text-xs text-muted-foreground">{etapa.detalle}</p></li>)}</ol>
-      <p className="text-sm">Repartidores asignados a la ruta: {ruta.repartidores.map(id => modelo.repartidores.find(r => r.usuario_id === id)?.nombre ?? "Repartidor no habilitado").join(", ") || "Sin asignar"}</p>
+      <p className="text-sm">Repartidores asignados a la ruta: {ruta.repartidores.map(id => habilitados.has(id) ? nombreRepartidor(id) : `${nombreRepartidor(id)} (no habilitado)`).join(", ") || "Sin asignar"}</p>
       {editable && <div className="grid gap-5 lg:grid-cols-2">
         <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Seleccionar pedidos</summary><RutaMultipleForm key={`seleccion-${ruta.id}-${ruta.version}`} comando={comando("seleccionar")} etiqueta="Guardar selección"><input type="hidden" name="seleccionPedidos" value="1" /><div className="max-h-80 overflow-auto">{[...pedidos, ...disponibles].map(p => <label key={p.id} className="flex min-h-11 items-center gap-3 py-2 text-sm"><input type="checkbox" name="pedidos" value={p.id} defaultChecked={ruta.pedidos.includes(p.id)} />{p.numeroPedido} · {p.nombreClienteSnapshot}</label>)}</div></RutaMultipleForm></details>
-        <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Asignar repartidores</summary><RutaMultipleForm key={`asignar-${ruta.id}-${ruta.version}`} comando={comando("asignar")} etiqueta="Guardar repartidores"><input type="hidden" name="seleccionRepartidores" value="1" />{modelo.repartidores.map(r => <label key={r.usuario_id} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name="repartidores" value={r.usuario_id} defaultChecked={ruta.repartidores.includes(r.usuario_id)} />{r.nombre}</label>)}</RutaMultipleForm></details>
+        <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Asignar repartidores</summary><RutaMultipleForm key={`asignar-${ruta.id}-${ruta.version}`} comando={comando("asignar")} etiqueta="Guardar repartidores"><input type="hidden" name="seleccionRepartidores" value="1" />{modelo.repartidores.map(r => <label key={r.usuario_id} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name="repartidores" value={r.usuario_id} defaultChecked={ruta.repartidores.includes(r.usuario_id)} />{nombreRepartidor(r.usuario_id)}</label>)}</RutaMultipleForm></details>
       </div>}
       {ruta.estado === "planificacion" && <RutaMultipleForm comando={comando("preparar")} etiqueta="Iniciar preparación de esta ruta" disabled={!permiso.permitida} />}
       {ruta.estado === "en_reparto" && <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">Salida registrada. Asigna los pedidos nuevos a otra ruta independiente desde «Crear ruta».</p>}

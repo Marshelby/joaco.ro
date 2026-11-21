@@ -1,12 +1,18 @@
 import "server-only";
+import { obtenerIdsReparto, obtenerNombresRepartidores } from "@/lib/reparto/nombres";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
-export async function obtenerNombresResponsables(ids: (string | null | undefined)[]) {
+export async function obtenerNombresResponsables(ids: (string | null | undefined)[], incluirReparto = false) {
   const db = await crearClienteSupabaseServidor();
   const nombres = new Map<string, string>();
   const unicos = [...new Set(ids.filter((id): id is string => Boolean(id)))];
-  for (let n = 0; n < unicos.length; n += 100) {
-    const { data, error } = await db.from("perfiles").select("usuario_id,nombre").in("usuario_id", unicos.slice(n, n + 100));
+  const reparto = incluirReparto && unicos.length ? await obtenerIdsReparto() : new Set<string>();
+  const idsReparto = unicos.filter(id => reparto.has(id));
+  const otros = unicos.filter(id => !reparto.has(id));
+  const nombreRepartidor = await obtenerNombresRepartidores(db, idsReparto);
+  for (const id of idsReparto) nombres.set(id, nombreRepartidor(id));
+  for (let n = 0; n < otros.length; n += 100) {
+    const { data, error } = await db.from("perfiles").select("usuario_id,nombre").in("usuario_id", otros.slice(n, n + 100));
     if (!error) for (const perfil of data ?? []) if (perfil.nombre?.trim()) nombres.set(perfil.usuario_id, perfil.nombre.trim());
   }
   return (id?: string | null) => id ? nombres.get(id) ?? "Responsable sin nombre disponible" : "Sistema / responsable no registrado";

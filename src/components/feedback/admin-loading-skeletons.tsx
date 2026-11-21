@@ -3,7 +3,20 @@ import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function AdminDashboardSkeleton() {
-  return <AdminLoadingFrame label="Cargando administración"><div aria-hidden="true" className="space-y-6"><PageHeaderSkeleton /><section className="space-y-6"><div className="space-y-3"><Skeleton className="h-8 w-48" /><Skeleton className="h-5 max-w-xl" /></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <MetricCardSkeleton key={index} />)}</div></section></div></AdminLoadingFrame>;
+  return (
+    <>
+      <p role="status" className="sr-only">Cargando indicadores comerciales.</p>
+      <div aria-hidden="true" className="space-y-4">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+          <Skeleton className="h-6 w-48" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => <MetricCardSkeleton key={index} />)}
+          </div>
+        </section>
+        <PanelSkeleton lines={2} />
+      </div>
+    </>
+  );
 }
 
 function AdminListSkeleton({ kind = "products" }: { kind?: "products" | "customers" | "orders" | "categories" }) {

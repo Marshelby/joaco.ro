@@ -8,10 +8,11 @@ function configuracion() {
   return { url, key };
 }
 
-export async function crearClienteSupabaseServidor() {
+export async function crearClienteSupabaseServidor({ sinCache = false } = {}) {
   const almacenCookies = await cookies();
   const { url, key } = configuracion();
   return createServerClient(url, key, {
+    global: sinCache ? { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) } : undefined,
     cookies: {
       getAll: () => almacenCookies.getAll(),
       setAll: (cookiesParaGuardar) => {

@@ -8,11 +8,13 @@ import { PendingButton } from "@/components/ui/pending-button";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 
-export function OrderAcceptAction({ pedidoId, editable }: { pedidoId: string; editable: boolean }) {
+export function OrderAcceptAction({ pedidoId, editable, replaceDetail = false }: { pedidoId: string; editable: boolean; replaceDetail?: boolean }) {
   if (!editable) return <OrderAcceptForm pedidoId={pedidoId} />;
 
+  // La confirmación reemplaza esta entrada con el detalle interceptado.
+  // Desde una modal, conserva la página de origen como entrada anterior.
   return (
-    <ActionLink href={`${ROUTES.adminOrders}/aceptar/${pedidoId}`} prefetch={false} className="w-full sm:w-auto">
+    <ActionLink href={`${ROUTES.adminOrders}/aceptar/${pedidoId}`} prefetch={false} replace={replaceDetail} className="w-full sm:w-auto">
       Aceptar pedido
     </ActionLink>
   );

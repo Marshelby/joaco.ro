@@ -5,7 +5,7 @@ import { exigirRepartidor } from "@/lib/reparto/server";
 import type { SolicitudConCobro } from "@/app/(admin)/admin/rutas/entrega-actions";
 import type { SolicitudEntregaFallida } from "@/app/(admin)/admin/rutas/fallida-actions";
 import type { RespuestaConfirmacion } from "@/app/(admin)/admin/rutas/entrega-confirmacion";
-import type { DatosVistaEntrega } from "@/app/(admin)/admin/rutas/entrega-preview";
+import { totalesEntrega, type DatosVistaEntrega } from "@/app/(admin)/admin/rutas/entrega-preview";
 import { solicitudValida, cobroValido, leerBalanceEntrega } from "@/app/(admin)/admin/rutas/entrega-validacion";
 
 export type AmbitoEntregaReparto = { ruta?: string; fecha: string; asignacion: number };
@@ -25,11 +25,11 @@ export async function cargarVistaReparto(ambito: AmbitoEntregaReparto, pedido: s
       !Number.isSafeInteger(r.data.aplicadoPrevio) || r.data.aplicadoPrevio < 0) return { error: "Vista de entrega incompatible. Requiere revisión de la instalación." };
   const datos = r.data as DatosVistaEntrega;
   const { resumen, reglas } = datos;
-  if (![resumen.subtotal, resumen.costoEntrega, resumen.descuento, resumen.total].every(n => Number.isSafeInteger(n) && n >= 0) ||
-      resumen.total !== resumen.subtotal + resumen.costoEntrega - resumen.descuento ||
-      resumen.productos.length !== reglas.length || resumen.productos.some(p => !p || typeof p.nombre !== "string" || typeof p.unidad !== "string" ||
-        !Number.isFinite(p.cantidad) || p.cantidad < 0 || !Number.isSafeInteger(p.importe) || p.importe < 0 || !reglas.some(r => r?.id === p.id)) ||
-      resumen.subtotal !== resumen.productos.reduce((sum, p) => sum + p.importe, 0)) return { error: "Importes de preparación incompatibles. Requiere revisión de la instalación." };
+  const errorImportes = "Importes de preparación incompatibles. Requiere revisión de la instalación.";
+  if (resumen.productos.length !== reglas.length || resumen.productos.some(p => !p || typeof p.nombre !== "string" || typeof p.unidad !== "string" ||
+      !Number.isFinite(p.cantidad) || p.cantidad < 0 || !Number.isSafeInteger(p.importe) || p.importe < 0 || !reglas.some(r => r?.id === p.id))) return { error: errorImportes };
+  const totales = totalesEntrega(resumen.productos, resumen.costoEntrega, resumen.descuento);
+  if (!totales || resumen.subtotal !== totales.subtotal || resumen.total !== totales.total) return { error: errorImportes };
   return { datos };
 }
 export async function resolverEntregaReparto(ambito: AmbitoEntregaReparto, s: SolicitudConCobro, diferencias: boolean, consultar = false): Promise<RespuestaConfirmacion> {

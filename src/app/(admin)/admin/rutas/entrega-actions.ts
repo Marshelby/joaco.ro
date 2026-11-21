@@ -1,5 +1,7 @@
 "use server";
 
+import { camposReglaEntrega, reglaEntregaAdmin, totalesEntrega } from "./entrega-preview";
+
 import { solicitudValida, cobroValido } from "./entrega-validacion";
 import { mensajeErrorEntrega } from "./entrega-errores";
 import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
@@ -72,16 +74,15 @@ export async function prepararEntregaTodoCorrecto(pedidoId: string, versionEsper
       productos.push({ id: item.id, nombre: item.nombre_producto_snapshot, presentacion: item.nombre_presentacion_snapshot,
         unidad: item.unidad_snapshot, cantidad, importe });
     }
-    const subtotal = productos.reduce((suma, item) => suma + item.importe, 0);
     const costoEntrega = Number(pedido.costo_entrega);
     const descuento = Number(pedido.descuento);
-    const total = subtotal + costoEntrega - descuento;
-    if (pedido.total_operativo_preparacion == null || ![subtotal, costoEntrega, descuento, total].every((importe) => Number.isSafeInteger(importe) && importe >= 0) ||
-      total !== Number(pedido.total_operativo_preparacion)) return { error: "Los importes de preparación no coinciden. Recarga el pedido." };
+    const totales = totalesEntrega(productos, costoEntrega, descuento);
+    if (!totales || pedido.total_operativo_preparacion == null ||
+      totales.total !== Number(pedido.total_operativo_preparacion)) return { error: "Los importes de preparación no coinciden. Recarga el pedido." };
     const { data: despues, error: errorDespues } = await db.rpc("leer_preparacion_explicita", { p_pedido_id: pedidoId });
     if (errorDespues) return { error: mensajeErrorEntrega(errorDespues, "No fue posible verificar la versión operativa. Reintenta.") };
     if (Number(despues?.version) !== versionEsperada) return { error: "El pedido cambió durante la revisión. Recarga antes de continuar." };
-    return { resumen: { productos, subtotal, costoEntrega, descuento, total, solicitud: {
+    return { resumen: { productos, ...totales, costoEntrega, descuento, solicitud: {
       p_pedido_id: pedidoId, p_version_esperada: versionEsperada, p_clave: randomUUID(),
       p_items: productos.map((item) => ({ item_pedido_id: item.id, cantidad_entregada: item.cantidad })),
     } } };
@@ -125,12 +126,12 @@ export async function cargarVistaEntrega(pedido: string, version: number): Promi
  if (!previa.resumen) return { error: previa.error };
  try {
   const db = await crearClienteSupabaseServidor();
-  const { data: reglas, error } = await db.from("items_pedido").select("id,cantidad,total_linea,total_final_administrativo,precio_final_unitario_snapshot,modo_cantidad_snapshot,nombre_presentacion_snapshot,unidad_snapshot").eq("pedido_id", pedido);
+  const { data: reglas, error } = await db.from("items_pedido").select(camposReglaEntrega).eq("pedido_id", pedido);
   const { data: abonos, error: errorAbonos } = await db.from("aplicaciones_pago").select("monto_aplicado,pagos!inner(estado)").eq("pedido_id", pedido).eq("activa", true).eq("pagos.estado", "confirmado");
   if (error || errorAbonos || !reglas || reglas.length !== previa.resumen.productos.length) return { error: mensajeErrorEntrega(error ?? errorAbonos ?? {}, "No fue posible leer precios y abonos.") };
   const aplicadoPrevio = (abonos ?? []).reduce((sum, a) => sum + Number(a.monto_aplicado), 0);
   if (!Number.isSafeInteger(aplicadoPrevio) || aplicadoPrevio < 0) return { error: "Los abonos requieren revisión contable." };
-  return { datos: { resumen: previa.resumen, reglas, aplicadoPrevio } };
+  return { datos: { resumen: previa.resumen, reglas: reglas.map(reglaEntregaAdmin), aplicadoPrevio } };
  } catch { return { error: "No fue posible cargar la vista previa. Cierra y vuelve a abrir." }; }
 }
 

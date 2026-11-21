@@ -54,7 +54,7 @@ export function RutaPreparacionControl({ ruta, pedidos, habilitada, fecha }: Pro
     }}>
       <h2 className="font-semibold">Resumen de toda la ruta · {ruta.nombre}</h2>
       {pendientes && <p role="alert" className="text-sm text-destructive">Hay pedidos pendientes de preparación, vacíos o sin aceptar. Guarda todas las cantidades, incluso cero. Los pedidos vacíos requieren revisión; no se consideran sin stock.</p>}
-      {excepciones.length > 0 && <div role="alert" className="rounded-lg border border-amber-300 p-3 text-sm"><p className="font-semibold">Excepción comercial: no se puede confirmar esta preparación.</p><p>Estas líneas tienen un total cerrado sin regla de precio para la cantidad cargada. Se necesita una regla comercial autorizada; no se prorratea ni se inventa un precio.</p><ul className="mt-2 list-disc pl-5">{excepciones.map(linea => <li key={linea}>{linea}</li>)}</ul></div>}
+      {excepciones.length > 0 && <div role="alert" className="rounded-lg border border-amber-300 p-3 text-sm"><p className="font-semibold">Excepción comercial: no se puede confirmar esta preparación.</p><p>Estas líneas tienen un total cerrado sin regla de precio para la cantidad cargada. Revisa la cantidad cargada y la autorización comercial de cada línea.</p><ul className="mt-2 list-disc pl-5">{excepciones.map(linea => <li key={linea}>{linea}</li>)}</ul></div>}
       <fieldset disabled={pendiente || enviada} className="space-y-3">
         {pedidos.map(p => {
           const sinTrabajar = !p.items.length || p.items.some(i => i.cantidadPreparada === null);

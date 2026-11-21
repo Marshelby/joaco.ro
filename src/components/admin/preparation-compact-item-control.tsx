@@ -22,7 +22,11 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   const [clave, setClave] = useState("");
   const [pendiente, iniciar] = useTransition();
   const modo = resolverModoCantidadPreparacion(item);
-  const paso = modo === "kg_fraccionable" ? 0.001 : 1;
+  const fraccionable = modo === "kg_fraccionable";
+  const pasoMedioKg = soloPreparacion && fraccionable;
+  const pasoEntrada = fraccionable ? 0.001 : 1;
+  const paso = pasoMedioKg ? 0.5 : pasoEntrada;
+  const maximo = 999999999.999;
   const valor = Number(cantidad);
   const cambios = cantidadGuardada === null ? cantidad !== "" : cantidad === "" || valor !== cantidadGuardada;
   const formato = (n: number) => formatearCantidadPreparacionEntrega(n, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
@@ -36,6 +40,12 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
     setError("");
     setClave(crypto.randomUUID());
     solicitud.current = null;
+  }
+
+  function ajustarCantidad(direccion: -1 | 1) {
+    if (!Number.isFinite(valor) || (direccion < 0 && valor <= 0)) return;
+    const siguiente = Math.max(0, Math.round((valor + direccion * paso) * 1000) / 1000);
+    if (siguiente <= maximo) editar(String(siguiente));
   }
 
   return <li className="py-3 text-sm">
@@ -91,9 +101,13 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
         <div className="space-y-1">
           <label htmlFor={`cargada-${item.id}`} className="block text-xs">Cantidad cargada</label>
           <div className="flex items-center gap-1">
-            {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Restar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor <= 0} onClick={() => editar(String(Math.max(0, Math.round((valor - paso) * 1000) / 1000)))}>−</Button> : null}
-            <input id={`cargada-${item.id}`} name="cantidadPreparada" type="number" inputMode={modo === "kg_fraccionable" ? "decimal" : "numeric"} min="0" max="999999999.999" step={paso} required readOnly={soloLectura} disabled={pendiente} value={cantidad} onChange={(e) => editar(e.target.value)} className="h-9 w-24 rounded-md border border-input bg-background px-2 text-center" />
-            {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Sumar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor + paso > 999999999.999} onClick={() => editar(String(Math.round((valor + paso) * 1000) / 1000))}>+</Button> : null}
+            {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Restar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor <= 0} onClick={() => ajustarCantidad(-1)}>−</Button> : null}
+            <input id={`cargada-${item.id}`} name="cantidadPreparada" type="number" inputMode={fraccionable ? "decimal" : "numeric"} min="0" max={maximo} step={pasoEntrada} required readOnly={soloLectura} disabled={pendiente} value={cantidad} onChange={(e) => editar(e.target.value)} onKeyDown={(e) => {
+              if (!pasoMedioKg || soloLectura || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+              e.preventDefault();
+              ajustarCantidad(e.key === "ArrowUp" ? 1 : -1);
+            }} className={`h-9 w-24 rounded-md border border-input bg-background px-2 text-center ${pasoMedioKg ? "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : ""}`} />
+            {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Sumar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor + paso > maximo} onClick={() => editar(String(Math.round((valor + paso) * 1000) / 1000))}>+</Button> : null}
           </div>
           {!soloLectura && cambios ? <div className="flex items-center gap-1"><Button type="button" size="sm" variant="outline" disabled={pendiente} onClick={() => editar(cantidadGuardada === null ? "" : String(cantidadGuardada))}>Cancelar</Button><Button type="submit" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button></div> : null}
           <p className="text-xs text-muted-foreground">{cantidad !== "" && Number.isFinite(valor) ? formato(valor) : "Ingresa una cantidad"}</p>

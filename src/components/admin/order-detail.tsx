@@ -58,7 +58,8 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
   const dato = (tono: keyof typeof tonoJornada) => vistaRuta ? `${bloqueJornada} ${tonoJornada[tono]}` : undefined;
   const tarjeta = vistaRuta ? "min-w-0 rounded-xl border border-border bg-card p-3" : "min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm";
   const ficha = vistaRuta ? "mt-2 grid gap-x-3 gap-y-2 text-sm sm:grid-cols-2" : "mt-3 grid gap-3 text-sm sm:grid-cols-2";
-  const grupoContable = vistaRuta ? "grid min-w-0 content-start gap-1.5 rounded-lg border border-border bg-muted/25 p-1.5 sm:grid-rows-[1fr_auto]" : "contents";
+  const indicadorContable = (tono: keyof typeof tonoJornada) => `${bloqueJornada} ${tonoJornada[tono]}`;
+  const grupoContable = "grid min-w-0 grid-rows-[1fr_auto] gap-1.5 rounded-lg border border-border bg-muted/25 p-1.5";
 
   const detail = (
     <div className={vistaRuta ? "min-w-0 space-y-3 wrap-anywhere" : "min-w-0 space-y-4 [overflow-wrap:anywhere]"}>
@@ -73,7 +74,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
       <div className="flex flex-wrap items-start gap-2">
         {pedido.clienteId ? <OrderCustomerLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</OrderCustomerLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
         {pedido.estado === "entregado" ? <RecycleOrderLink pedidoId={pedido.id} /> : null}
-        {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} editable={aceptarEditable} /> : null}
+        {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} editable={aceptarEditable} replaceDetail={modal} /> : null}
         {pedido.estado === "confirmado" ? pedido.fechaEntrega ? <ActionLink href={`/admin/rutas?fecha=${pedido.fechaEntrega}`}>Ir a ruta</ActionLink> : <span className="text-sm text-muted-foreground">Sin fecha de entrega para ir a ruta</span> : null}
         {["preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}
@@ -85,29 +86,27 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
       {resultado && <DeliveryResult vistaRuta={vistaRuta} tipo={resultado.tipo}>
         <DeliveryResultDetails vistaRuta={vistaRuta} datos={resultado} contexto={contextoEntrega} fallo={fallo} ocultarOriginal />
       </DeliveryResult>}
-      <section className={vistaRuta ? tarjeta : "rounded-xl border border-border bg-card p-4 shadow-sm"} aria-labelledby="resumen-contable-title">
-        <h2 id="resumen-contable-title" className="text-sm font-semibold">Resumen contable de la entrega</h2>
-        <div className={vistaRuta ? "mt-2 grid gap-2 text-xs tabular-nums [&_dd]:mt-0.5 [&_dd]:text-sm [&_dd]:font-semibold sm:grid-cols-2" : "mt-3 grid gap-3 text-sm sm:grid-cols-2"}>
-          <dl className={vistaRuta ? "sm:col-span-2" : "contents"}>
-            <div className={dato(contabilidad?.importe_definitivo != null || importeRegistrado != null ? "venta" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>{contabilidad?.importe_definitivo == null && importeRegistrado != null ? "Importe definitivo registrado" : "Importe definitivo vigente"}</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : importeRegistrado != null ? formatCLP(importeRegistrado) : "No registrado"}</dd></div>
+      <section className="min-w-0 rounded-xl border border-border bg-card p-3" aria-labelledby="resumen-contable-title">
+        <h2 id="resumen-contable-title" className="text-sm font-semibold tracking-tight text-foreground">Resumen contable de la entrega</h2>
+        <div className="mt-2 grid gap-2 text-xs leading-snug tabular-nums sm:grid-cols-2 [&_dd]:mt-0.5 [&_dd]:text-sm [&_dd]:font-semibold [&_dt]:font-medium">
+          <dl className={`${cuadriculaDetalleJornada} sm:col-span-2`}>
+            <div className={indicadorContable(contabilidad?.importe_definitivo != null || importeRegistrado != null ? "venta" : "informativo")}><dt>{contabilidad?.importe_definitivo == null && importeRegistrado != null ? "Importe definitivo registrado" : "Importe definitivo vigente"}</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : importeRegistrado != null ? formatCLP(importeRegistrado) : "No registrado"}</dd></div>
+            <div className={indicadorContable((contabilidad?.saldo_pedido ?? 0) > 0 ? "pendiente" : "informativo")}><dt>Saldo pendiente de este pedido</dt><dd>{contabilidad?.saldo_pedido != null ? formatCLP(Math.max(0, contabilidad.saldo_pedido)) : "No disponible"}</dd></div>
+            {contabilidad?.saldo_pedido != null && contabilidad.saldo_pedido < 0 ? <div className={indicadorContable("informativo")}><dt>Saldo a favor en este pedido</dt><dd>{formatCLP(-contabilidad.saldo_pedido)}</dd></div> : null}
+            {(contabilidad?.saldo_favor_origen_entrega ?? 0) > 0 ? <div className={indicadorContable("informativo")}><dt>Crédito aún disponible de los pagos de esta entrega</dt><dd>{formatCLP(contabilidad!.saldo_favor_origen_entrega!)}</dd></div> : null}
           </dl>
           <dl className={grupoContable}>
-            <div className={dato(contabilidad?.cobros_entrega?.length ? "completado" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Cobros confirmados registrados en la entrega</dt><dd>{contabilidad?.cobros_entrega == null ? "No registrado" : contabilidad.cobros_entrega.length ? contabilidad.cobros_entrega.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin cobros confirmados"}</dd></div>
-            <div className={dato(contabilidad?.cobros_entrega != null || cobradoRegistrado != null ? "completado" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Total cobrado en la entrega</dt><dd>{contabilidad?.cobros_entrega != null ? formatCLP(contabilidad.cobros_entrega.reduce((total, c) => total + c.monto, 0)) : cobradoRegistrado != null ? formatCLP(cobradoRegistrado) : "No registrado"}</dd></div>
+            <div className={indicadorContable(contabilidad?.cobros_entrega?.length ? "completado" : "informativo")}><dt>Cobros confirmados registrados en la entrega</dt><dd>{contabilidad?.cobros_entrega == null ? "No registrado" : contabilidad.cobros_entrega.length ? contabilidad.cobros_entrega.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin cobros confirmados"}</dd></div>
+            <div className={indicadorContable(contabilidad?.cobros_entrega != null || cobradoRegistrado != null ? "completado" : "informativo")}><dt>Total cobrado en la entrega</dt><dd>{contabilidad?.cobros_entrega != null ? formatCLP(contabilidad.cobros_entrega.reduce((total, c) => total + c.monto, 0)) : cobradoRegistrado != null ? formatCLP(cobradoRegistrado) : "No registrado"}</dd></div>
           </dl>
           <dl className={grupoContable}>
-            <div className={dato(contabilidad?.aplicaciones.length ? "completado" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Pagos confirmados aplicados a este pedido</dt><dd>{contabilidad ? contabilidad.aplicaciones.length ? contabilidad.aplicaciones.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin aplicaciones confirmadas" : "No disponible"}</dd></div>
-            <div className={dato(contabilidad?.total_aplicado != null ? "completado" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Total aplicado al pedido</dt><dd>{contabilidad?.total_aplicado != null ? formatCLP(contabilidad.total_aplicado) : "No disponible"}</dd></div>
-          </dl>
-          <dl className={vistaRuta ? cuadriculaDetalleJornada + " sm:col-span-2" : "contents"}>
-            <div className={dato((contabilidad?.saldo_pedido ?? 0) > 0 ? "pendiente" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Saldo pendiente de este pedido</dt><dd>{contabilidad?.saldo_pedido != null ? formatCLP(Math.max(0, contabilidad.saldo_pedido)) : "No disponible"}</dd></div>
-            {contabilidad?.saldo_pedido != null && contabilidad.saldo_pedido < 0 ? <div className={dato("informativo")}><dt>Saldo a favor en este pedido</dt><dd>{formatCLP(-contabilidad.saldo_pedido)}</dd></div> : null}
-            {(contabilidad?.saldo_favor_origen_entrega ?? 0) > 0 ? <div className={dato("informativo")}><dt>Crédito aún disponible de los pagos de esta entrega</dt><dd>{formatCLP(contabilidad!.saldo_favor_origen_entrega!)}</dd></div> : null}
+            <div className={indicadorContable(contabilidad?.aplicaciones.length ? "completado" : "informativo")}><dt>Pagos confirmados aplicados a este pedido</dt><dd>{contabilidad ? contabilidad.aplicaciones.length ? contabilidad.aplicaciones.map(c => <p key={c.metodo}>{c.metodo}: {formatCLP(c.monto)}</p>) : "Sin aplicaciones confirmadas" : "No disponible"}</dd></div>
+            <div className={indicadorContable(contabilidad?.total_aplicado != null ? "completado" : "informativo")}><dt>Total aplicado al pedido</dt><dd>{contabilidad?.total_aplicado != null ? formatCLP(contabilidad.total_aplicado) : "No disponible"}</dd></div>
           </dl>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">Los cobros de entrega pueden generar crédito. Las aplicaciones incluyen pagos anteriores o posteriores y sólo su parte atribuida a este pedido. El saldo mostrado no es la deuda acumulada del cliente.</p>
-        {contabilidad?.regimen === "legado" ? <p className="mt-2 text-sm text-muted-foreground">Pedido histórico: el saldo sigue el régimen contable legado; no se reconstruye una venta definitiva sin snapshot.</p> : null}
-        {!contabilidad ? <p className="mt-2 text-sm text-muted-foreground">Resumen no disponible: requiere instalar el SQL manual de resumen contable.</p> : null}
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Los cobros de entrega pueden generar crédito. Las aplicaciones incluyen pagos anteriores o posteriores y sólo su parte atribuida a este pedido. El saldo mostrado no es la deuda acumulada del cliente.</p>
+        {contabilidad?.regimen === "legado" ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Pedido histórico: el saldo sigue el régimen contable legado; no se reconstruye una venta definitiva sin snapshot.</p> : null}
+        {!contabilidad ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Resumen no disponible: requiere instalar el SQL manual de resumen contable.</p> : null}
       </section>
       {!resultado && <DeliveryObservation contexto={contextoEntrega} />}
       {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} vistaRuta={vistaRuta} /> : null}

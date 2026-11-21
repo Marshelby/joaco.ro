@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { bloqueJornada, importeJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { leerComprasDia } from "@/lib/admin/compras-dia";
 
 const clp = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0, useGrouping: "always" }).format(n);
@@ -19,7 +20,7 @@ export async function DayProfitSummary({ fecha }: { fecha: string }) {
 // Ambas vistas comparten una única lectura y el mismo cálculo de utilidad.
 export async function obtenerPresentacionUtilidadDia(fecha: string) {
   const datos = await leerComprasDia(fecha);
-  if (!datos || ![2, 3].includes(datos.contrato)) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="status" className="text-sm text-amber-800">Utilidad no disponible. No se pudo verificar el contrato de compras múltiples o sus datos. Recarga y revisa el acceso a las funciones de compras.</p> };
+  if (!datos || ![2, 3].includes(datos.contrato)) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="status" className={`${bloqueJornada} text-sm ${tonoJornada.informativo}`}>Utilidad no disponible. No se pudo verificar el contrato de compras múltiples o sus datos. Recarga y revisa el acceso a las funciones de compras.</p> };
   const filas = datos.productos.map(p => {
     const cubierta = p.precio === null ? 0 : p.asignada ?? 0;
     const fraccion = p.requerida > 0 ? cubierta / p.requerida : 0;
@@ -32,9 +33,9 @@ export async function obtenerPresentacionUtilidadDia(fecha: string) {
   const suma = (campo: "venta" | "ingreso" | "costo" | "utilidad" | "pendiente") => filas.reduce((s, f) => s + (f[campo] ?? 0), 0);
   const incompleta = filas.some(f => f.cubierta < f.p.requerida || f.p.requiere_ajuste || (f.costo === null && f.p.requerida > 0));
   const seguros = (["venta", "ingreso", "costo", "utilidad", "pendiente"] as const).every(k => Number.isFinite(suma(k)) && Math.abs(suma(k)) <= Number.MAX_SAFE_INTEGER);
-  if (!seguros) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="alert">Importes fuera del rango seguro; utilidad no disponible.</p> };
+  if (!seguros) return { indicador: indicadorUtilidad("No disponible"), detalle: <p role="alert" className={`${bloqueJornada} text-sm ${tonoJornada.incidencia}`}>Importes fuera del rango seguro; utilidad no disponible.</p> };
   const margen = (u: number | null, venta: number) => u === null || venta === 0 ? "—" : `${(100 * u / venta).toFixed(1)} %`;
-  const colorUtilidad = (valor: number | null) => valor !== null && valor < 0 ? "text-red-700" : valor !== null && valor > 0 ? "text-emerald-700" : "text-muted-foreground";
+  const colorUtilidad = (valor: number | null) => valor === null ? tonoJornada.pendiente : valor < 0 ? tonoJornada.incidencia : valor > 0 ? tonoJornada.completado : tonoJornada.informativo;
   const utilidadTotal = filas.length > 0 && filas.every(f => f.utilidad === null) ? null : suma("utilidad");
   const detalle = <section className="min-w-0 space-y-3 text-xs" aria-label="Utilidad del día">
     <div role="region" aria-label="Detalle de utilidad por producto" tabIndex={0} className="overflow-x-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-ring">
@@ -60,16 +61,16 @@ export async function obtenerPresentacionUtilidadDia(fecha: string) {
                 <span className="block font-normal text-muted-foreground">{f.p.presentacion ?? f.p.unidad}</span>
               </th>
               <td className="px-3 py-2 text-right align-top">
-                {cantidad(f.cubierta)} {unidad}
-                {faltan > 0 && <span className="block text-[11px] text-amber-800">Pendiente: {cantidad(faltan)} {unidad}</span>}
-                {f.p.requiere_ajuste && <span className="block text-[11px] text-amber-800">Compra por revisar</span>}
+                <span className={`${importeJornada} ${tonoJornada.completado}`}>{cantidad(f.cubierta)} {unidad}</span>
+                {faltan > 0 && <span className="mt-1 block text-[11px] font-normal"><span className={`${importeJornada} ${tonoJornada.pendiente}`}>Pendiente: {cantidad(faltan)} {unidad}</span></span>}
+                {f.p.requiere_ajuste && <span className="mt-1 block text-[11px] font-normal"><span className={`${importeJornada} ${tonoJornada.pendiente}`}>Compra por revisar</span></span>}
               </td>
-              <td className="px-3 py-2 text-right align-top">{cantidad(f.p.requerida)} {unidad}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-right align-top">{clp(f.venta)}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-right align-top">{f.costo === null ? "Pendiente" : clp(f.costo)}</td>
-              <td className={`whitespace-nowrap px-3 py-2 text-right align-top font-medium ${colorUtilidad(f.utilidad)}`}>
-                {f.utilidad === null ? "Pendiente" : clp(f.utilidad)}
-                {parcial && f.utilidad !== null && <span className="block text-[11px] font-normal text-amber-800">Parcial</span>}
+              <td className="px-3 py-2 text-right align-top"><span className={`${importeJornada} ${tonoJornada.venta}`}>{cantidad(f.p.requerida)} {unidad}</span></td>
+              <td className="whitespace-nowrap px-3 py-2 text-right align-top"><span className={`${importeJornada} ${tonoJornada.venta}`}>{clp(f.venta)}</span></td>
+              <td className="whitespace-nowrap px-3 py-2 text-right align-top"><span className={`${importeJornada} ${f.costo === null ? tonoJornada.pendiente : tonoJornada.informativo}`}>{f.costo === null ? "Pendiente" : clp(f.costo)}</span></td>
+              <td className="whitespace-nowrap px-3 py-2 text-right align-top">
+                <span className={`${importeJornada} ${colorUtilidad(f.utilidad)}`}>{f.utilidad === null ? "Pendiente" : clp(f.utilidad)}</span>
+                {parcial && f.utilidad !== null && <span className="mt-1 block text-[11px] font-normal"><span className={`${importeJornada} ${tonoJornada.pendiente}`}>Parcial</span></span>}
               </td>
             </tr>;
           })}
@@ -78,20 +79,20 @@ export async function obtenerPresentacionUtilidadDia(fecha: string) {
         <tfoot className="border-t bg-muted/50 font-semibold">
           <tr>
             <th scope="row" colSpan={3} className="px-3 py-2">TOTAL</th>
-            <td className="whitespace-nowrap px-3 py-2 text-right">{clp(suma("venta"))}</td>
-            <td className="whitespace-nowrap px-3 py-2 text-right">{utilidadTotal === null ? "Pendiente" : clp(suma("costo"))}</td>
-            <td className={`whitespace-nowrap px-3 py-2 text-right ${colorUtilidad(utilidadTotal)}`}>
-              {utilidadTotal === null ? "Pendiente" : clp(utilidadTotal)}
-              {incompleta && <span className="block text-[11px] font-normal text-amber-800">Parcial</span>}
+            <td className="whitespace-nowrap px-3 py-2 text-right"><span className={`${importeJornada} ${tonoJornada.venta}`}>{clp(suma("venta"))}</span></td>
+            <td className="whitespace-nowrap px-3 py-2 text-right"><span className={`${importeJornada} ${utilidadTotal === null ? tonoJornada.pendiente : tonoJornada.informativo}`}>{utilidadTotal === null ? "Pendiente" : clp(suma("costo"))}</span></td>
+            <td className="whitespace-nowrap px-3 py-2 text-right">
+              <span className={`${importeJornada} ${colorUtilidad(utilidadTotal)}`}>{utilidadTotal === null ? "Pendiente" : clp(utilidadTotal)}</span>
+              {incompleta && <span className="mt-1 block text-[11px] font-normal"><span className={`${importeJornada} ${tonoJornada.pendiente}`}>Parcial</span></span>}
             </td>
           </tr>
         </tfoot>
       </table>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-3">
-      <p className="font-semibold">UTILIDAD BRUTA ESTIMADA TOTAL{incompleta && <span className="ml-2 font-normal text-amber-800">Parcial</span>}</p>
+      <p className="font-semibold">UTILIDAD BRUTA ESTIMADA TOTAL{incompleta && <span className="ml-2 text-[11px] font-normal"><span className={`${importeJornada} ${tonoJornada.pendiente}`}>Parcial</span></span>}</p>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className={`text-xl font-semibold tabular-nums ${colorUtilidad(utilidadTotal)}`}>{utilidadTotal === null ? "Pendiente" : clp(utilidadTotal)}</p>
+        <p className="text-xl"><span className={`${importeJornada} ${colorUtilidad(utilidadTotal)}`}>{utilidadTotal === null ? "Pendiente" : clp(utilidadTotal)}</span></p>
         <p className="text-muted-foreground">Margen{incompleta ? " parcial" : ""}: {margen(utilidadTotal, suma("ingreso"))}</p>
       </div>
     </div>
@@ -99,6 +100,10 @@ export async function obtenerPresentacionUtilidadDia(fecha: string) {
   </section>;
   return {
     detalle,
-    indicador: indicadorUtilidad(utilidadTotal === null ? "Pendiente" : clp(utilidadTotal), incompleta, colorUtilidad(utilidadTotal)),
+    indicador: indicadorUtilidad(
+      utilidadTotal === null ? "Pendiente" : clp(utilidadTotal),
+      incompleta,
+      utilidadTotal !== null && utilidadTotal < 0 ? "text-red-700" : utilidadTotal !== null && utilidadTotal > 0 ? "text-emerald-700" : "text-muted-foreground",
+    ),
   };
 }

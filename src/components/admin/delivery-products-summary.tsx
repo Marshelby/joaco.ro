@@ -4,9 +4,10 @@ import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-
 type DeliveryProductsSummaryProps = {
   productos: readonly ResumenProductoEntrega[];
   variant?: "full" | "compact";
+  cantidadClassName?: string;
 };
 
-function ListaProductosNecesarios({ productos }: Pick<DeliveryProductsSummaryProps, "productos">) {
+function ListaProductosNecesarios({ productos, cantidadClassName }: Pick<DeliveryProductsSummaryProps, "productos" | "cantidadClassName">) {
   if (productos.length === 0) {
     return <p className="text-sm text-muted-foreground">No hay productos para preparar en esta jornada.</p>;
   }
@@ -18,7 +19,7 @@ function ListaProductosNecesarios({ productos }: Pick<DeliveryProductsSummaryPro
           <div className="min-w-0">
             <h3 className="break-words text-sm font-medium text-foreground">{item.producto}</h3>
           </div>
-          <p className="shrink-0 text-sm font-semibold text-foreground">
+          <p className={cantidadClassName ?? "shrink-0 text-sm font-semibold text-foreground"}>
             {formatearCantidadPreparacionEntrega(item.cantidadTotal, item.presentacion, item.unidad)}
           </p>
         </li>
@@ -27,8 +28,8 @@ function ListaProductosNecesarios({ productos }: Pick<DeliveryProductsSummaryPro
   );
 }
 
-export function DeliveryProductsSummary({ productos, variant = "full" }: DeliveryProductsSummaryProps) {
-  if (variant === "compact") return <ListaProductosNecesarios productos={productos} />;
+export function DeliveryProductsSummary({ productos, variant = "full", cantidadClassName }: DeliveryProductsSummaryProps) {
+  if (variant === "compact") return <ListaProductosNecesarios productos={productos} cantidadClassName={cantidadClassName} />;
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 sm:p-5" aria-labelledby="productos-necesarios-title">

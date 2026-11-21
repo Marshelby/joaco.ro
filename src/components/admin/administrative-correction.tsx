@@ -4,18 +4,19 @@ import { useState, useTransition } from "react";
 import { cargarCorreccion, guardarCorreccion } from "@/app/(admin)/admin/correcciones-actions";
 import type { ContextoCorreccion, ReemplazoPago, SolicitudCorreccion } from "@/lib/admin/correcciones-types";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
+import { bloqueJornada, encabezadoProductoJornada, importeJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { Button } from "@/components/ui/button";
 
 const campo = "mt-1 block min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2";
 const entero = (n: number) => Number.isSafeInteger(n) && n > 0;
 
-export function AdministrativeCorrection({ tipo, id }: { tipo: "venta" | "pago"; id: string }) {
+export function AdministrativeCorrection({ tipo, id, vistaRuta = false }: { tipo: "venta" | "pago"; id: string; vistaRuta?: boolean }) {
   const [contexto, setContexto] = useState<ContextoCorreccion>();
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState(false);
   const [pendiente, iniciar] = useTransition();
-  return <section className="mt-4 rounded-xl border border-border p-4">
-    <Button variant="secondary" disabled={pendiente} onClick={() => {
+  return <section className={vistaRuta ? "min-w-0 rounded-xl border border-border bg-card p-3" : "mt-4 rounded-xl border border-border p-4"}>
+    <Button variant="secondary" className={vistaRuta ? "h-auto min-h-11 max-w-full py-2 text-left whitespace-normal" : undefined} disabled={pendiente} onClick={() => {
       if (abierto) { setAbierto(false); setContexto(undefined); return; }
       iniciar(async () => {
         const r = await cargarCorreccion(tipo, id);
@@ -23,11 +24,11 @@ export function AdministrativeCorrection({ tipo, id }: { tipo: "venta" | "pago";
       });
     }}>{pendiente ? "Consultando…" : abierto ? "Cerrar corrección" : tipo === "venta" ? "Consultar / corregir venta entregada" : "Consultar / corregir pago"}</Button>
     {error ? <p role="alert" className="mt-3 text-destructive">{error}</p> : null}
-    {abierto && contexto ? <EditorCorreccion contexto={contexto} /> : null}
+    {abierto && contexto ? <EditorCorreccion contexto={contexto} vistaRuta={vistaRuta} /> : null}
   </section>;
 }
 
-function EditorCorreccion({ contexto: c }: { contexto: ContextoCorreccion }) {
+function EditorCorreccion({ contexto: c, vistaRuta }: { contexto: ContextoCorreccion; vistaRuta: boolean }) {
   const [cantidades, setCantidades] = useState(c.tipo === "venta" ? c.vigente.productos.map(p => String(p.cantidad_entregada)) : []);
   const [reemplazos, setReemplazos] = useState<ReemplazoPago[]>(c.tipo === "pago" && c.snapshot.pago.estado === "confirmado" ? [{
     monto: Number(c.snapshot.pago.monto), metodo: ["efectivo", "transferencia"].includes(c.snapshot.pago.metodo_pago) ? c.snapshot.pago.metodo_pago : "efectivo",
@@ -110,9 +111,9 @@ function EditorCorreccion({ contexto: c }: { contexto: ContextoCorreccion }) {
     {c.tipo === "venta" ? <>
       <h3 className="font-semibold">Venta original y vigente</h3>
       <p>Total original: {formatCLP(c.original.total)} · Total vigente: {formatCLP(c.vigente.total)} · Versión {c.version}</p>
-      <fieldset disabled={!!revision || pendiente || resultado !== undefined} className="space-y-3">
-        {c.vigente.productos.map((p, i) => <label key={p.item_pedido_id} className="block">{p.nombre_producto} · {p.nombre_presentacion} · {p.unidad}
-          <span className="block text-muted-foreground">Original entregado: {c.original.productos.find(o => o.item_pedido_id === p.item_pedido_id)?.cantidad_entregada}; vigente: {p.cantidad_entregada}. Importe vigente: {formatCLP(p.importe_definitivo)}.</span>
+      <fieldset disabled={!!revision || pendiente || resultado !== undefined} className={vistaRuta ? "grid min-w-0 gap-2 sm:grid-cols-2" : "space-y-3"}>
+        {c.vigente.productos.map((p, i) => <label key={p.item_pedido_id} className={vistaRuta ? "block min-w-0 space-y-1.5 rounded-lg border border-border p-2" : "block"}><span className={vistaRuta ? `block font-semibold ${encabezadoProductoJornada}` : undefined}>{p.nombre_producto} · {p.nombre_presentacion} · {p.unidad}</span>
+          <span className={vistaRuta ? `block ${bloqueJornada} ${tonoJornada.completado}` : "block text-muted-foreground"}>Original entregado: {c.original.productos.find(o => o.item_pedido_id === p.item_pedido_id)?.cantidad_entregada}; vigente: {p.cantidad_entregada}. <span className={vistaRuta ? `mt-1 ${importeJornada} ${tonoJornada.venta}` : undefined}>Importe vigente: {formatCLP(p.importe_definitivo)}.</span></span>
           Cantidad corregida<input aria-label={`Cantidad corregida de ${p.nombre_producto}`} type="number" min="0" step="any" value={cantidades[i]} onChange={e => setCantidades(cantidades.map((v, n) => n === i ? e.target.value : v))} className={campo} />
         </label>)}
       </fieldset>
@@ -165,9 +166,9 @@ function EditorCorreccion({ contexto: c }: { contexto: ContextoCorreccion }) {
     {error ? <p role="alert" className="text-destructive">{error}</p> : null}
     {resultado !== undefined ? <div role="status"><p className="font-semibold">Corrección guardada. La cuenta y los pedidos se han actualizado.</p><Datos titulo="Resultado contable" valor={resultado} /></div> : null}
     <h3 className="font-semibold">Historial de correcciones</h3>
-    {historial.length ? historial.map(h => <article key={h.id} className="space-y-2 border-t border-border pt-3">
+    {historial.length ? historial.map(h => <article key={h.id} className={vistaRuta ? "space-y-2 rounded-lg border border-border bg-muted/25 p-2" : "space-y-2 border-t border-border pt-3"}>
       <p>{formatDateTimeCL(h.fecha)} · Administrador {h.actor_id}</p><p className="whitespace-pre-wrap">Motivo: {h.motivo}</p>
-      {h.diferencia !== undefined ? <p>Diferencia: {formatCLP(h.diferencia)}</p> : null}
+      {h.diferencia !== undefined ? <p className={vistaRuta ? `${importeJornada} ${h.diferencia < 0 ? tonoJornada.incidencia : tonoJornada.informativo}` : undefined}>Diferencia: {formatCLP(h.diferencia)}</p> : null}
       <Datos titulo="Valores anteriores" valor={h.anteriores} /><Datos titulo="Valores nuevos" valor={h.nuevos} />
       {h.resultado ? <Datos titulo="Resultado" valor={h.resultado} /> : null}
     </article>) : <p>Sin correcciones registradas.</p>}

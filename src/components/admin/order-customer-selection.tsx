@@ -3,7 +3,7 @@
 import { useOrderStep, useOrderWizard } from "@/components/admin/order-wizard";
 import { OrderProductSelection } from "@/components/admin/order-product-selection";
 import { useEffect, useRef, useState } from "react";
-import { buscarClientesPedido, cargarClientePedido } from "@/app/(admin)/admin/pedidos/nuevo/actions";
+import { buscarClientesPedido, cargarClientePedido, type cargarPedidoParaAceptar } from "@/app/(admin)/admin/pedidos/nuevo/actions";
 import { describirSaldoCuenta } from "@/lib/account-balance";
 import { formatCLP } from "@/lib/formatters";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,9 +15,13 @@ const campo = "mt-2 min-h-11 w-full rounded-lg border border-border bg-backgroun
 
 type Reciclado = Awaited<ReturnType<typeof import("@/app/(admin)/admin/pedidos/nuevo/actions").cargarPedidoParaReciclar>>;
 
-export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Seleccion | null; reciclado?: Reciclado | null }) {
+type Aceptacion = Awaited<ReturnType<typeof cargarPedidoParaAceptar>>;
+
+export function OrderCustomerSelection({ inicial, reciclado, aceptacion }: { inicial: Seleccion | null; reciclado?: Reciclado | null; aceptacion?: Aceptacion }) {
+  const precarga = aceptacion ?? reciclado;
   const [seleccion, setSeleccion] = useState(inicial);
-  const [ubicacionId, setUbicacionId] = useState(reciclado?.ubicacionId ?? (inicial?.ubicaciones.length === 1 ? inicial.ubicaciones[0].id : ""));
+  const [clienteIdElegido, setClienteIdElegido] = useState(aceptacion?.entrega.clienteId ?? inicial?.cliente.id ?? null);
+  const [ubicacionId, setUbicacionId] = useState(precarga?.ubicacionId ?? (inicial?.ubicaciones.length === 1 ? inicial.ubicaciones[0].id : ""));
   const [busqueda, setBusqueda] = useState("");
   const [resultados, setResultados] = useState<Resultados | null>(null);
   const [pagina, setPagina] = useState(1);
@@ -31,6 +35,13 @@ export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Selecc
   const apartadoEntrega = useRef<HTMLDivElement>(null);
   const desplazarEntrega = useRef(Boolean(inicial));
   const ubicacion = seleccion?.ubicaciones.find((item) => item.id === ubicacionId);
+  const clienteModificado = Boolean(aceptacion && clienteIdElegido !== aceptacion.entrega.clienteId);
+  const ubicacionModificada = clienteModificado || Boolean(aceptacion && ubicacionId !== aceptacion.ubicacionId);
+  const nombreUbicacion = ubicacion && [ubicacion.nombre_ubicacion, ubicacion.nombre, ubicacion.direccion]
+    .find((valor) => valor?.trim())?.trim();
+  const ubicacionResumen = ubicacion
+    ? [nombreUbicacion, ubicacion.direccion ?? nombreUbicacion, ubicacion.comuna, ubicacion.region].filter(Boolean).join(" · ")
+    : undefined;
   const saldo = seleccion ? describirSaldoCuenta(seleccion.saldoActual) : null;
 
   const { activo } = useOrderWizard();
@@ -38,12 +49,14 @@ export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Selecc
     && [ubicacion.nombre_ubicacion, ubicacion.nombre, ubicacion.direccion].some((valor) => valor?.trim())
     && ubicacion.latitud !== null && Number.isFinite(ubicacion.latitud) && Math.abs(ubicacion.latitud) <= 90
     && ubicacion.longitud !== null && Number.isFinite(ubicacion.longitud) && Math.abs(ubicacion.longitud) <= 180);
-  useOrderStep(0, Boolean(seleccion && ubicacionValida && !cargando), cargando ? "Espera a que termine la carga del cliente." : !seleccion ? "Selecciona un cliente activo para continuar." : "Selecciona una ubicación comercial activa con nombre o dirección y coordenadas válidas para continuar.");
+  const pasoClienteValido = !cargando && Boolean((aceptacion && !ubicacionModificada) || (seleccion && ubicacionValida));
+  useOrderStep(0, pasoClienteValido, cargando ? "Espera a que termine la carga del cliente." : !seleccion ? "Selecciona un cliente activo para continuar." : "Selecciona una ubicación comercial activa con nombre o dirección y coordenadas válidas para continuar.");
 
   function limpiar() {
     desplazarEntrega.current = false;
     carga.current += 1;
     setSeleccion(null);
+    setClienteIdElegido(null);
     setUbicacionId("");
     setCargando(false);
     setError("");
@@ -99,8 +112,10 @@ export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Selecc
       const respuesta = await cargarClientePedido(id);
       if (version !== carga.current) return;
       desplazarEntrega.current = true;
-      setSeleccion(respuesta);
-      setUbicacionId(respuesta.ubicaciones.length === 1 ? respuesta.ubicaciones[0].id : "");
+      const regresarAlClienteOriginal = aceptacion?.entrega.clienteId === id;
+      setClienteIdElegido(id);
+      setSeleccion(regresarAlClienteOriginal ? aceptacion?.inicial ?? respuesta : respuesta);
+      setUbicacionId(regresarAlClienteOriginal && aceptacion ? aceptacion.ubicacionId : respuesta.ubicaciones.length === 1 ? respuesta.ubicaciones[0].id : "");
     } catch {
       if (version === carga.current) setError("No fue posible cargar el cliente activo, sus ubicaciones y saldo. Intenta nuevamente.");
     } finally {
@@ -147,6 +162,7 @@ export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Selecc
     </div> : null}
     {error ? <p role="alert" className="mt-4 text-sm text-destructive">{error}</p> : null}
     {cargando ? <div className="mt-4" role="status">Cargando cliente, ubicaciones y saldo… <button type="button" onClick={limpiar} className="underline">Cancelar selección</button></div> : null}
+    {aceptacion && !ubicacionModificada ? <p className="mt-4 text-sm">Ubicación del pedido recibido: {aceptacion.entrega.ubicacionResumen || "Sin ubicación registrada"}.</p> : null}
     {seleccion ? <div className="mt-5 space-y-4">
       <div className="rounded-lg bg-muted/40 p-3 text-sm">
         <p className="font-semibold">{seleccion.cliente.nombre}</p>
@@ -166,6 +182,9 @@ export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Selecc
         <label className="block text-sm font-semibold">Selecciona la ubicación de entrega
           <select name="ubicacion_comercial_id" aria-describedby="ubicacion-entrega-ayuda" className={`${campo} min-h-12 border-primary/50 bg-background shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`} value={ubicacionId} onChange={(event) => setUbicacionId(event.target.value)}>
             <option value="">Selecciona una ubicación de entrega</option>
+            {aceptacion?.ubicacionId && seleccion.cliente.id === aceptacion.entrega.clienteId
+              && !seleccion.ubicaciones.some((item) => item.id === aceptacion.ubicacionId)
+              ? <option value={aceptacion.ubicacionId}>Conservar ubicación del pedido recibido</option> : null}
             {seleccion.ubicaciones.map((item) => <option key={item.id} value={item.id}>{item.nombre_ubicacion ?? item.nombre ?? "Ubicación sin nombre"}{item.es_principal ? " · Principal" : ""}</option>)}
           </select>
         </label>
@@ -182,6 +201,19 @@ export function OrderCustomerSelection({ inicial, reciclado }: { inicial: Selecc
     </div> : null}
 
   </section>
-    <OrderProductSelection inicial={reciclado} clienteId={!cargando ? seleccion?.cliente.id : undefined} ubicacionId={ubicacion?.id} clienteNombre={seleccion?.cliente.nombre} ubicacionResumen={ubicacion ? [ubicacion.nombre_ubicacion ?? ubicacion.nombre, ubicacion.direccion, ubicacion.comuna, ubicacion.region].filter(Boolean).join(" · ") : undefined} />
+    <OrderProductSelection
+      inicial={precarga}
+      aceptacion={aceptacion}
+      ubicacionModificada={ubicacionModificada}
+      clienteId={!cargando ? seleccion?.cliente.id : undefined}
+      ubicacionId={ubicacion?.id}
+      referenciasEntrega={aceptacion ? {
+        clienteId: clienteIdElegido,
+        ubicacionId: ubicacionModificada ? ubicacion?.id ?? null : aceptacion.entrega.ubicacionId,
+      } : undefined}
+      ubicacionValida={pasoClienteValido}
+      clienteNombre={aceptacion && !clienteModificado ? aceptacion.entrega.clienteNombre : seleccion?.cliente.nombre}
+      ubicacionResumen={aceptacion && !ubicacionModificada ? aceptacion.entrega.ubicacionResumen : ubicacionResumen}
+    />
   </>;
 }

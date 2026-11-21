@@ -5,8 +5,20 @@ import { useRouter } from "next/navigation";
 
 import { aceptarPedidoAdmin } from "@/app/(admin)/admin/pedidos/actions";
 import { PendingButton } from "@/components/ui/pending-button";
+import { ActionLink } from "@/components/ui/action-link";
+import { ROUTES } from "@/config/routes";
 
-export function OrderAcceptAction({ pedidoId }: { pedidoId: string }) {
+export function OrderAcceptAction({ pedidoId, editable }: { pedidoId: string; editable: boolean }) {
+  if (!editable) return <OrderAcceptForm pedidoId={pedidoId} />;
+
+  return (
+    <ActionLink href={`${ROUTES.adminOrders}/aceptar/${pedidoId}`} prefetch={false} className="w-full sm:w-auto">
+      Aceptar pedido
+    </ActionLink>
+  );
+}
+
+function OrderAcceptForm({ pedidoId }: { pedidoId: string }) {
   const router = useRouter();
   const [estado, accion, pendiente] = useActionState(aceptarPedidoAdmin, {});
 

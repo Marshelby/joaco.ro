@@ -2,11 +2,13 @@
 
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { obtenerFechasEntregaDisponibles } from "@/lib/delivery-availability";
+import { revalidatePath } from "next/cache";
+import { aceptarPedidoAdmin } from "../actions";
 import { z } from "zod";
 import { administradorComercial, leerFichaComercial } from "@/lib/admin/cliente-comercial";
 import { obtenerClienteAdmin, obtenerClientesAdmin } from "@/lib/admin/clientes";
 import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, totalLineaPedido, type LineaPedidoBorrador, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
-import { PAYMENT_INTENT_OPTIONS } from "@/lib/payment-intent";
+import { PAYMENT_INTENT_OPTIONS, esMetodoPagoPrevisto } from "@/lib/payment-intent";
 import { cotizarDespacho } from "@/lib/delivery-pricing";
 import { ROUTES } from "@/config/routes";
 
@@ -26,6 +28,23 @@ const pedidoConfirmacion: z.ZodType<PedidoBorrador> = z.strictObject({
   fechaEntrega: z.iso.date(),
   metodosPagoPrevistos: z.array(z.enum(PAYMENT_INTENT_OPTIONS)).min(1).max(3),
 });
+const edicionPedidoRecibido = z.strictObject({
+  clienteId: z.uuid().nullable(), ubicacionId: z.uuid().nullable(),
+  clienteNombre: z.string().nullable(), ubicacionResumen: z.string().nullable(),
+  fechaEntrega: z.iso.date().nullable(),
+  metodosPagoPrevistos: z.array(z.enum(PAYMENT_INTENT_OPTIONS)).max(3),
+  lineas: z.array(z.union([
+    z.strictObject({ itemId: z.uuid() }),
+    z.strictObject({
+      itemId: z.uuid().nullable(), productoId: z.uuid().nullable(), presentacionId: z.uuid().nullable(),
+      cantidad: z.number().positive().max(100000), precioReferencia: importe,
+      totalOriginal: importe, totalFinal: importe, motivoAjuste: z.string().max(1000).nullable(),
+    }),
+  ])).min(1).max(100),
+  subtotal: importe, costoEntrega: importe, total: importe,
+});
+export type EdicionPedidoRecibido = z.infer<typeof edicionPedidoRecibido>;
+
 const parametrosConfirmacion: z.ZodType<CrearPedidoAdministrativoParametros> = z.strictObject({
   p_clave_idempotencia: z.uuid(), p_pedido: pedidoConfirmacion,
 });
@@ -122,10 +141,23 @@ export async function cargarClientePedido(id: string) {
   };
 }
 
-export async function cargarCatalogoPedido(clienteId: string, ubicacionId: string) {
-  const seleccion = await cargarClientePedido(clienteId);
+export async function cargarCatalogoPedido(clienteId: string | undefined, ubicacionId: string | undefined, pedidoRecibidoId?: string) {
+  if (pedidoRecibidoId) {
+    const db = await administradorComercial();
+    const { data, error } = await db.from("pedidos").select("id")
+      .eq("id", z.uuid().parse(pedidoRecibidoId)).eq("estado", "recibido").maybeSingle();
+    if (error || !data) throw new Error("Pedido recibido no disponible");
+    return leerCatalogoPedido();
+  }
+  const seleccion = await cargarClientePedido(z.uuid().parse(clienteId));
   const ubicacion = z.uuid().parse(ubicacionId);
-  if (!seleccion.ubicaciones.some((item) => item.id === ubicacion)) throw new Error("Ubicación no disponible");
+  if (!seleccion.ubicaciones.some((item) => item.id === ubicacion)) {
+    throw new Error("Ubicación no disponible");
+  }
+  return leerCatalogoPedido();
+}
+
+async function leerCatalogoPedido() {
   const supabase = await crearClienteSupabaseServidor();
   // Paginar presentaciones (también las de un mismo producto) evita los
   // límites implícitos de filas de Supabase y de las relaciones anidadas.
@@ -209,4 +241,147 @@ export async function cargarPedidoParaReciclar(id: string) {
     && ubicacion.longitud !== null && Number.isFinite(ubicacion.longitud) && Math.abs(ubicacion.longitud) <= 180;
   const pasoInicial: 0 | 1 | 2 = !direccionValida ? 0 : advertencias.length ? 1 : 2;
   return { inicial, ubicacionId: ubicacionId ?? "", catalogo, lineas, advertencias, pasoInicial };
+}
+
+export async function cargarPedidoParaAceptar(id: string) {
+  const db = await administradorComercial();
+  const pedidoId = z.uuid().parse(id);
+  const { data: pedido, error } = await db.from("pedidos")
+    .select("id,numero_pedido,estado,fecha_actualizacion,cliente_id,direccion_cliente_id,nombre_cliente_snapshot,nombre_ubicacion_snapshot,direccion_snapshot,comuna_snapshot,region_snapshot,fecha_entrega,metodos_pago_previstos,subtotal,costo_entrega,descuento,total")
+    .eq("id", pedidoId).single();
+  if (error || !pedido || pedido.estado !== "recibido") throw new Error("Pedido recibido no disponible.");
+
+  const leerLineas = async () => {
+    const consulta = () => db.from("items_pedido")
+      .select("id,producto_id,presentacion_producto_id,cantidad,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,precio_final_unitario_snapshot,modo_cantidad_snapshot,total_linea,vinculos_items_posible_pedido(item_pedido_id),auditoria_precios_pedido_administrativo(motivo,total_original,precio_referencia)")
+      .eq("pedido_id", pedidoId).order("id");
+    const items = [];
+    for (;;) {
+      const { data, error } = await consulta().range(items.length, items.length + 199);
+      if (error || !data) throw new Error("No fue posible leer las líneas del pedido.");
+      if (!data.length) return items;
+      items.push(...data);
+    }
+  };
+  const [cliente, items] = await Promise.all([
+    pedido.cliente_id ? cargarClientePedido(pedido.cliente_id).catch(() => null) : null,
+    leerLineas(),
+  ]);
+  const { data: vigente, error: errorVigencia } = await db.from("pedidos")
+    .select("id").eq("id", pedidoId).eq("estado", "recibido")
+    .eq("fecha_actualizacion", pedido.fecha_actualizacion).maybeSingle();
+  if (errorVigencia || !vigente) throw new Error("El pedido cambió durante la lectura.");
+
+  // Una dirección de checkout puede pertenecer al ámbito de cuenta.
+  const ubicacionId = pedido.direccion_cliente_id ?? "";
+  let inicial = cliente;
+  if (cliente && ubicacionId && !cliente.ubicaciones.some((ubicacion) => ubicacion.id === ubicacionId)) {
+    const { data: ubicacion } = await db.from("direcciones_cliente")
+      .select("id,nombre_ubicacion,nombre,destinatario,telefono_contacto,direccion,comuna,region,referencia,zona_entrega_id,latitud,longitud,es_principal,activa")
+      .eq("id", ubicacionId).eq("cliente_id", pedido.cliente_id).eq("activa", true).maybeSingle();
+    if (ubicacion) inicial = { ...cliente, ubicaciones: [...cliente.ubicaciones, ubicacion] };
+  }
+
+  const referencias = items.map((item) => {
+    const totalFinal = Number(item.total_linea);
+    const cantidad = String(item.cantidad);
+    const precioOriginal = Number(item.precio_final_unitario_snapshot);
+    type Auditoria = { motivo: string; total_original: number | null; precio_referencia: number };
+    const relacion = item.auditoria_precios_pedido_administrativo as Auditoria | Auditoria[] | null;
+    const auditoria = Array.isArray(relacion) ? relacion[0] : relacion;
+    const motivo = auditoria?.motivo ?? null;
+    const cantidadMilesimas = BigInt(Math.round(Number(cantidad) * 1000));
+    const referencia = BigInt(auditoria?.precio_referencia ?? item.precio_final_unitario_snapshot);
+    const totalOriginal = Number(auditoria?.total_original ?? ((cantidadMilesimas * referencia + BigInt(500)) / BigInt(1000)));
+    const fraccionable = item.modo_cantidad_snapshot
+      ? item.modo_cantidad_snapshot === "kg_fraccionable"
+      : item.unidad_snapshot.trim().toUpperCase() === "KG" && !/(saco|malla|caja|paquete|docena)/i.test(item.nombre_presentacion_snapshot ?? "");
+    const snapshot = {
+      productoId: item.producto_id ?? item.id, presentacionId: item.presentacion_producto_id ?? item.id,
+      nombre: item.nombre_producto_snapshot, presentacionNombre: item.nombre_presentacion_snapshot ?? "",
+      unidad: item.unidad_snapshot, cantidadPresentacion: 0,
+      precioFinalReferencia: precioOriginal,
+    };
+    const vinculo = item.vinculos_items_posible_pedido;
+    const protegida = Boolean(auditoria || (Array.isArray(vinculo) ? vinculo.length : vinculo));
+    return {
+      editable: { presentacion: { ...snapshot, presentacionId: item.id }, cantidad, precioReferencia: precioOriginal, totalFinal: String(totalFinal), motivoAjuste: motivo ?? "" },
+      original: { id: item.id, presentacion: snapshot, cantidad: Number(cantidad), totalOriginal, totalFinal, motivoAjuste: motivo,
+        productoId: item.producto_id, presentacionId: item.presentacion_producto_id, protegida, fraccionable },
+    };
+  });
+
+  return {
+    inicial, ubicacionId, catalogo: null, lineas: referencias.map((linea) => linea.editable),
+    numero: String(pedido.numero_pedido),
+    entrega: {
+      pedidoId, version: String(pedido.fecha_actualizacion), clienteId: pedido.cliente_id, ubicacionId: pedido.direccion_cliente_id,
+      fechaEntrega: String(pedido.fecha_entrega ?? ""),
+      metodosPagoPrevistos: (Array.isArray(pedido.metodos_pago_previstos) ? pedido.metodos_pago_previstos : []).filter(esMetodoPagoPrevisto),
+      clienteNombre: String(pedido.nombre_cliente_snapshot),
+      ubicacionResumen: [pedido.nombre_ubicacion_snapshot, pedido.direccion_snapshot, pedido.comuna_snapshot, pedido.region_snapshot].filter(Boolean).join(" · "),
+      lineas: referencias.map((linea) => linea.original),
+      subtotal: Number(pedido.subtotal), costoEntrega: Number(pedido.costo_entrega),
+      descuento: Number(pedido.descuento), total: Number(pedido.total),
+    },
+  };
+}
+
+export async function confirmarPedidoRecibido(id: string, version: string, cambios: EdicionPedidoRecibido | null) {
+  const pedidoId = z.uuid().safeParse(id);
+  if (!pedidoId.success) return { ok: false as const, mensaje: "No fue posible identificar el pedido." };
+  const destino = ROUTES.adminOrder(pedidoId.data);
+  if (cambios === null) {
+    const datos = new FormData();
+    datos.set("pedidoId", pedidoId.data);
+    const respuesta = await aceptarPedidoAdmin({}, datos);
+    if (!respuesta.aceptado) return { ok: false as const, mensaje: respuesta.error ?? "No fue posible aceptar el pedido." };
+    revalidatePath("/admin/pedidos/entregas/[fecha]", "page");
+    revalidatePath("/mi-cuenta/pedidos");
+    revalidatePath(`/mi-cuenta/pedidos/${pedidoId.data}`);
+    return { ok: true as const, destino };
+  }
+
+  const parametros = edicionPedidoRecibido.safeParse(cambios);
+  if (!parametros.success || !z.iso.datetime({ offset: true }).safeParse(version).success) {
+    return { ok: false as const, mensaje: "Revisa los datos del pedido antes de confirmar." };
+  }
+
+  let db: Awaited<ReturnType<typeof administradorComercial>>;
+  try {
+    db = await administradorComercial();
+  } catch {
+    return { ok: false as const, mensaje: "No fue posible validar tu sesión administrativa. Vuelve a iniciar sesión." };
+  }
+  const { error } = await db.rpc("guardar_y_aceptar_pedido_recibido", {
+    p_pedido_id: pedidoId.data, p_version: version, p_pedido: parametros.data,
+  });
+  if (error) {
+    const mensajes: Record<string, string> = {
+      PGRST202: "El guardado de cambios requiere aplicar primero guardar_y_aceptar_pedido_recibido.sql.",
+      PEDIDO_MODIFICADO: "El pedido cambió desde que lo abriste. Vuelve a Pedidos y revisa su estado.",
+      PEDIDO_CON_REFERENCIAS: "El pedido tiene registros vinculados que impiden editarlo desde este asistente.",
+      LINEA_CON_HISTORIAL: "Una línea tiene historial vinculado y debe conservar sus valores.",
+      FECHA_ENTREGA_NO_DISPONIBLE: "La fecha seleccionada dejó de estar disponible. Elige otra fecha.",
+      TOTALES_INVALIDOS: "Los importes del pedido no coinciden con el resumen o están fuera del rango permitido.",
+      CLIENTE_INVALIDO: "El cliente seleccionado ya no está disponible.",
+      DATOS_ENTREGA_MODIFICADOS: "El nombre del cliente o la dirección cambiaron desde que los seleccionaste. Vuelve a abrir el pedido y revisa esos datos.",
+      ENTREGA_INVALIDA: "Revisa los datos de entrega y los métodos previstos de pago.",
+      PRECIO_REFERENCIA_DESACTUALIZADO: "Cambió el precio de un producto agregado. Actualiza el catálogo y vuelve a agregarlo.",
+      LINEAS_INVALIDAS: "Revisa la disponibilidad, las cantidades y los precios de las líneas.",
+      UBICACION_COMERCIAL_INVALIDA: "Revisa la ubicación seleccionada para el cliente.",
+    };
+    return { ok: false as const, mensaje: mensajes[error.code] ?? mensajes[error.message] ?? "No fue posible guardar el pedido editado. Verifica su estado antes de reintentar." };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(ROUTES.adminOrders);
+  revalidatePath("/admin/rutas");
+  revalidatePath(destino);
+  revalidatePath("/admin/pedidos/entregas/[fecha]", "page");
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/clientes/[id]", "page");
+  revalidatePath("/mi-cuenta/pedidos");
+  revalidatePath(`/mi-cuenta/pedidos/${pedidoId.data}`);
+  return { ok: true as const, destino };
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { ActionLink } from "@/components/ui/action-link";
+import { ROUTES } from "@/config/routes";
 import { buttonVariants } from "@/components/ui/button";
 
 const pasos = [
@@ -18,6 +20,7 @@ const WizardContext = createContext<{
   bloqueado: boolean;
   bloquear: (valor: boolean) => void;
   completar: (destino: string) => void;
+  conservarOriginal: (valor: boolean) => void;
 } | null>(null);
 
 export function useOrderWizard() {
@@ -31,7 +34,13 @@ export function useOrderStep(paso: number, valido: boolean, motivo: string) {
   useEffect(() => { registrar(paso, valido, motivo); }, [registrar, paso, valido, motivo]);
 }
 
-export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode; pasoInicial?: 0 | 1 | 2 }) {
+export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode; pasoInicial?: 0 | 1 | 2 | 4 }) {
+  const [version, reiniciar] = useState(0);
+  return <OrderWizardSteps key={version} pasoInicial={pasoInicial} descartar={() => reiniciar((actual) => actual + 1)}>{children}</OrderWizardSteps>;
+}
+
+function OrderWizardSteps({ children, pasoInicial, descartar }: { children: ReactNode; pasoInicial: 0 | 1 | 2 | 4; descartar: () => void }) {
+  const [original, conservarOriginal] = useState(pasoInicial === 4);
   const [activo, setActivo] = useState<number>(pasoInicial);
   const [bloqueado, bloquear] = useState(false);
   const [destino, completar] = useState("");
@@ -42,7 +51,8 @@ export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode
     setEstados((previos) => previos[paso].valido === valido && previos[paso].motivo === motivo ? previos : previos.map((estado, indice) => indice === paso ? { valido, motivo } : estado));
   }, []);
   const primerInvalido = estados.findIndex((estado) => !estado.valido);
-  const limite = Math.min(desbloqueado, primerInvalido === -1 ? 4 : primerInvalido);
+  const limite = original ? 4 : Math.min(desbloqueado, primerInvalido === -1 ? 4 :
+    pasoInicial === 4 && primerInvalido === 1 ? 2 : primerInvalido);
   const visible = bloqueado ? 4 : Math.min(activo, limite);
   useEffect(() => {
     setActivo(visible);
@@ -52,10 +62,10 @@ export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode
     if (!bloqueado && paso <= limite) setActivo(paso);
   }
   // Desmontar los pasos borra íntegramente su estado solo tras éxito verificado.
-  if (destino) return <p role="status">Pedido creado. <a href={destino} className="underline">Ir al detalle del pedido</a></p>;
-  return <WizardContext.Provider value={{ activo: visible, registrar, pasosValidos: primerInvalido === -1, bloqueado, bloquear, completar }}>
+  if (destino) return <p role="status">{pasoInicial === 4 ? "Pedido confirmado." : "Pedido creado."} <a href={destino} className="underline">Ir al detalle del pedido</a></p>;
+  return <WizardContext.Provider value={{ activo: visible, registrar, pasosValidos: primerInvalido === -1, bloqueado, bloquear, completar, conservarOriginal }}>
     <div className="min-w-0 space-y-5 break-words">
-      <nav aria-label="Pasos de creación del pedido" className="min-w-0 rounded-xl border border-border bg-card p-2 sm:p-4">
+      <nav aria-label={pasoInicial === 4 ? "Pasos de aceptación del pedido" : "Pasos de creación del pedido"} className="min-w-0 rounded-xl border border-border bg-card p-2 sm:p-4">
         <ol className="grid grid-cols-5 gap-1 sm:gap-3">
           {pasos.map((paso, indice) => {
             const actual = indice === visible;
@@ -77,6 +87,8 @@ export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode
       <div className="rounded-xl border border-border bg-card p-4">
         {visible < 4 && !estados[visible].valido ? <p id="bloqueo-paso" role="status" className="mb-4 text-sm text-muted-foreground">{estados[visible].motivo}</p> : null}
         <div className="flex flex-wrap justify-between gap-3">
+          {pasoInicial === 4 && !bloqueado && visible < 4 ? <ActionLink href={ROUTES.adminOrders} variant="quiet">Volver a pedidos</ActionLink> : null}
+          {pasoInicial === 4 && !bloqueado && (!original || visible < 4) ? <button type="button" className={buttonVariants({ variant: "secondary" })} onClick={descartar}>Descartar cambios y volver al resumen</button> : null}
           <button type="button" className={buttonVariants({ variant: "secondary" })} disabled={visible === 0 || bloqueado} onClick={() => ir(visible - 1)}>← Anterior</button>
           {visible < 4 ? <button type="button" className={`${buttonVariants()} max-w-full whitespace-normal text-center`} disabled={!estados[visible].valido} aria-describedby={!estados[visible].valido ? "bloqueo-paso" : undefined} onClick={() => {
             if (!estados[visible].valido) return;

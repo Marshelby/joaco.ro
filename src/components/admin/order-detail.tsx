@@ -33,7 +33,7 @@ import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerResumenContablePedido } from "@/lib/admin/pedido-contabilidad";
 import { ExternalLink } from "lucide-react";
 
-export async function AdminOrderDetail({ id, modal = false, vistaRuta = false }: { id: string; modal?: boolean; vistaRuta?: boolean }) {
+export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, aceptarEditable = false }: { id: string; modal?: boolean; vistaRuta?: boolean; aceptarEditable?: boolean }) {
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
   const [contextoEntrega, contabilidad, historial, resultados, fallo] = await Promise.all([
@@ -73,7 +73,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false }:
       <div className="flex flex-wrap items-start gap-2">
         {pedido.clienteId ? <OrderCustomerLink href={ROUTES.adminCustomer(pedido.clienteId)} variant="secondary">Ver cliente</OrderCustomerLink> : <span className="text-sm text-muted-foreground">Cliente titular no registrado</span>}
         {pedido.estado === "entregado" ? <RecycleOrderLink pedidoId={pedido.id} /> : null}
-        {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} /> : null}
+        {pedido.estado === "recibido" ? <OrderAcceptAction pedidoId={pedido.id} editable={aceptarEditable} /> : null}
         {pedido.estado === "confirmado" ? pedido.fechaEntrega ? <ActionLink href={`/admin/rutas?fecha=${pedido.fechaEntrega}`}>Ir a ruta</ActionLink> : <span className="text-sm text-muted-foreground">Sin fecha de entrega para ir a ruta</span> : null}
         {["preparando", "listo_despacho", "en_reparto"].includes(pedido.estado) ? <OrderOperationalAction pedidoId={pedido.id} estado={pedido.estado} preparacionEstado={pedido.preparacionEstado} preparacionPermitida={permisoPreparacion.permitida} /> : null}
         {["recibido", "en_revision", "confirmado", "programado", "preparando"].includes(pedido.estado) ? <OrderCancelAction pedidoId={pedido.id} /> : null}

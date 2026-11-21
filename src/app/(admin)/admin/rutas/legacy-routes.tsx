@@ -1,3 +1,4 @@
+import { ConstanciasRecepcion } from "./constancias-recepcion";
 import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
 import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
 import { claseResultadoEntrega, DeliveryResultHeader, esResultadoEntrega } from "@/components/admin/delivery-result";
@@ -82,6 +83,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     </section>
     {(carga.estado === "en_ruta" && carga.salida_en) || carga.estado === "cerrada" ? <CierreRutaDialog key={fecha} fecha={fecha} cerrada={carga.estado === "cerrada"} /> : null}
     <div data-rutas-destino="fecha" className="scroll-mt-24 space-y-4">
+    <ConstanciasRecepcion key={fecha} fecha={fecha} pedidos={entrega.pedidos} />
     <JornadaModos key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen operativo">
       {[

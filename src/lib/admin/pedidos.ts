@@ -68,6 +68,7 @@ export type PedidoEntregaAdmin = PedidoAdminListado & {
   importeOperativoPreparacion: number | null;
   clienteId: string | null;
   destinatarioEntrega: string | null;
+  direccionEntregaSnapshot: string | null;
   telefonoContactoEntregaSnapshot: string | null;
   telefonoClienteSnapshot: string | null;
   zonaEntrega: string | null;
@@ -152,6 +153,8 @@ type ItemPedidoFila = {
 };
 
 type PedidoEntregaFila = PedidoListadoFila & {
+  direccion_snapshot: string | null;
+  comuna_snapshot: string | null;
   cliente_id: string | null;
   destinatario_entrega_snapshot: string | null;
   telefono_contacto_entrega_snapshot: string | null;
@@ -344,7 +347,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await leerCompleto((desde, hasta) => supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot,direccion_snapshot,comuna_snapshot")
     .eq("fecha_entrega", fecha)
     .neq("estado", "cancelado")
     .order("fecha_creacion", { ascending: true }).order("id").range(desde, hasta));
@@ -357,6 +360,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     ...mapPedidoListado({ ...pedido, nombre_ubicacion_snapshot: ubicaciones.get(pedido.id) }),
     clienteId: pedido.cliente_id,
     destinatarioEntrega: pedido.destinatario_entrega_snapshot,
+    direccionEntregaSnapshot: [pedido.direccion_snapshot, pedido.comuna_snapshot].filter(Boolean).join(", ") || null,
     telefonoContactoEntregaSnapshot: pedido.telefono_contacto_entrega_snapshot,
     telefonoClienteSnapshot: pedido.telefono_cliente_snapshot,
     zonaEntrega: pedido.zona_entrega_snapshot,

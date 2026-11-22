@@ -115,10 +115,10 @@ export async function obtenerClientesAdmin(busqueda = "", pagina = 1, limitePagi
   const porPagina = 50;
   const supabase = await crearClienteSupabaseServidor();
   function consultar(paginaConsulta: number) {
-    const columnas = grupo
-      ? "id,nombre,telefono,email,activo,facturacion:clientes_datos_facturacion()"
-      : "id,nombre,telefono,email,activo";
-    let consulta = supabase.from("clientes").select(columnas, { count: "exact" });
+    const tabla = supabase.from("clientes");
+    let consulta = grupo
+      ? tabla.select("id,nombre,telefono,email,activo,facturacion:clientes_datos_facturacion(cliente_id)", { count: "exact" })
+      : tabla.select("id,nombre,telefono,email,activo", { count: "exact" });
     if (grupo === "con") consulta = consulta.not("facturacion", "is", null);
     if (grupo === "sin") consulta = consulta.is("facturacion", null);
     if (termino) {
@@ -140,7 +140,9 @@ export async function obtenerClientesAdmin(busqueda = "", pagina = 1, limitePagi
   }
   const { data: clientes, error: clientesError, count } = resultado;
   if (clientesError) throw clientesError;
-  const filas = (clientes ?? []) as ClienteFila[];
+  const filas: ClienteFila[] = (clientes ?? []).map(({ id, nombre, telefono, email, activo }) => ({
+    id, nombre, telefono, email, activo,
+  }));
   if (!filas.length) return { clientes: [], total: count ?? 0, porPagina, pagina: paginaResultado };
 
   const { data: saldos, error: saldosError } = await supabase.from("v_saldos_cuenta_clientes")

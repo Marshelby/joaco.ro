@@ -1,3 +1,4 @@
+import { CustomerBillingDialog } from "@/components/admin/customer-billing-dialog";
 import { CreateOrderLink } from "@/components/admin/create-order-link";
 import { OrderCustomerMessagesLink, CustomerOrderLink } from "@/components/admin/order-customer-navigation";
 import { AdministrativeCorrection } from "@/components/admin/administrative-correction";
@@ -15,7 +16,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
-import { describirSaldoCuenta, obtenerClienteAdmin, type MovimientoCuentaCliente } from "@/lib/admin/clientes";
+import { describirSaldoCuenta, obtenerClienteAdmin, obtenerDatosFacturacion, type MovimientoCuentaCliente } from "@/lib/admin/clientes";
 import { formatCLP, formatDateTimeCL } from "@/lib/formatters";
 
 function tituloMovimiento(movimiento: MovimientoCuentaCliente) {
@@ -33,7 +34,7 @@ function descripcionMovimiento(movimiento: MovimientoCuentaCliente) {
 export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = false }: { id: string; readOnly?: boolean; desdeRutas?: boolean }) {
   const cliente = await obtenerClienteAdmin(id);
   if (!cliente) notFound();
-  const [zonas, ficha] = await Promise.all([zonasComerciales(), leerFichaComercial(id)]);
+  const [zonas, ficha, facturacion] = await Promise.all([zonasComerciales(), leerFichaComercial(id), obtenerDatosFacturacion(id)]);
   const saldo = describirSaldoCuenta(cliente.saldoActual);
   const mostrarAccionesClientes = !readOnly && !desdeRutas;
   const interpretacion = saldo.texto === "Al día" ? "La cuenta está al día." : saldo.texto === "Debe" ? `Debe ${formatCLP(saldo.monto)} a Hidro Leufú.` : `Tiene ${formatCLP(saldo.monto)} a favor.`;
@@ -43,7 +44,9 @@ export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = f
       <PageHeader className="min-w-0 items-start rounded-2xl border bg-card p-4 wrap-anywhere sm:flex-col sm:items-start sm:p-6 @5xl:flex-row @5xl:items-center" title={cliente.nombre} description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."} actions={<div className="flex min-w-0 flex-wrap gap-2">{mostrarAccionesClientes && <CreateOrderLink clienteId={cliente.id} />}{readOnly ? <OrderCustomerMessagesLink /> : <ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary">Enviar mensaje</ActionLink>}{mostrarAccionesClientes && <ActionLink href={ROUTES.adminCustomers} variant="secondary">Volver a clientes</ActionLink>}</div>} />
       {!readOnly && <CustomerCommercialForm clienteId={cliente.id} zonas={zonas} />}
       {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{cliente.activo ? "Cliente activo" : "Cliente inactivo"}{ficha.cliente.observaciones ? ` · ${ficha.cliente.observaciones}` : ""}</p>}
-      <CustomerCommercialAddresses key={ficha.revision} ficha={ficha} zonas={zonas} readOnly={readOnly} />
+      <CustomerCommercialAddresses key={ficha.revision} ficha={ficha} zonas={zonas} readOnly={readOnly}
+        accionFacturacion={<CustomerBillingDialog clienteId={id} datos={facturacion} readOnly={readOnly} />}
+      />
       <CustomerWebAccess readOnly={readOnly} clienteId={cliente.id} clienteActivo={cliente.activo} usuarioId={cliente.usuarioId} invitacion={cliente.invitacionAcceso} />
       <section className="space-y-5" aria-labelledby="cuenta-corriente-title"><div><h2 id="cuenta-corriente-title" className="text-2xl font-semibold tracking-tight text-foreground">Cuenta corriente</h2><p className="mt-2 text-sm text-muted-foreground">Resumen derivado de pedidos no cancelados, pagos confirmados y ajustes históricos.</p></div><div className={`grid gap-4 ${readOnly ? "" : "@min-[70rem]:grid-cols-3"}`}><div className="rounded-2xl border border-border bg-card p-4 sm:p-6"><p className="text-sm font-medium text-muted-foreground">Saldo actual</p><p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">{formatCLP(saldo.monto)}</p><p className="mt-2 text-sm font-medium text-foreground">{interpretacion}</p><dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm tabular-nums"><div><dt className="text-muted-foreground">Pedidos</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalPedidos)}</dd></div><div><dt className="text-muted-foreground">Pagos confirmados</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalPagosConfirmados)}</dd></div><div><dt className="text-muted-foreground">Ajustes cargo</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalAjustesCargo)}</dd></div><div><dt className="text-muted-foreground">Ajustes abono</dt><dd className="mt-1 font-semibold text-foreground">{formatCLP(cliente.totalAjustesAbono)}</dd></div></dl></div>{!readOnly && <><CustomerPaymentForm clienteId={cliente.id} saldoActual={cliente.saldoActual} /><CustomerAdjustmentForm clienteId={cliente.id} /></>}</div></section>
       <CustomerHistorySection section="movimientos" count={cliente.movimientos.length}>

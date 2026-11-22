@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cargarFichaComercial, guardarFichaComercial } from "@/app/(admin)/admin/clientes/comercial-actions";
@@ -169,12 +169,15 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
   </form>;
 }
 
-export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean }) {
+export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false, accionFacturacion }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean; accionFacturacion?: ReactNode }) {
   const [editando, setEditando] = useState(false);
   return <section className="space-y-4" aria-labelledby="direcciones-comerciales-title">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 id="direcciones-comerciales-title" className="text-2xl font-semibold tracking-tight">Ubicaciones comerciales</h2>
-      {!readOnly && !editando && <Button type="button" variant="secondary" onClick={() => setEditando(true)}>Agregar ubicación</Button>}
+      <div className="flex flex-wrap gap-2">
+        {!readOnly && !editando && <Button type="button" variant="secondary" onClick={() => setEditando(true)}>Agregar ubicación</Button>}
+        {accionFacturacion}
+      </div>
     </div>
     <p className="text-sm text-muted-foreground">Hasta 50 ubicaciones por cliente, con nombre único y punto confirmado en el mapa. Las ubicaciones históricas pueden conservar sus datos actuales.</p>
     {!editando && (ficha.direcciones.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">Sin ubicaciones comerciales registradas.</p> : <div className="grid gap-4 sm:grid-cols-2">{ficha.direcciones.map((d, i) => <article key={d.id} className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6">

@@ -1,3 +1,4 @@
+import type { DatosFacturacion } from "@/lib/admin/cliente-facturacion";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { EstadoPedidoAdmin } from "@/lib/admin/pedidos";
 
@@ -108,31 +109,46 @@ function mapSaldo(cliente: ClienteFila, saldo?: SaldoFila): ClienteAdminListado 
   };
 }
 
-export async function obtenerClientesAdmin(busqueda = "", pagina = 1, limitePaginas = 100000) {
+export async function obtenerClientesAdmin(busqueda = "", pagina = 1, limitePaginas = 100000, grupo?: "con" | "sin") {
   const termino = busqueda.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120);
   const paginaActual = Number.isSafeInteger(pagina) && pagina > 0 ? Math.min(pagina, limitePaginas) : 1;
   const porPagina = 50;
   const supabase = await crearClienteSupabaseServidor();
-  let consulta = supabase.from("clientes").select("id,nombre,telefono,email,activo", { count: "exact" });
-  if (termino) {
-    // Escape LIKE wildcards, then quote the value for PostgREST's OR grammar.
-    const patron = `%${termino.replace(/[\\%_*]/g, (caracter) => `\\${caracter}`)}%`;
-    const valor = `"${patron.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-    consulta = consulta.or(["nombre", "telefono", "email"].map((campo) => `${campo}.ilike.${valor}`).join(","));
+  function consultar(paginaConsulta: number) {
+    const columnas = grupo
+      ? "id,nombre,telefono,email,activo,facturacion:clientes_datos_facturacion()"
+      : "id,nombre,telefono,email,activo";
+    let consulta = supabase.from("clientes").select(columnas, { count: "exact" });
+    if (grupo === "con") consulta = consulta.not("facturacion", "is", null);
+    if (grupo === "sin") consulta = consulta.is("facturacion", null);
+    if (termino) {
+      // Escape LIKE wildcards, then quote the value for PostgREST's OR grammar.
+      const patron = `%${termino.replace(/[\\%_*]/g, (caracter) => `\\${caracter}`)}%`;
+      const valor = `"${patron.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      consulta = consulta.or(["nombre", "telefono", "email"].map((campo) => `${campo}.ilike.${valor}`).join(","));
+    }
+    return consulta.order("activo", { ascending: false }).order("nombre").order("id")
+      .range((paginaConsulta - 1) * porPagina, paginaConsulta * porPagina - 1);
   }
-  const { data: clientes, error: clientesError, count } = await consulta
-    .order("activo", { ascending: false }).order("nombre").order("id")
-    .range((paginaActual - 1) * porPagina, paginaActual * porPagina - 1);
+
+  let paginaResultado = paginaActual;
+  let resultado = await consultar(paginaResultado);
+  // Una ficha nueva puede vaciar la última página del grupo anterior.
+  if (grupo && paginaResultado > 1 && (resultado.error?.code === "PGRST103" || (!resultado.error && !resultado.data?.length))) {
+    paginaResultado = 1;
+    resultado = await consultar(paginaResultado);
+  }
+  const { data: clientes, error: clientesError, count } = resultado;
   if (clientesError) throw clientesError;
   const filas = (clientes ?? []) as ClienteFila[];
-  if (!filas.length) return { clientes: [], total: count ?? 0, porPagina };
+  if (!filas.length) return { clientes: [], total: count ?? 0, porPagina, pagina: paginaResultado };
 
   const { data: saldos, error: saldosError } = await supabase.from("v_saldos_cuenta_clientes")
     .select("cliente_id,total_pedidos,total_pagos_confirmados,total_ajustes_cargo,total_ajustes_abono,saldo_actual,cantidad_pedidos,fecha_ultimo_movimiento")
     .in("cliente_id", filas.map((cliente) => cliente.id));
   if (saldosError) throw saldosError;
   const saldosPorCliente = new Map((saldos as SaldoFila[] ?? []).map((saldo) => [saldo.cliente_id, saldo]));
-  return { clientes: filas.map((cliente) => mapSaldo(cliente, saldosPorCliente.get(cliente.id))), total: count ?? 0, porPagina };
+  return { clientes: filas.map((cliente) => mapSaldo(cliente, saldosPorCliente.get(cliente.id))), total: count ?? 0, porPagina, pagina: paginaResultado };
 }
 
 export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetalle | null> {
@@ -200,4 +216,14 @@ export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetal
       return { id: pago.id, monto: Number(pago.monto), montoAplicado: Number(saldoPago?.monto_aplicado ?? 0), montoDisponible: Number(saldoPago?.monto_disponible ?? 0), metodoPago: pago.metodo_pago, referencia: pago.referencia, fechaPago: pago.fecha_pago, estado: pago.estado };
     }),
   };
+}
+
+export async function obtenerDatosFacturacion(clienteId: string): Promise<DatosFacturacion | null> {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data, error } = await supabase.from("clientes_datos_facturacion")
+    .select("rut,razon_social,giro_comercial,direccion_tributaria,comuna,ciudad,correo_facturacion")
+    .eq("cliente_id", clienteId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }

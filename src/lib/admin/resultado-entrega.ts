@@ -15,6 +15,7 @@ type Producto = {
   cantidad_entregada: number | null;
   importe_original: number | null;
   importe_definitivo: number | null;
+  precio_final_unitario_referencia?: number | null;
 };
 
 export type ResultadoEntrega = {

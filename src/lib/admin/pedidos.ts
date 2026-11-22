@@ -51,6 +51,7 @@ export type ItemPreparacionPedidoAdmin = {
   confirmadoExplicito: boolean;
   importeOriginal: number;
   precioUnitarioHistorico?: number;
+  totalFinalAdministrativo?: number | null;
   importeCalculado?: string | null;
   importeOperativo: number | null;
   cantidadFaltante: number;
@@ -174,6 +175,7 @@ type ItemPedidoEntregaFila = {
   modo_cantidad_snapshot: ModoCantidadSnapshot | null;
   total_linea: number | string;
   precio_final_unitario_snapshot: number | string;
+  total_final_administrativo: number | string | null;
 };
 
 type PreparacionItemFila = {
@@ -270,7 +272,7 @@ async function leerCompleto<T>(pagina: (desde: number, hasta: number) => Promise
 }
 
 // Acotar IN evita URLs enormes; cada lote se pagina aunque tenga muchas líneas.
-async function leerPorIds<T>(ids: string[], pagina: (ids: string[], desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
+export async function leerPorIds<T>(ids: string[], pagina: (ids: string[], desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
   const data: T[] = [];
   for (let inicio = 0; inicio < ids.length; inicio += 100) {
     const lote = ids.slice(inicio, inicio + 100);
@@ -393,7 +395,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   if (idsPedidos.length > 0) {
     const { data: items, error: errorItems } = await leerPorIds(idsPedidos, (lote, desde, hasta) => supabase
       .from("items_pedido")
-      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot,total_linea,precio_final_unitario_snapshot")
+      .select("id,pedido_id,producto_id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,modo_cantidad_snapshot,total_linea,precio_final_unitario_snapshot,total_final_administrativo")
       .in("pedido_id", lote)
       .order("fecha_creacion", { ascending: true })
       .order("id", { ascending: true }).range(desde, hasta));
@@ -415,7 +417,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     const itemsPorPedido = new Map<string, ItemPreparacionPedidoAdmin[]>();
     for (const item of filasItems) {
       const preparacion = preparacionPorItem.get(item.id);
-      const cantidadPreparada = preparacion ? Number(preparacion.cantidad_preparada) : null;
+      const cantidadPreparada = preparacion?.cantidad_preparada == null ? null : Number(preparacion.cantidad_preparada);
       const itemPreparacion: ItemPreparacionPedidoAdmin = {
         id: item.id,
         pedidoId: item.pedido_id,
@@ -428,6 +430,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
         confirmadoExplicito: preparacion?.confirmado_explicito ?? false,
         importeOriginal: Number(item.total_linea),
         precioUnitarioHistorico: Number(item.precio_final_unitario_snapshot),
+        totalFinalAdministrativo: item.total_final_administrativo === null ? null : Number(item.total_final_administrativo),
         importeCalculado: importesCalculados.get(item.id),
         importeOperativo: preparacion?.confirmado_explicito && preparacion.importe_linea_operativo !== null ? Number(preparacion.importe_linea_operativo) : null,
         cantidadFaltante: Number(item.cantidad) - (cantidadPreparada ?? Number(item.cantidad)),

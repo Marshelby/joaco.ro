@@ -13,6 +13,7 @@ import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/d
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { CierreRutaDialog } from "./cierre-ruta-dialog";
 import { RutaDiaMap } from "./ruta-dia-map";
+import { FacturasDelDia } from "./facturas-del-dia";
 import { JornadaModos } from "./jornada-modos";
 import { EntregaFallidaDialog } from "./entrega-fallida-dialog";
 import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
@@ -85,7 +86,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     {(carga.estado === "en_ruta" && carga.salida_en) || carga.estado === "cerrada" ? <CierreRutaDialog key={fecha} fecha={fecha} cerrada={carga.estado === "cerrada"} /> : null}
     <div data-rutas-destino="fecha" className="scroll-mt-24 space-y-4">
     <ConstanciasRecepcion key={fecha} fecha={fecha} pedidos={entrega.pedidos} />
-    <JornadaModos key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
+    <JornadaModos facturas={<FacturasDelDia key={fecha} fecha={fecha} pedidos={entrega.pedidos} />} key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen operativo">
       {[
         ["Pedidos", String(entrega.pedidos.length)],

@@ -1,3 +1,4 @@
+import { ConstanciaFotoDialog } from "@/components/admin/constancia-foto-dialog";
 import { ConstanciasRecepcion } from "./constancias-recepcion";
 import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
 import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
@@ -133,6 +134,7 @@ export default async function AdminRoutesPage({ searchParams }: {
                       <OrderDeliveryImage pedidoId={pedido.id} />
                     </>}
                     {pedido.clienteId ? <RutasDetailLink tipo="cliente" id={pedido.clienteId}>Ver cliente</RutasDetailLink> : <span className="self-center text-xs text-muted-foreground">Cliente no disponible</span>}
+                    <ConstanciaFotoDialog pedidoId={pedido.id} numero={pedido.numeroPedido} />
                     <Button type="button" variant="outline" disabled>Contactar</Button>
                     <EntregaVisualDialog motivoBloqueo={disponibilidadEntrega[pedido.id]} habilitada={carga.estado !== "cerrada" && disponibilidadEntrega[pedido.id] === null} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} items={pedido.items} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />
                     <EntregaFallidaDialog habilitada={carga.estado !== "cerrada" && pedido.estado === "en_reparto"} pedidoId={pedido.id} versionEsperada={pedido.versionPreparacion} numero={pedido.numeroPedido} cliente={pedido.nombreClienteSnapshot} ubicacion={pedido.nombreUbicacionSnapshot} productos={pedido.items.length} totalReferencia={pedido.importeOperativoPreparacion ?? pedido.totalFinal ?? pedido.total} />

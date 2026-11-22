@@ -34,6 +34,7 @@ export const ROUTES = {
   adminStaff: "/admin/personal",
   adminDeliveries: "/admin/entregas",
   adminRoutes: "/admin/rutas",
+  adminConstancias: "/admin/constancias",
   adminSettings: "/admin/configuracion",
   adminMessages: "/admin/mensajes",
   adminNewProduct: "/admin/productos/nuevo",

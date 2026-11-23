@@ -21,13 +21,35 @@ export const CUSTOMER_NAVIGATION = [
 ] as const satisfies readonly NavigationItem[];
 
 export const ADMIN_NAVIGATION = [
-  { label: "Dashboard", href: ROUTES.admin, icon: "home" },
-  { label: "Gestor público", href: ROUTES.adminPublicManager, icon: "catalog" },
-  { label: "Gestor interno", href: ROUTES.adminInternalManager, icon: "settings" },
-  { label: "Clientes", href: ROUTES.adminCustomers, icon: "customers" },
-  { label: "Proveedores", href: ROUTES.adminSuppliers, icon: "box" },
+  { label: "Inteligencia comercial", href: ROUTES.admin, icon: "analytics" },
+  { label: "Gestores", href: ROUTES.adminPublicManager, icon: "catalog" },
+  { label: "Clientes / Proveedores", href: ROUTES.adminCustomers, icon: "customers" },
   { label: "Pedidos", href: ROUTES.adminOrders, icon: "orders" },
   { label: "Rutas", href: ROUTES.adminRoutes, icon: "routes" },
-  { label: "Constancias", href: ROUTES.adminConstancias, icon: "orders" },
   { label: "Producción", href: ROUTES.adminProduction, icon: "box" },
 ] as const satisfies readonly NavigationItem[];
+
+export const ADMIN_NAVIGATION_GROUPS = [
+  {
+    label: "Gestores",
+    tabs: [
+      { label: "Gestor público", href: ROUTES.adminPublicManager, related: [ROUTES.adminProducts, ROUTES.adminCategories, ROUTES.adminHomeSections] },
+      { label: "Gestor interno", href: ROUTES.adminInternalManager, related: [ROUTES.adminStaff, "/admin/repartidores", ROUTES.adminSettings] },
+    ],
+  },
+  {
+    label: "Clientes / Proveedores",
+    tabs: [
+      { label: "Clientes", href: ROUTES.adminCustomers, related: [ROUTES.adminMessages] },
+      { label: "Proveedores", href: ROUTES.adminSuppliers, related: [] },
+    ],
+  },
+] as const;
+
+export function matchesNavigationPath(pathname: string, target: string) {
+  return pathname === target || pathname.startsWith(`${target}/`);
+}
+
+export function matchesAdminTab(pathname: string, tab: { href: string; related: readonly string[] }) {
+  return [tab.href, ...tab.related].some((route) => matchesNavigationPath(pathname, route));
+}

@@ -6,6 +6,7 @@ import type { ComponentProps } from "react";
 
 import { ROUTES } from "@/config/routes";
 import { cn } from "@/lib/utils";
+import { ADMIN_NAVIGATION_GROUPS, matchesAdminTab, matchesNavigationPath } from "@/mocks/navigation";
 import { usePublicNavigationFeedback } from "@/components/navigation/public-navigation-feedback";
 
 type NavigationLinkProps = ComponentProps<typeof Link> & {
@@ -22,17 +23,13 @@ export function NavigationLink({ className, activeClassName, exact = false, href
       [ROUTES.adminProducts, "productos"],
       [ROUTES.adminCategories, "categorias"],
       [ROUTES.adminHomeSections, "secciones-inicio"],
-    ] as const).find(([route]) => pathname === route || pathname.startsWith(`${route}/`))?.[1]
+    ] as const).find(([route]) => matchesNavigationPath(pathname, route))?.[1]
     : undefined;
-  const groupedPathname = managerTab
-    ? target
-    : target === "/admin/clientes" && (pathname === "/admin/mensajes" || pathname.startsWith("/admin/mensajes/"))
-      ? target
-      : pathname;
-  const activePathname = target === "/admin/pedidos" && (pathname === "/admin/posibles-pedidos" || pathname.startsWith("/admin/posibles-pedidos/"))
-    ? pathname.replace("/admin/posibles-pedidos", "/admin/pedidos")
-    : groupedPathname;
-  const active = exact ? activePathname === target : activePathname === target || activePathname.startsWith(`${target}/`);
+  const group = ADMIN_NAVIGATION_GROUPS.find(({ tabs }) => tabs[0].href === target);
+  const inGroup = group?.tabs.some((tab) => matchesAdminTab(pathname, tab));
+  const inOrders = target === ROUTES.adminOrders && [ROUTES.adminPossibleOrders, ROUTES.adminConstancias]
+    .some((route) => matchesNavigationPath(pathname, route));
+  const active = exact ? pathname === target : matchesNavigationPath(pathname, target) || inGroup || inOrders;
 
   return (
     <Link

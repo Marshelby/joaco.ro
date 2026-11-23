@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { ActionLink } from "@/components/ui/action-link";
 import { ROUTES } from "@/config/routes";
 import { listarConstancias } from "@/lib/admin/constancias";
 import { exigirSesionAdmin } from "@/lib/admin/sesion";
@@ -16,9 +17,16 @@ function moverMes(mes: string, paso: number) {
   return esFechaCalendario(siguiente) ? siguiente : null;
 }
 
-export default async function ConstanciasPage({ searchParams }: { searchParams: Promise<{ fecha?: string; mes?: string }> }) {
+export default async function ConstanciasPage({ searchParams }: { searchParams: Promise<{ fecha?: string; mes?: string; volver?: string | string[] }> }) {
   const supabase = await exigirSesionAdmin();
-  const { fecha, mes: mesSolicitado } = await searchParams;
+  const { fecha, mes: mesSolicitado, volver } = await searchParams;
+  const consultaPedidos = new URLSearchParams(typeof volver === "string" ? volver : "");
+  const pedidosHref = consultaPedidos.size ? `${ROUTES.adminOrders}?${consultaPedidos}` : ROUTES.adminOrders;
+  function enlaceCalendario(parametros: { fecha: string } | { mes: string }) {
+    const consulta = new URLSearchParams(parametros);
+    if (consultaPedidos.size) consulta.set("volver", consultaPedidos.toString());
+    return `${ROUTES.adminConstancias}?${consulta}`;
+  }
   const seleccion = esFechaCalendario(fecha) ? fecha : null;
   const hoy = hoySantiago();
   const referencia = seleccion ?? (esFechaCalendario(mesSolicitado) ? mesSolicitado : hoy);
@@ -41,13 +49,13 @@ export default async function ConstanciasPage({ searchParams }: { searchParams: 
   const desfase = (new Date(`${mes}T00:00:00Z`).getUTCDay() + 6) % 7;
 
   return <>
-    <PageHeader title="Constancias" description="Fotografías de constancias de entrega firmadas." />
+    <PageHeader title="Constancias" description="Fotografías de constancias de entrega firmadas." actions={<ActionLink href={pedidosHref} variant="secondary">Volver a Pedidos</ActionLink>} />
     <div className="grid items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
       <section aria-label="Calendario de constancias" className="space-y-3 rounded-xl border bg-card p-3">
         <div className="flex items-center justify-between gap-2">
-          {anterior && <Link href={`${ROUTES.adminConstancias}?mes=${anterior}`} prefetch={false} aria-label="Mes anterior" className="grid size-11 place-items-center rounded-lg border">‹</Link>}
+          {anterior && <Link href={enlaceCalendario({ mes: anterior })} prefetch={false} aria-label="Mes anterior" className="grid size-11 place-items-center rounded-lg border">‹</Link>}
           <h2 className="text-sm font-semibold capitalize">{formatearFechaCalendario(mes, { month: "long", year: "numeric" })}</h2>
-          {siguiente && <Link href={`${ROUTES.adminConstancias}?mes=${siguiente}`} prefetch={false} aria-label="Mes siguiente" className="grid size-11 place-items-center rounded-lg border">›</Link>}
+          {siguiente && <Link href={enlaceCalendario({ mes: siguiente })} prefetch={false} aria-label="Mes siguiente" className="grid size-11 place-items-center rounded-lg border">›</Link>}
         </div>
         {resultadoFechas.error ? <p role="alert" className="text-sm text-destructive">No se pudo cargar el calendario. Recarga la página para reintentar.</p> :
           <div className="grid grid-cols-7 items-center gap-1 text-center text-xs">
@@ -57,12 +65,12 @@ export default async function ConstanciasPage({ searchParams }: { searchParams: 
               const dia = sumarDiasCalendario(mes, indice);
               const texto = formatearFechaCalendario(dia, { dateStyle: "long" });
               return fechas.has(dia)
-                ? <Link key={dia} href={`${ROUTES.adminConstancias}?fecha=${dia}`} prefetch={false} aria-current={dia === activa ? "date" : undefined} aria-label={texto}
+                ? <Link key={dia} href={enlaceCalendario({ fecha: dia })} prefetch={false} aria-current={dia === activa ? "date" : undefined} aria-label={texto}
                     className={`grid min-h-10 place-items-center rounded-md border border-primary/35 text-sm font-semibold ${dia === activa ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary hover:bg-primary/20"}`}>{indice + 1}</Link>
                 : <span key={dia} className="grid min-h-10 place-items-center text-muted-foreground">{indice + 1}</span>;
             })}
           </div>}
-        {reciente && !reciente.startsWith(mes.slice(0, 7)) && <Link href={`${ROUTES.adminConstancias}?fecha=${reciente}`} prefetch={false} className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline">Ir a la fecha más reciente con fotos</Link>}
+        {reciente && !reciente.startsWith(mes.slice(0, 7)) && <Link href={enlaceCalendario({ fecha: reciente })} prefetch={false} className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline">Ir a la fecha más reciente con fotos</Link>}
       </section>
       {activa && (lista === null
         ? <p role="alert" className="rounded-xl border bg-card p-4 text-sm text-destructive">No se pudieron cargar las constancias. Recarga la página para reintentar.</p>

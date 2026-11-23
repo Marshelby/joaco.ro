@@ -1,5 +1,6 @@
 export type NavigationIconName =
   | "account"
+  | "analytics"
   | "box"
   | "cart"
   | "catalog"

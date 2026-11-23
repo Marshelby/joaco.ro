@@ -1,15 +1,17 @@
+import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { MobileNavigation } from "@/components/navigation/mobile-navigation";
 import { Logo } from "@/components/shared/logo";
 import { ADMIN_NAVIGATION } from "@/mocks/navigation";
+import { ROUTES } from "@/config/routes";
 import { cerrarSesion } from "@/app/iniciar-sesion/actions";
 import Link from "next/link";
 
-export function AdminHeader({ mensajesNoLeidos = 0 }: { mensajesNoLeidos?: number }) {
+export function AdminHeader({ mensajesNoLeidos = 0, contadorPedidos }: { mensajesNoLeidos?: number; contadorPedidos: ReactNode }) {
   return (
     <header className="flex min-h-16 items-center gap-3 border-b border-border bg-background px-4 sm:px-6">
       <div className="md:hidden">
-        <MobileNavigation items={ADMIN_NAVIGATION} label="Navegación administrativa" title="Administrador" badges={{ "/admin/clientes": mensajesNoLeidos }} />
+        <MobileNavigation items={ADMIN_NAVIGATION} label="Navegación administrativa" title="Administrador" badges={{ [ROUTES.adminCustomers]: mensajesNoLeidos }} counters={{ [ROUTES.adminOrders]: contadorPedidos }} />
       </div>
       <div className="md:hidden"><Logo className="rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></div>
       <div className="min-w-0 flex-1">

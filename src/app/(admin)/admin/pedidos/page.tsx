@@ -9,6 +9,7 @@ import { OrderIdentity } from "@/components/admin/order-identity";
 import { OrderViews } from "@/components/admin/order-views";
 import { PossibleOrdersList } from "@/components/admin/possible-orders-list";
 import type { Metadata } from "next";
+import { Camera } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
@@ -24,13 +25,29 @@ export const metadata: Metadata = { title: "Pedidos" };
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ filtro?: string; estado?: string; pagina?: string; q?: string; desde?: string; hasta?: string }> }) {
   const params = await searchParams;
   const { filtro } = params;
+  const consulta = new URLSearchParams();
+  for (const [clave, valor] of Object.entries(params)) {
+    for (const item of Array.isArray(valor) ? valor : [valor]) {
+      if (typeof item === "string") consulta.append(clave, item);
+    }
+  }
+  const constanciasHref = consulta.size
+    ? `${ROUTES.adminConstancias}?${new URLSearchParams({ volver: consulta.toString() })}`
+    : ROUTES.adminConstancias;
+  const constancias = (
+    <ActionLink href={constanciasHref} prefetch={false} className="gap-2">
+      <Camera className="size-4 shrink-0" aria-hidden="true" />
+      Constancias
+    </ActionLink>
+  );
+  const actions = <div className="flex flex-wrap gap-2"><CreateOrderLink />{constancias}</div>;
   if (filtro === "no-entregados") return <div className="space-y-8">
-    <PageHeader title="Pedidos" description="Seguimiento administrativo de entregas fallidas." />
+    <PageHeader title="Pedidos" description="Seguimiento administrativo de entregas fallidas." actions={constancias} />
     <OrderViews vista="no-entregados" />
     <UndeliveredOrders filtros={params} />
   </div>;
   if (filtro === "posibles") return <div className="space-y-8">
-    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<CreateOrderLink />} />
+    <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={actions} />
     <OrderViews vista="posibles" />
     <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
   </div>;
@@ -47,7 +64,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={<CreateOrderLink />} />
+      <PageHeader title="Pedidos" description="Revisa y confirma las solicitudes recibidas." actions={actions} />
       <section className="space-y-5" aria-labelledby="lista-pedidos-title">
         <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

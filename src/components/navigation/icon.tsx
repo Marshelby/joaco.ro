@@ -1,5 +1,6 @@
 import {
   Box,
+  ChartColumnIncreasing,
   CircleUserRound,
   FolderTree,
   House,
@@ -17,6 +18,7 @@ import type { NavigationIconName } from "@/types/navigation";
 
 const icons = {
   account: CircleUserRound,
+  analytics: ChartColumnIncreasing,
   box: Box,
   cart: ShoppingCart,
   catalog: Tags,

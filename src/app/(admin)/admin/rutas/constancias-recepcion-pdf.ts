@@ -1,9 +1,16 @@
+type CantidadConstancia = { cantidad: string; fuente: string };
+
 export type PedidoConstancia = {
   id: string;
   numero: string;
   destinatario: string;
   direccion: string;
-  productos: readonly { nombre: string; presentacion: string | null; cantidad: string; fuente: string }[];
+  productos: readonly (CantidadConstancia & {
+    nombre: string;
+    presentacion: string | null;
+    conPrecios: CantidadConstancia & { precioUnitario: string; importe: string };
+  })[];
+  resumen: readonly (readonly [string, string])[];
 };
 
 // Medidas A4 en puntos PDF. El lienzo se reutiliza a 288 ppp.
@@ -19,7 +26,7 @@ const escala = 4;
 type Bloque = { alto: number; dibujar: (y: number) => void };
 type Pagina = { superior: Bloque[]; inferior?: Bloque[]; lineaDeCorte?: boolean };
 
-export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[], fecha: string) {
+export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[], fecha: string, conPrecios = false) {
   const lienzo = document.createElement("canvas");
   lienzo.width = Math.round(ancho * escala);
   lienzo.height = Math.round(alto * escala);
@@ -30,7 +37,9 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
   ctx.textBaseline = "top";
 
   const derecha = ancho - margen;
-  const columnas = [margen, margen + 225, derecha - 155, derecha];
+  const columnas = conPrecios
+    ? [margen, margen + 177, margen + 275, margen + 349, margen + 441, derecha]
+    : [margen, margen + 225, derecha - 155, derecha];
 
   function texto(valor: string, tamano = 10, negrita = false, {
     x = margen, anchoMax = anchoTexto, derecha = false, color = "#202020",
@@ -97,7 +106,7 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
     return texto(valor, tamano, negrita, {
       x: columnas[columna] + 8,
       anchoMax: columnas[columna + 1] - columnas[columna] - 16,
-      derecha: columna === 2,
+      derecha: columna >= 2,
     });
   }
 
@@ -127,8 +136,31 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
   const titulosTabla = fila([
     celda("Producto", 0, true),
     celda("Presentación", 1, true),
-    celda("Cantidad prevista para entregar", 2, true, 9),
+    celda(conPrecios ? "Cantidad" : "Cantidad prevista para entregar", 2, true, 9),
+    ...(conPrecios ? [celda("Precio unitario", 3, true, 9), celda("Importe", 4, true, 9)] : []),
   ], true);
+
+  function resumenDePrecios(resumen: PedidoConstancia["resumen"]): Bloque {
+    const x = derecha - 230;
+    const filas = resumen.map(([etiqueta, valor], indice) => {
+      const total = indice === resumen.length - 1;
+      const rotulo = texto(etiqueta, 10, total, { x: x + 8, anchoMax: 117 });
+      const importe = texto(valor, 10, total, { x: x + 133, anchoMax: 89, derecha: true });
+      const altoFila = Math.max(altura(rotulo), altura(importe)) + 4;
+      return {
+        alto: altoFila,
+        dibujar(y: number) {
+          if (total) {
+            rectangulo(x, y, derecha - x, altoFila, "#efefef");
+            regla(x, derecha, y);
+          }
+          dibujar(rotulo, y + 2);
+          dibujar(importe, y + 2);
+        },
+      };
+    });
+    return { alto: espacio.alto + altura(filas), dibujar: y => dibujar(filas, y + espacio.alto) };
+  }
 
   const declaracion = texto("Declaro haber recibido los productos y cantidades indicados, conforme y sin observaciones, salvo las diferencias u observaciones anotadas a continuación.", 9);
   const observaciones = texto("Observaciones o diferencias (anotar antes de firmar)", 10, true, { x: margen + 8 });
@@ -176,24 +208,30 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
       espacio,
     ];
 
-    const tienePreparacion = pedido.productos.some(producto => producto.fuente === "Preparación confirmada");
-    const tieneOriginal = pedido.productos.some(producto => producto.fuente === "Pedido original");
-    const leyenda = tienePreparacion
+    const cantidades = pedido.productos.map(producto => conPrecios ? producto.conPrecios : producto);
+    const tienePreparacion = cantidades.some(producto => producto.fuente === "Preparación confirmada");
+    const tieneOriginal = cantidades.some(producto => producto.fuente === "Pedido original");
+    const tieneEntrega = cantidades.some(producto => producto.fuente === "Cantidad entregada");
+    const leyenda = tieneEntrega ? "Cantidades entregadas según registro" : tienePreparacion
       ? "* Preparación confirmada" + (tieneOriginal ? " · Sin asterisco: pedido original" : "")
       : tieneOriginal ? "Cantidades del pedido original" : "";
     const encabezadoTabla = [...texto(leyenda, 9, false, { color: "#454545" }), titulosTabla];
     // Una fila habitual queda entera. Las celdas excepcionalmente largas se
     // dividen por líneas y conservan su columna en la página siguiente.
     const maximoLineas = Math.floor((altoCompleta - altura(continuacion) - altura(encabezadoTabla) - 8) / 13);
-    const filas = pedido.productos.flatMap(producto => {
-      const preparada = producto.fuente === "Preparación confirmada";
+    const filas = pedido.productos.flatMap((producto, indice) => {
+      const { cantidad, fuente } = cantidades[indice];
+      const preparada = fuente === "Preparación confirmada";
       const celdas = [
         celda(producto.nombre, 0, true),
         celda(producto.presentacion || "—", 1),
-        celda(preparada ? `* ${producto.cantidad}` : producto.cantidad, 2, true),
+        celda(preparada ? `* ${cantidad}` : cantidad, 2, true),
       ];
-      if (!preparada && producto.fuente !== "Pedido original") {
-        celdas[2].push(...celda(producto.fuente, 2));
+      if (!preparada && fuente !== "Pedido original" && fuente !== "Cantidad entregada") {
+        celdas[2].push(...celda(fuente, 2));
+      }
+      if (conPrecios) {
+        celdas.push(celda(producto.conPrecios.precioUnitario, 3), celda(producto.conPrecios.importe, 4));
       }
       const lineas = Math.max(1, ...celdas.map(celda => celda.length));
       const partes: Bloque[] = [];
@@ -204,7 +242,8 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
     });
     if (!filas.length) filas.push(fila([celda("Sin productos registrados", 0)]));
 
-    const bloques = [...introduccion, ...encabezadoTabla, ...filas, recepcion];
+    const cierre = conPrecios ? [resumenDePrecios(pedido.resumen), recepcion] : [recepcion];
+    const bloques = [...introduccion, ...encabezadoTabla, ...filas, ...cierre];
     if (altura(bloques) <= altoMedia) {
       if (superior) {
         paginas.push({ superior, inferior: bloques, lineaDeCorte: true });
@@ -240,7 +279,7 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
         agregar([bloque]);
       }
     }
-    agregar([recepcion]);
+    agregar(cierre);
     paginas.push({ superior: hoja });
   }
   if (superior) paginas.push({ superior, lineaDeCorte: true });

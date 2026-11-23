@@ -62,6 +62,8 @@ export type ItemPreparacionPedidoAdmin = {
 export type RevisionPreparacion = { version: number; actor_id: string; actorNombre?: string; fecha: string; item_pedido_id: string | null; motivo: string; valores_anteriores: Record<string, unknown>; valores_nuevos: Record<string, unknown> };
 
 export type PedidoEntregaAdmin = PedidoAdminListado & {
+  costoEntrega: number | null;
+  descuento: number | null;
   contextoEntrega: ContextoEntrega;
   resultadoEntrega: ResultadoEntrega | null;
   versionPreparacion: number;
@@ -154,6 +156,8 @@ type ItemPedidoFila = {
 };
 
 type PedidoEntregaFila = PedidoListadoFila & {
+  costo_entrega: number | string | null;
+  descuento: number | string | null;
   direccion_snapshot: string | null;
   comuna_snapshot: string | null;
   cliente_id: string | null;
@@ -349,7 +353,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const supabase = await crearClienteSupabaseServidor();
   const { data, error } = await leerCompleto((desde, hasta) => supabase
     .from("pedidos")
-    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot,direccion_snapshot,comuna_snapshot")
+    .select("id,numero_pedido,nombre_cliente_snapshot,estado,total,fecha_creacion,venta_reconocida_en,fecha_entrega,preparacion_estado,subtotal_final,total_final,costo_entrega,descuento,cliente_id,destinatario_entrega_snapshot,telefono_contacto_entrega_snapshot,telefono_cliente_snapshot,zona_entrega_snapshot,direccion_snapshot,comuna_snapshot")
     .eq("fecha_entrega", fecha)
     .neq("estado", "cancelado")
     .order("fecha_creacion", { ascending: true }).order("id").range(desde, hasta));
@@ -360,6 +364,8 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
   const ubicaciones = await obtenerUbicacionesSnapshot(supabase, filas.map((pedido) => pedido.id));
   const pedidos: PedidoEntregaAdmin[] = filas.map((pedido) => ({
     ...mapPedidoListado({ ...pedido, nombre_ubicacion_snapshot: ubicaciones.get(pedido.id) }),
+    costoEntrega: pedido.costo_entrega == null ? null : Number(pedido.costo_entrega),
+    descuento: pedido.descuento == null ? null : Number(pedido.descuento),
     clienteId: pedido.cliente_id,
     destinatarioEntrega: pedido.destinatario_entrega_snapshot,
     direccionEntregaSnapshot: [pedido.direccion_snapshot, pedido.comuna_snapshot].filter(Boolean).join(", ") || null,
@@ -429,7 +435,7 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
         cantidadPreparada,
         confirmadoExplicito: preparacion?.confirmado_explicito ?? false,
         importeOriginal: Number(item.total_linea),
-        precioUnitarioHistorico: Number(item.precio_final_unitario_snapshot),
+        precioUnitarioHistorico: item.precio_final_unitario_snapshot == null ? undefined : Number(item.precio_final_unitario_snapshot),
         totalFinalAdministrativo: item.total_final_administrativo === null ? null : Number(item.total_final_administrativo),
         importeCalculado: importesCalculados.get(item.id),
         importeOperativo: preparacion?.confirmado_explicito && preparacion.importe_linea_operativo !== null ? Number(preparacion.importe_linea_operativo) : null,

@@ -14,6 +14,7 @@ export function ConstanciasRecepcionDialog({ fecha, fechaProgramada, pedidos }: 
   const [url, setUrl] = useState<string | null>(null);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState(false);
+  const [conPrecios, setConPrecios] = useState(false);
   const total = pedidos.filter(pedido => seleccion.has(pedido.id)).length;
   const todos = total > 0 && total === pedidos.length;
 
@@ -24,21 +25,28 @@ export function ConstanciasRecepcionDialog({ fecha, fechaProgramada, pedidos }: 
     return () => URL.revokeObjectURL(enlace);
   }, [documento]);
 
-  function cambiarSeleccion(nueva: Set<string>) {
-    setSeleccion(nueva);
+  function limpiarDocumento() {
     setUrl(null);
     setDocumento(null);
     setError(false);
   }
 
+  function cambiarSeleccion(nueva: Set<string>) {
+    setSeleccion(nueva);
+    limpiarDocumento();
+  }
+
+  function cambiarFormato(precios: boolean) {
+    setConPrecios(precios);
+    limpiarDocumento();
+  }
+
   async function generar() {
     setGenerando(true);
-    setUrl(null);
-    setDocumento(null);
-    setError(false);
+    limpiarDocumento();
     try {
       const { generarPdfConstancias } = await import("./constancias-recepcion-pdf");
-      setDocumento(await generarPdfConstancias(pedidos.filter(pedido => seleccion.has(pedido.id)), fechaProgramada));
+      setDocumento(await generarPdfConstancias(pedidos.filter(pedido => seleccion.has(pedido.id)), fechaProgramada, conPrecios));
     } catch {
       setError(true);
     } finally {
@@ -75,6 +83,17 @@ export function ConstanciasRecepcionDialog({ fecha, fechaProgramada, pedidos }: 
             </li>)}
           </ul>
           <footer className="space-y-2 border-t p-4">
+            <fieldset disabled={generando} className="flex flex-wrap gap-x-5 text-sm">
+              <legend className="font-medium">Formato del PDF</legend>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="radio" name="formato-constancias" checked={!conPrecios} onChange={() => cambiarFormato(false)} />
+                Sin precios
+              </label>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="radio" name="formato-constancias" checked={conPrecios} onChange={() => cambiarFormato(true)} />
+                Con precios
+              </label>
+            </fieldset>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm text-muted-foreground" role="status">{total} de {pedidos.length} seleccionados</span>
               <Button type="button" disabled={!total || generando} onClick={generar}>{generando ? "Generando…" : "Generar PDF"}</Button>

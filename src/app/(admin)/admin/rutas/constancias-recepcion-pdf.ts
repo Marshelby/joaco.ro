@@ -29,25 +29,26 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
   ctx.scale(lienzo.width / ancho, lienzo.height / alto);
   ctx.textBaseline = "top";
 
-  function tipografia(tamano: number, negrita: boolean) {
-    return `${negrita ? "bold" : "normal"} ${tamano}px Arial, sans-serif`;
-  }
+  const derecha = ancho - margen;
+  const columnas = [margen, margen + 225, derecha - 155, derecha];
 
-  function texto(valor: string, tamano = 11, negrita = false): Bloque[] {
-    const fuente = tipografia(tamano, negrita);
+  function texto(valor: string, tamano = 10, negrita = false, {
+    x = margen, anchoMax = anchoTexto, derecha = false, color = "#202020",
+  } = {}): Bloque[] {
+    const fuente = `${negrita ? "bold" : "normal"} ${tamano}px Arial, sans-serif`;
     ctx.font = fuente;
     const lineas: string[] = [];
     let linea = "";
     for (const palabra of valor.trim().split(/\s+/u)) {
       const candidata = linea ? `${linea} ${palabra}` : palabra;
-      if (ctx.measureText(candidata).width <= anchoTexto) {
+      if (ctx.measureText(candidata).width <= anchoMax) {
         linea = candidata;
         continue;
       }
       if (linea) lineas.push(linea);
       linea = "";
       for (const letra of palabra) {
-        if (ctx.measureText(linea + letra).width > anchoTexto) {
+        if (linea && ctx.measureText(linea + letra).width > anchoMax) {
           lineas.push(linea);
           linea = "";
         }
@@ -56,72 +57,155 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
     }
     if (linea) lineas.push(linea);
     return lineas.map(linea => ({
-      alto: tamano + 4,
+      alto: tamano + 3,
       dibujar(y) {
         ctx.font = fuente;
-        ctx.fillText(linea, margen, y);
+        ctx.fillStyle = color;
+        ctx.textAlign = derecha ? "right" : "left";
+        ctx.fillText(linea, derecha ? x + anchoMax : x, y);
       },
     }));
   }
 
-  function regla(x1: number, x2: number, y: number, punteada = false) {
-    ctx.strokeStyle = "#606b73";
-    ctx.lineWidth = 0.65;
-    ctx.setLineDash(punteada ? [5, 4] : []);
+  function altura(bloques: Bloque[]) {
+    return bloques.reduce((suma, bloque) => suma + bloque.alto, 0);
+  }
+
+  function dibujar(bloques: Bloque[], y: number) {
+    for (const bloque of bloques) {
+      bloque.dibujar(y);
+      y += bloque.alto;
+    }
+  }
+
+  function rectangulo(x: number, y: number, ancho: number, alto: number, color: string) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, ancho, alto);
+  }
+
+  function regla(x1: number, x2: number, y: number, corte = false) {
+    ctx.strokeStyle = corte ? "#454545" : "#929292";
+    ctx.lineWidth = corte ? 0.85 : 0.5;
+    ctx.setLineDash(corte ? [6, 4] : []);
     ctx.beginPath();
     ctx.moveTo(x1, y);
     ctx.lineTo(x2, y);
     ctx.stroke();
   }
 
-  const recepcion: Bloque = {
-    alto: 152,
+  function celda(valor: string, columna: number, negrita = false, tamano = 10) {
+    return texto(valor, tamano, negrita, {
+      x: columnas[columna] + 8,
+      anchoMax: columnas[columna + 1] - columnas[columna] - 16,
+      derecha: columna === 2,
+    });
+  }
+
+  function fila(celdas: Bloque[][], encabezado = false): Bloque {
+    const alto = Math.max(13, ...celdas.map(altura)) + 8;
+    return {
+      alto,
+      dibujar(y) {
+        if (encabezado) {
+          rectangulo(margen, y, anchoTexto, alto, "#efefef");
+          regla(margen, derecha, y);
+        }
+        for (const celda of celdas) dibujar(celda, y + 4);
+        regla(margen, derecha, y + alto);
+        for (const x of columnas) rectangulo(x - 0.25, y, 0.5, alto, "#929292");
+      },
+    };
+  }
+
+  const franja: Bloque = {
+    alto: 8,
     dibujar(y) {
-      ctx.font = tipografia(11, false);
-      ctx.fillText("Observaciones o diferencias (anotar antes de firmar)", margen, y + 5);
-      for (const desplazamiento of [31, 49, 67]) regla(margen, ancho - margen, y + desplazamiento);
-      const centro = ancho / 2;
-      regla(margen, centro - 10, y + 99);
-      regla(centro + 10, ancho - margen, y + 99);
-      ctx.fillText("Nombre de quien recibe", margen, y + 103);
-      ctx.fillText("Firma", centro + 10, y + 103);
-      regla(margen, centro - 10, y + 135);
-      regla(centro + 10, ancho - margen, y + 135);
-      ctx.fillText("Fecha real de recepción", margen, y + 139);
-      ctx.fillText("Hora real de recepción", centro + 10, y + 139);
+      rectangulo(margen, y, anchoTexto, 2, "#454545");
+    },
+  };
+  const espacio: Bloque = { alto: 6, dibujar() {} };
+  const titulosTabla = fila([
+    celda("Producto", 0, true),
+    celda("Presentación", 1, true),
+    celda("Cantidad prevista para entregar", 2, true, 9),
+  ], true);
+
+  const declaracion = texto("Declaro haber recibido los productos y cantidades indicados, conforme y sin observaciones, salvo las diferencias u observaciones anotadas a continuación.", 9);
+  const observaciones = texto("Observaciones o diferencias (anotar antes de firmar)", 10, true, { x: margen + 8 });
+  const campos = [
+    { x: margen, y: 76, ancho: 268, etiqueta: "Nombre de quien recibe" },
+    { x: margen + 284, y: 76, ancho: anchoTexto - 284, etiqueta: "Firma" },
+    { x: margen, y: 108, ancho: 155, etiqueta: "Fecha real de recepción" },
+    { x: margen + 171, y: 108, ancho: 155, etiqueta: "Hora real de recepción" },
+  ].map(campo => ({
+    ...campo,
+    rotulo: texto(campo.etiqueta, 9, false, { x: campo.x, anchoMax: campo.ancho, color: "#454545" }),
+  }));
+  const recepcion: Bloque = {
+    alto: 8 + altura(declaracion) + 124,
+    dibujar(y) {
+      dibujar(declaracion, y + 8);
+      const inicio = y + 8 + altura(declaracion);
+      rectangulo(margen, inicio + 3, anchoTexto, 17, "#f1f1f1");
+      dibujar(observaciones, inicio + 6);
+      for (const desplazamiento of [36, 52]) regla(margen, derecha, inicio + desplazamiento);
+      for (const campo of campos) {
+        regla(campo.x, campo.x + campo.ancho, inicio + campo.y);
+        dibujar(campo.rotulo, inicio + campo.y + 4);
+      }
     },
   };
 
   const paginas: Pagina[] = [];
   let superior: Bloque[] | undefined;
   for (const pedido of pedidos) {
-    const bloques = [
-      ...texto("HIDRO LEUFÚ", 13, true),
-      ...texto("Constancia de recepción de pedido", 14, true),
-      ...texto(pedido.destinatario, 20, true),
-      ...texto(`Pedido ${pedido.numero}  ·  Fecha programada: ${fecha}`),
+    const introduccion = [
+      franja,
+      ...texto("HIDRO LEUFÚ", 11, true, { color: "#454545" }),
+      ...texto("Constancia de recepción de pedido", 16, true),
+      ...texto(pedido.destinatario, 18, true),
+      ...texto(`Pedido ${pedido.numero}`, 10, true),
+      ...texto(`Fecha programada: ${fecha}`),
       ...texto(`Dirección de entrega: ${pedido.direccion}`),
-      ...texto("Productos y cantidades previstas para entregar", 12, true),
-      ...pedido.productos.flatMap(producto => texto(
-        [producto.nombre, producto.presentacion, producto.cantidad, producto.fuente].filter(Boolean).join(" · "),
-      )),
-      ...(!pedido.productos.length ? texto("Sin productos registrados") : []),
+      espacio,
     ];
-    const declaracion = texto("Declaro haber recibido los productos y cantidades indicados, conforme y sin observaciones, salvo las diferencias u observaciones anotadas a continuación");
-    const firma: Bloque = {
-      alto: 8 + declaracion.reduce((suma, bloque) => suma + bloque.alto, 0) + recepcion.alto,
-      dibujar(y) {
-        y += 8;
-        for (const bloque of declaracion) {
-          bloque.dibujar(y);
-          y += bloque.alto;
-        }
-        recepcion.dibujar(y);
-      },
-    };
-    bloques.push(firma);
+    const identificacion = texto(`HIDRO LEUFÚ · Pedido ${pedido.numero} · Continuación`, 11, true);
+    const continuacion = [
+      franja,
+      ...(identificacion.length === 1 ? identificacion : texto("HIDRO LEUFÚ · Continuación", 11, true)),
+      espacio,
+    ];
 
-    if (bloques.reduce((suma, bloque) => suma + bloque.alto, 0) <= altoMedia) {
+    const tienePreparacion = pedido.productos.some(producto => producto.fuente === "Preparación confirmada");
+    const tieneOriginal = pedido.productos.some(producto => producto.fuente === "Pedido original");
+    const leyenda = tienePreparacion
+      ? "* Preparación confirmada" + (tieneOriginal ? " · Sin asterisco: pedido original" : "")
+      : tieneOriginal ? "Cantidades del pedido original" : "";
+    const encabezadoTabla = [...texto(leyenda, 9, false, { color: "#454545" }), titulosTabla];
+    // Una fila habitual queda entera. Las celdas excepcionalmente largas se
+    // dividen por líneas y conservan su columna en la página siguiente.
+    const maximoLineas = Math.floor((altoCompleta - altura(continuacion) - altura(encabezadoTabla) - 8) / 13);
+    const filas = pedido.productos.flatMap(producto => {
+      const preparada = producto.fuente === "Preparación confirmada";
+      const celdas = [
+        celda(producto.nombre, 0, true),
+        celda(producto.presentacion || "—", 1),
+        celda(preparada ? `* ${producto.cantidad}` : producto.cantidad, 2, true),
+      ];
+      if (!preparada && producto.fuente !== "Pedido original") {
+        celdas[2].push(...celda(producto.fuente, 2));
+      }
+      const lineas = Math.max(1, ...celdas.map(celda => celda.length));
+      const partes: Bloque[] = [];
+      for (let inicio = 0; inicio < lineas; inicio += maximoLineas) {
+        partes.push(fila(celdas.map(celda => celda.slice(inicio, inicio + maximoLineas))));
+      }
+      return partes;
+    });
+    if (!filas.length) filas.push(fila([celda("Sin productos registrados", 0)]));
+
+    const bloques = [...introduccion, ...encabezadoTabla, ...filas, recepcion];
+    if (altura(bloques) <= altoMedia) {
       if (superior) {
         paginas.push({ superior, inferior: bloques, lineaDeCorte: true });
         superior = undefined;
@@ -135,25 +219,31 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
     superior = undefined;
     let hoja: Bloque[] = [];
     let ocupado = 0;
-    for (const bloque of bloques) {
-      if (ocupado + bloque.alto > altoCompleta) {
+    function agregar(bloques: Bloque[]) {
+      const alto = altura(bloques);
+      if (ocupado + alto > altoCompleta) {
         paginas.push({ superior: hoja });
-        hoja = texto(`HIDRO LEUFÚ · Pedido ${pedido.numero} · Continuación`, 13, true);
-        ocupado = hoja.reduce((suma, encabezado) => suma + encabezado.alto, 0);
+        hoja = [...continuacion];
+        ocupado = altura(hoja);
       }
-      hoja.push(bloque);
-      ocupado += bloque.alto;
+      hoja.push(...bloques);
+      ocupado += alto;
     }
+
+    for (const bloque of introduccion) agregar([bloque]);
+    let tablaEnHoja = false;
+    for (const bloque of filas) {
+      if (!tablaEnHoja || ocupado + bloque.alto > altoCompleta) {
+        agregar([...encabezadoTabla, bloque]);
+        tablaEnHoja = true;
+      } else {
+        agregar([bloque]);
+      }
+    }
+    agregar([recepcion]);
     paginas.push({ superior: hoja });
   }
   if (superior) paginas.push({ superior, lineaDeCorte: true });
-
-  function dibujar(bloques: Bloque[], y: number) {
-    for (const bloque of bloques) {
-      bloque.dibujar(y);
-      y += bloque.alto;
-    }
-  }
 
   const pdf = new PdfConstancias(paginas.length);
   for (const [indice, pagina] of paginas.entries()) {

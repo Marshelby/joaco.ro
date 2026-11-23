@@ -13,7 +13,7 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   item: ItemPreparacionPedidoAdmin; version: number; soloLectura?: boolean; cantidadEnviada?: number; soloPreparacion?: boolean;
 }) {
   const router = useRouter();
-  const [cantidad, setCantidad] = useState(item.cantidadPreparada === null ? "" : String(item.cantidadPreparada));
+  const [cantidadEditada, setCantidadEditada] = useState<string | null>(item.cantidadPreparada === null ? null : String(item.cantidadPreparada));
   const [error, setError] = useState("");
   const [guardado, setGuardado] = useState<"avance" | null>(null);
   const [cantidadGuardada, setCantidadGuardada] = useState<number | null>(item.cantidadPreparada);
@@ -27,6 +27,8 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   const pasoEntrada = fraccionable ? 0.001 : 1;
   const paso = pasoMedioKg ? 0.5 : pasoEntrada;
   const maximo = 999999999.999;
+  const cantidad = cantidadEditada ?? "";
+  const mostrarSugerencia = soloPreparacion && !soloLectura && item.cantidadPreparada === null && cantidadGuardada === null && cantidadEditada === null;
   const valor = Number(cantidad);
   const cambios = cantidadGuardada === null ? cantidad !== "" : cantidad === "" || valor !== cantidadGuardada;
   const formato = (n: number) => formatearCantidadPreparacionEntrega(n, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
@@ -34,12 +36,16 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
   const estadoCargado = cantidadGuardada === null || cantidadGuardada === 0 ? "Pendiente" : cantidadGuardada < item.cantidad ? "Parcial" : cantidadGuardada === item.cantidad ? "Completo" : "Excedente";
   const colorCargado = cantidadGuardada === null || cantidadGuardada === 0 ? "bg-muted text-muted-foreground" : cantidadGuardada < item.cantidad ? "bg-amber-100 text-amber-900" : cantidadGuardada === item.cantidad ? "bg-emerald-100 text-emerald-900" : "bg-blue-100 text-blue-900";
 
-  function editar(siguiente: string) {
-    setCantidad(siguiente);
+  function editar(siguiente: string | null) {
+    setCantidadEditada(siguiente);
     setGuardado(null);
     setError("");
     setClave(crypto.randomUUID());
     solicitud.current = null;
+  }
+
+  function aplicarSugerencia() {
+    if (mostrarSugerencia && !pendiente) editar(String(item.cantidad));
   }
 
   function ajustarCantidad(direccion: -1 | 1) {
@@ -102,14 +108,14 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
           <label htmlFor={`cargada-${item.id}`} className="block text-xs">Cantidad cargada</label>
           <div className="flex items-center gap-1">
             {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Restar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor <= 0} onClick={() => ajustarCantidad(-1)}>−</Button> : null}
-            <input id={`cargada-${item.id}`} name="cantidadPreparada" type="number" inputMode={fraccionable ? "decimal" : "numeric"} min="0" max={maximo} step={pasoEntrada} required readOnly={soloLectura} disabled={pendiente} value={cantidad} onChange={(e) => editar(e.target.value)} onKeyDown={(e) => {
+            <input id={`cargada-${item.id}`} name="cantidadPreparada" type="number" inputMode={fraccionable ? "decimal" : "numeric"} min="0" max={maximo} step={pasoEntrada} required readOnly={soloLectura} disabled={pendiente} value={cantidad} placeholder={mostrarSugerencia ? String(item.cantidad) : undefined} onFocus={aplicarSugerencia} onClick={aplicarSugerencia} onChange={(e) => editar(e.target.value)} onKeyDown={(e) => {
               if (!pasoMedioKg || soloLectura || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
               e.preventDefault();
               ajustarCantidad(e.key === "ArrowUp" ? 1 : -1);
-            }} className={`h-9 w-24 rounded-md border border-input bg-background px-2 text-center ${pasoMedioKg ? "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : ""}`} />
-            {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Sumar cantidad de ${item.nombreProducto}`} disabled={pendiente || !Number.isFinite(valor) || valor + paso > maximo} onClick={() => editar(String(Math.round((valor + paso) * 1000) / 1000))}>+</Button> : null}
+            }} className={`h-9 w-24 rounded-md border border-input bg-background px-2 text-center placeholder:text-muted-foreground/60 ${pasoMedioKg ? "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : ""}`} />
+            {!soloLectura ? <Button type="button" variant="outline" size="sm" aria-label={`Sumar cantidad de ${item.nombreProducto}`} disabled={pendiente || mostrarSugerencia || !Number.isFinite(valor) || valor + paso > maximo} onClick={() => editar(String(Math.round((valor + paso) * 1000) / 1000))}>+</Button> : null}
           </div>
-          {!soloLectura && cambios ? <div className="flex items-center gap-1"><Button type="button" size="sm" variant="outline" disabled={pendiente} onClick={() => editar(cantidadGuardada === null ? "" : String(cantidadGuardada))}>Cancelar</Button><Button type="submit" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button></div> : null}
+          {!soloLectura && cambios ? <div className="flex items-center gap-1"><Button type="button" size="sm" variant="outline" disabled={pendiente} onClick={() => editar(cantidadGuardada === null ? null : String(cantidadGuardada))}>Cancelar</Button><Button type="submit" size="sm" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button></div> : null}
           <p className="text-xs text-muted-foreground">{cantidad !== "" && Number.isFinite(valor) ? formato(valor) : "Ingresa una cantidad"}</p>
         </div>
       </div>

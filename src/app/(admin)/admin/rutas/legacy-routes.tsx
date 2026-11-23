@@ -1,5 +1,5 @@
 import { ConstanciaFotoDialog } from "@/components/admin/constancia-foto-dialog";
-import { ConstanciasRecepcion } from "./constancias-recepcion";
+import { AccionesDocumentosJornada } from "./acciones-documentos-jornada";
 import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
 import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
 import { claseResultadoEntrega, DeliveryResultHeader, esResultadoEntrega } from "@/components/admin/delivery-result";
@@ -13,7 +13,6 @@ import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/d
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { CierreRutaDialog } from "./cierre-ruta-dialog";
 import { RutaDiaMap } from "./ruta-dia-map";
-import { FacturasDelDia } from "./facturas-del-dia";
 import { JornadaModos } from "./jornada-modos";
 import { EntregaFallidaDialog } from "./entrega-fallida-dialog";
 import { leerDisponibilidadEntrega } from "./entrega-disponibilidad";
@@ -85,8 +84,7 @@ export default async function AdminRoutesPage({ searchParams }: {
     </section>
     {(carga.estado === "en_ruta" && carga.salida_en) || carga.estado === "cerrada" ? <CierreRutaDialog key={fecha} fecha={fecha} cerrada={carga.estado === "cerrada"} /> : null}
     <div data-rutas-destino="fecha" className="scroll-mt-24 space-y-4">
-    <ConstanciasRecepcion key={fecha} fecha={fecha} pedidos={entrega.pedidos} />
-    <JornadaModos facturas={<FacturasDelDia key={fecha} fecha={fecha} pedidos={entrega.pedidos} />} key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
+    <JornadaModos documentos={<AccionesDocumentosJornada fecha={fecha} pedidos={entrega.pedidos} />} key={fecha} titulo={formatFechaEntregaLarga(fecha)} mensaje={permiso.permitida ? permiso.mensaje : `Solo consulta. ${permiso.mensaje}`} preparacion={<>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen operativo">
       {[
         ["Pedidos", String(entrega.pedidos.length)],

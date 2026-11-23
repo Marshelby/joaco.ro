@@ -4,9 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSeleccionListado } from "./rutas-navigation";
 import { Button } from "@/components/ui/button";
 
-type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: ReactNode; facturas: ReactNode; salida?: ReactNode };
+type Props = { titulo: string; mensaje: string; preparacion: ReactNode; ruta: ReactNode; documentos: ReactNode; salida?: ReactNode };
 
-export function JornadaModos({ titulo, mensaje, preparacion, ruta, facturas, salida }: Props) {
+export function JornadaModos({ titulo, mensaje, preparacion, ruta, documentos, salida }: Props) {
   const [modo, setModo] = useState<"preparacion" | "ruta">("preparacion");
   const encabezado = useRef<HTMLDivElement>(null);
   const desplazar = useRef(false);
@@ -44,8 +44,9 @@ export function JornadaModos({ titulo, mensaje, preparacion, ruta, facturas, sal
         </div>
       </div>
       <p className="text-sm text-muted-foreground">{mensaje}</p>
+      {documentos}
     </div>
     <div id="jornada-preparacion" hidden={modo !== "preparacion"} className="space-y-3">{preparacion}<div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2"><Button type="button" onClick={() => cambiarModo("ruta")}>Ir a la ruta</Button><p className="text-xs text-muted-foreground">Revisa las paradas y el despacho en la vista de ruta.</p></div></div>
-    <div id="jornada-ruta" hidden={modo !== "ruta"} className="space-y-4">{facturas}{salida}{ruta}</div>
+    <div id="jornada-ruta" hidden={modo !== "ruta"} className="space-y-4">{salida}{ruta}</div>
   </>;
 }

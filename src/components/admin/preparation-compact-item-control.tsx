@@ -52,7 +52,7 @@ export function PreparationCompactItemControl({ item, version, soloLectura = fal
     <form data-preparacion-pendiente={!soloLectura && (cambios || pendiente) ? "true" : undefined} onSubmit={(evento) => {
       evento.preventDefault();
       const tipo = "avance";
-      if (pendiente || enviando.current) return;
+      if (soloLectura || pendiente || enviando.current) return;
       if (tipo === "avance" && !cambios) return;
       const campo = evento.currentTarget.elements.namedItem("cantidadPreparada") as HTMLInputElement;
       if (!campo.reportValidity()) return;

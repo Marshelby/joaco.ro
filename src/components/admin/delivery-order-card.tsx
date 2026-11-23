@@ -83,7 +83,8 @@ export function DeliveryOrderCard({ pedido, nombreEmisor, operativa = false, num
       </header>
       <div id={`preparacion-${pedido.id}`} className="scroll-mt-24 px-3">
         {pedido.items.length ? <ul className="divide-y divide-border">
-          {pedido.items.map(item => <PreparationCompactItemControl key={`${item.id}-${pedido.versionPreparacion}`} item={item} version={pedido.versionPreparacion} soloPreparacion soloLectura={!((pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta)} />)}
+          {/* El guardado de otra línea actualiza la versión sin reiniciar este campo. */}
+          {pedido.items.map(item => <PreparationCompactItemControl key={`${item.id}-${item.cantidadPreparada}`} item={item} version={pedido.versionPreparacion} soloPreparacion soloLectura={!((pedido.estado === "preparando" || (compacta && pedido.estado === "confirmado")) && permisoPreparacion.permitida && !soloLecturaRuta)} />)}
         </ul> : <p className="py-3 text-sm text-muted-foreground">No hay productos registrados en este pedido.</p>}
         {pedido.contextoEntrega.disponible && pedido.contextoEntrega.observacion ? <p className="border-t border-border py-2 text-xs text-muted-foreground whitespace-pre-wrap break-words"><span className="font-semibold">Observación: </span>{pedido.contextoEntrega.observacion.texto}</p> : null}
       </div>

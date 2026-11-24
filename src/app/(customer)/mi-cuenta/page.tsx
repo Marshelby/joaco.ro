@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CheckCircle2, MapPin, Package, Phone, ShoppingBasket, UserRound } from "lucide-react";
 import { Suspense } from "react";
 
+import { AdminNameForm } from "@/components/account/admin-name-form";
 import { DeliveryAccessCard } from "@/components/account/delivery-access-card";
 import { tieneAccesoReparto } from "@/lib/reparto/acceso";
 import { CustomerProfileForm } from "@/components/account/customer-profile-form";
@@ -40,7 +41,19 @@ async function AccountContent() {
   const tarjetaReparto = accesoReparto ? <DeliveryAccessCard /> : null;
 
   if (cuenta.estado === "admin") {
-    return <div className="space-y-8"><PageHeader title="Mi cuenta" description="Sesión administrativa de Hidro Leufú." actions={<><ActionLink href={ROUTES.admin}>Ir a administración</ActionLink><SignOutButton /></>} />{tarjetaReparto}<section className="rounded-xl border border-border bg-card p-5 sm:p-6"><p className="text-sm text-muted-foreground">Identidad</p><p className="mt-1 break-all text-lg font-semibold text-foreground">{cuenta.nombreAdmin ?? cuenta.email ?? "Administrador"}</p><p className="mt-4 text-sm text-muted-foreground">Rol</p><p className="mt-1 font-medium text-foreground">Administrador</p></section></div>;
+    return (
+      <div className="space-y-8">
+        <PageHeader title="Mi cuenta" description="Sesión administrativa de Hidro Leufú." actions={<><ActionLink href={ROUTES.admin}>Ir a administración</ActionLink><SignOutButton /></>} />
+        {tarjetaReparto}
+        <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
+          <p className="text-sm text-muted-foreground">Identidad</p>
+          <p className="mt-1 break-all text-lg font-semibold text-foreground">{cuenta.nombreAdmin ?? cuenta.email ?? "Administrador"}</p>
+          <p className="mt-4 text-sm text-muted-foreground">Rol</p>
+          <p className="mt-1 font-medium text-foreground">Administrador</p>
+          <AdminNameForm nombre={cuenta.nombreAdmin} />
+        </section>
+      </div>
+    );
   }
 
   if (cuenta.estado === "inactive_customer") {

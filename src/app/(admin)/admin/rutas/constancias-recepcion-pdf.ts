@@ -38,8 +38,8 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
 
   const derecha = ancho - margen;
   const columnas = conPrecios
-    ? [margen, margen + 177, margen + 275, margen + 349, margen + 441, derecha]
-    : [margen, margen + 225, derecha - 155, derecha];
+    ? [margen, margen + 218, margen + 309, margen + 422, derecha]
+    : [margen, margen + 310, derecha];
 
   function texto(valor: string, tamano = 10, negrita = false, {
     x = margen, anchoMax = anchoTexto, derecha = false, color = "#202020",
@@ -106,7 +106,7 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
     return texto(valor, tamano, negrita, {
       x: columnas[columna] + 8,
       anchoMax: columnas[columna + 1] - columnas[columna] - 16,
-      derecha: columna >= 2,
+      derecha: columna >= 1,
     });
   }
 
@@ -135,9 +135,8 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
   const espacio: Bloque = { alto: 6, dibujar() {} };
   const titulosTabla = fila([
     celda("Producto", 0, true),
-    celda("Presentación", 1, true),
-    celda(conPrecios ? "Cantidad" : "Cantidad prevista para entregar", 2, true, 9),
-    ...(conPrecios ? [celda("Precio unitario", 3, true, 9), celda("Importe", 4, true, 9)] : []),
+    celda("Cantidad", 1, true, 9),
+    ...(conPrecios ? [celda("Precio unitario", 2, true, 9), celda("Importe", 3, true, 9)] : []),
   ], true);
 
   function resumenDePrecios(resumen: PedidoConstancia["resumen"]): Bloque {
@@ -224,14 +223,13 @@ export async function generarPdfConstancias(pedidos: readonly PedidoConstancia[]
       const preparada = fuente === "Preparación confirmada";
       const celdas = [
         celda(producto.nombre, 0, true),
-        celda(producto.presentacion || "—", 1),
-        celda(preparada ? `* ${cantidad}` : cantidad, 2, true),
+        celda(preparada ? `* ${cantidad}` : cantidad, 1, true),
       ];
       if (!preparada && fuente !== "Pedido original" && fuente !== "Cantidad entregada") {
-        celdas[2].push(...celda(fuente, 2));
+        celdas[1].push(...celda(fuente, 1));
       }
       if (conPrecios) {
-        celdas.push(celda(producto.conPrecios.precioUnitario, 3), celda(producto.conPrecios.importe, 4));
+        celdas.push(celda(producto.conPrecios.precioUnitario, 2), celda(producto.conPrecios.importe, 3));
       }
       const lineas = Math.max(1, ...celdas.map(celda => celda.length));
       const partes: Bloque[] = [];

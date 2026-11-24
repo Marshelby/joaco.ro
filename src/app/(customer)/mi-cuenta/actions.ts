@@ -10,6 +10,9 @@ const mensajesRpc: Record<string, string> = {
   NO_AUTORIZADO: "Tu sesión expiró. Inicia sesión nuevamente.",
   CLIENTE_NO_ENCONTRADO: "No tienes una cuenta de cliente activa.",
   NOMBRE_REQUERIDO: "El nombre es obligatorio.",
+  NOMBRE_DEMASIADO_LARGO: "El nombre debe tener como máximo 100 caracteres.",
+  NOMBRE_INVALIDO: "Ingresa un nombre con al menos una letra y sin caracteres de control.",
+  ADMIN_REQUERIDO: "Solo las cuentas administradoras pueden editar este nombre.",
   DIRECCION_NO_ENCONTRADA: "La dirección ya no está disponible.",
   DESTINATARIO_REQUERIDO: "Ingresa el nombre de quien recibirá el pedido.",
   TELEFONO_INVALIDO: "Ingresa un teléfono chileno válido de 8 dígitos.",
@@ -37,6 +40,29 @@ function revalidarCuenta() {
   revalidatePath("/");
   revalidatePath("/mi-cuenta");
   revalidatePath("/mi-cuenta/direcciones");
+}
+
+export async function actualizarNombreAdministrador(_: EstadoCuenta, datos: FormData): Promise<EstadoCuenta> {
+  const supabase = await crearClienteSupabaseServidor();
+  const { data: sesion } = await supabase.auth.getUser();
+  if (!sesion.user || sesion.user.is_anonymous) return { error: mensajesRpc.NO_AUTORIZADO };
+
+  const { data: perfil, error: errorPerfil } = await supabase
+    .from("perfiles")
+    .select("rol")
+    .eq("usuario_id", sesion.user.id)
+    .maybeSingle();
+  if (errorPerfil) return { error: "No fue posible verificar tu acceso administrativo." };
+  if (perfil?.rol !== "admin") return { error: mensajesRpc.ADMIN_REQUERIDO };
+
+  const nombre = datos.get("nombre");
+  if (typeof nombre !== "string" || !nombre.trim()) return { error: mensajesRpc.NOMBRE_REQUERIDO };
+
+  const { error } = await supabase.rpc("actualizar_mi_nombre_administrador", { p_nombre: nombre.trim() });
+  if (error) return { error: mensajesRpc[error.message] ?? "No fue posible guardar tu nombre." };
+
+  revalidatePath("/mi-cuenta");
+  return { exito: "Nombre guardado." };
 }
 
 export async function actualizarPerfilCliente(_: EstadoCuenta, datos: FormData): Promise<EstadoCuenta> {

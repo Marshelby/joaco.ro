@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { DeliveryResultDetails, importeResultado, presentarResultadoEntrega, productoSolicitado } from "@/components/admin/delivery-result";
 import { RutasContabilidadPedido } from "@/components/admin/rutas-contabilidad";
 import { formatCLP } from "@/lib/formatters";
-import { obtenerUltimoFalloEntrega } from "@/lib/admin/intentos-entrega";
 import type { PedidoEntregaAdmin } from "@/lib/admin/pedidos";
 import type { ContabilidadRutaPedido } from "@/lib/admin/rutas-contabilidad";
 
@@ -13,15 +12,15 @@ export function presentarResultadoJornada(pedido: PedidoEntregaAdmin, contabilid
   return { datos, importe: importeResultado(datos, contabilidad?.venta_reconocida ? contabilidad.importe_definitivo : null) };
 }
 
-export async function DeliveryOrderResultDetails({ pedido, datos, contabilidad, vistaRuta = false, children }: {
+export function DeliveryOrderResultDetails({ pedido, datos, contabilidad, vistaRuta = false, children }: {
   pedido: PedidoEntregaAdmin;
   datos: ReturnType<typeof presentarResultadoJornada>["datos"];
   contabilidad?: ContabilidadRutaPedido | null;
   vistaRuta?: boolean;
   children?: ReactNode;
 }) {
-  const fallo = datos.tipo === "fallida" ? await obtenerUltimoFalloEntrega(pedido.id) : null;
-  const sinStock = datos.tipo === "fallida" ? pedido.historialPreparacion.filter(h => h.valores_nuevos.origen === "sin_stock_pre_despacho").at(-1) : undefined;
+  const fallo = datos.tipo === "fallida" ? pedido.falloEntrega : null;
+  const sinStock = datos.tipo === "fallida" ? pedido.historialPreparacion.find(h => h.valores_nuevos.origen === "sin_stock_pre_despacho") : undefined;
   const cobrado = pedido.resultadoEntrega?.total_cobrado ?? null;
   return <DeliveryResultDetails vistaRuta={vistaRuta} datos={datos} contexto={pedido.contextoEntrega} fallo={fallo ?? (sinStock ? {
     motivo: sinStock.motivo, observaciones: null, fecha: sinStock.fecha, actor: sinStock.actorNombre ?? null,

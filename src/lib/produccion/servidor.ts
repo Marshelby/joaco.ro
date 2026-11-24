@@ -1,4 +1,5 @@
 import "server-only";
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { redirect } from "next/navigation";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { Lugar, Unidad, Configuracion } from "./contrato";
@@ -12,7 +13,7 @@ export async function administradorProduccion() {
   return cliente;
 }
 
-export async function consultarProduccion() {
+export async function consultarProduccion(incluirAutorConfiguracion = false) {
   const cliente = await administradorProduccion();
   // Paginación explícita para no truncar silenciosamente el historial por el límite de PostgREST.
   async function leer<T>(tabla: string, columnas: string): Promise<T[]> {
@@ -28,11 +29,15 @@ export async function consultarProduccion() {
   const [lugares, unidades, configuraciones] = await Promise.all([
     leer<Lugar>("produccion_lugares_actuales", "id,tipo,nombre,observaciones,activo,version"),
     leer<Unidad>("produccion_unidades_actuales", "id,lugar_id,tipo,cultivo,nombre,observaciones,activo,version"),
-    leer<Configuracion>("produccion_configuraciones_unidad", "id,unidad_id,cultivo,capacidad,vigente_desde,capacidad_lechugas,cantidad_gallinas,observaciones"),
+    leer<Configuracion>("produccion_configuraciones_unidad", `id,unidad_id,cultivo,capacidad,vigente_desde,capacidad_lechugas,cantidad_gallinas,observaciones${incluirAutorConfiguracion ? ",creado_por" : ""}`),
   ]);
   lugares.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   unidades.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   configuraciones.sort((a, b) => b.vigente_desde.localeCompare(a.vigente_desde));
+  if (incluirAutorConfiguracion) {
+    const nombre = await obtenerNombresResponsables(configuraciones.map(c => responsableAdmin(c.creado_por)));
+    for (const configuracion of configuraciones) configuracion.autorNombre = nombre(responsableAdmin(configuracion.creado_por));
+  }
   return { lugares, unidades, configuraciones };
 }
 
@@ -45,7 +50,7 @@ export async function consultarActividadesDia(fecha: string) {
   // Resolver la última versión antes de filtrar fecha: una corrección puede mover el día.
   for (let desde = 0; ; desde += 500) {
     const { data, error } = await cliente.from("produccion_actividad_versiones")
-      .select("id,actividad_id,cultivo,tipo_unidad,numero_version,evento,fecha_operativa,tipo_actividad,cantidad,unidad_medida,observaciones,fecha_registro,produccion_actividades!inner(unidad_id)")
+      .select("id,actividad_id,cultivo,tipo_unidad,numero_version,evento,fecha_operativa,tipo_actividad,cantidad,unidad_medida,observaciones,autor_id,fecha_registro,produccion_actividades!inner(unidad_id)")
       .order("id").range(desde, desde + 499);
     if (error) throw new Error("No fue posible cargar las actividades del día. Intenta nuevamente.");
     for (const fila of data as unknown as Version[]) {
@@ -66,5 +71,7 @@ export async function consultarActividadesDia(fecha: string) {
       if (actividad) actividad.precio_total = Number(importe.precio_total);
     }
   }
+  const nombre = await obtenerNombresResponsables(actividades.map(v => responsableAdmin(v.autor_id)));
+  for (const version of actividades) version.autorNombre = nombre(responsableAdmin(version.autor_id));
   return actividades;
 }

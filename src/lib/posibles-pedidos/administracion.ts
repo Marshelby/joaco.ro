@@ -1,4 +1,5 @@
 import "server-only";
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { fasePosiblesPedidosHabilitada } from "./configuracion";
 
@@ -13,8 +14,9 @@ export type LineaPosible = {
   unidad_snapshot: string; cantidad: number; cantidad_original: number; activo: boolean; orden: number; subtotal: number;
   precio_neto_original_snapshot: number; precio_venta_original_snapshot: number;
   precio_neto_autorizado: number | null; precio_venta_autorizado: number | null; motivo_autorizacion_precio: string | null; fecha_autorizacion_precio: string | null;
+  precio_autorizado_por?: string | null; precio_autorizador_nombre?: string;
 };
-export type EventoPosible = { id: string; evento: string; version_resultante: number; fecha_creacion: string; motivo: string | null; administrador_id: string | null; cambios: Record<string,unknown> };
+export type EventoPosible = { id: string; evento: string; version_resultante: number; fecha_creacion: string; motivo: string | null; administrador_id: string | null; administrador_nombre: string; cambios: Record<string,unknown> };
 export type ClientePosible = { id: string; nombre: string; telefono: string | null };
 export type DireccionPosible = { id: string; direccion: string; comuna: string; latitud: number | null; longitud: number | null };
 export type PresentacionPosible = { id: string; nombre: string; precio_final: number; productos: { nombre: string } };
@@ -48,7 +50,7 @@ export async function detallePosiblePedido(id: string, buscarCliente = "") {
   let clientesQuery = supabase.from("clientes").select("id,nombre,telefono").eq("activo",true).order("nombre").limit(100);
   if (buscarCliente) clientesQuery = clientesQuery.ilike("nombre", `%${buscarCliente.replace(/[\\%_]/g,"\\$&")}%`);
   const [lineas, eventos, clientes, direcciones, fechas, presentaciones, asociado] = await Promise.all([
-    supabase.from("items_posible_pedido").select("posible_pedido_id,id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,cantidad_original,activo,orden,subtotal,precio_neto_original_snapshot,precio_venta_original_snapshot,precio_neto_autorizado,precio_venta_autorizado,motivo_autorizacion_precio,fecha_autorizacion_precio").in("posible_pedido_id", versiones.map((v) => v.id)).order("orden"),
+    supabase.from("items_posible_pedido").select("posible_pedido_id,id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,cantidad_original,activo,orden,subtotal,precio_neto_original_snapshot,precio_venta_original_snapshot,precio_neto_autorizado,precio_venta_autorizado,motivo_autorizacion_precio,fecha_autorizacion_precio,precio_autorizado_por").in("posible_pedido_id", versiones.map((v) => v.id)).order("orden"),
     supabase.from("historial_posibles_pedidos").select("id,evento,version_resultante,fecha_creacion,motivo,administrador_id,cambios").eq("posible_pedido_id",id).order("version_resultante", { ascending: false }),
     clientesQuery,
     pedido.cliente_id ? supabase.from("direcciones_cliente").select("id,direccion,comuna,latitud,longitud").eq("cliente_id",pedido.cliente_id).eq("activa",true) : Promise.resolve({ data: [], error: null }),
@@ -57,5 +59,15 @@ export async function detallePosiblePedido(id: string, buscarCliente = "") {
     pedido.cliente_id ? supabase.from("clientes").select("id,nombre,telefono").eq("id",pedido.cliente_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
   if ([lineas,eventos,clientes,direcciones,fechas,presentaciones,asociado].some((r) => r.error)) throw new Error("LECTURA_NO_DISPONIBLE");
-  return { versiones: versiones as PosiblePedido[], cierre: cierre as PosiblePedido | undefined, pedido: pedido as PosiblePedido, lineasVersiones: (lineas.data ?? []) as LineaPosible[], lineas: (lineas.data ?? []).filter((l) => l.posible_pedido_id === id) as LineaPosible[], eventos: (eventos.data ?? []) as EventoPosible[], clientes: (clientes.data ?? []) as ClientePosible[], direcciones: (direcciones.data ?? []) as DireccionPosible[], fechas: (fechas.data ?? []).map((f: { fecha: string }) => f.fecha) as string[], presentaciones: (presentaciones.data ?? []) as unknown as PresentacionPosible[], asociado: asociado.data as ClientePosible | null };
+  const nombre = await obtenerNombresResponsables([
+    ...(lineas.data ?? []).map(l => responsableAdmin(l.precio_autorizado_por)),
+    ...(eventos.data ?? []).map(e => responsableAdmin(e.administrador_id)),
+  ]);
+  const lineasConAutor = (lineas.data ?? []).map(l => ({
+    ...l, precio_autorizador_nombre: nombre(responsableAdmin(l.precio_autorizado_por)),
+  })) as LineaPosible[];
+  const eventosConAutor = (eventos.data ?? []).map(e => ({
+    ...e, administrador_nombre: nombre(responsableAdmin(e.administrador_id)),
+  })) as EventoPosible[];
+  return { versiones: versiones as PosiblePedido[], cierre: cierre as PosiblePedido | undefined, pedido: pedido as PosiblePedido, lineasVersiones: lineasConAutor, lineas: lineasConAutor.filter(l => l.posible_pedido_id === id), eventos: eventosConAutor, clientes: (clientes.data ?? []) as ClientePosible[], direcciones: (direcciones.data ?? []) as DireccionPosible[], fechas: (fechas.data ?? []).map((f: { fecha: string }) => f.fecha) as string[], presentaciones: (presentaciones.data ?? []) as unknown as PresentacionPosible[], asociado: asociado.data as ClientePosible | null };
 }

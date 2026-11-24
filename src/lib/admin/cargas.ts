@@ -1,4 +1,4 @@
-import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
+import { obtenerNombresResponsables, describirAccionRuta, responsableCarga } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type CargaJornada = {
@@ -14,7 +14,7 @@ export async function leerCargaJornada(fecha: string): Promise<CargaJornada> {
   const { data, error } = await supabase.rpc("leer_carga_jornada", { p_fecha: fecha });
   if (error) throw new Error("No se pudo leer la carga de la jornada. Comprueba las migraciones pendientes.");
   const carga = data as CargaJornada;
-  const nombreResponsable = await obtenerNombresResponsables(carga.historial.map(h => h.actor));
-  for (const h of carga.historial) { h.actorNombre = nombreResponsable(h.actor); h.accionDescripcion = describirAccionRuta(h.solicitud.accion); }
+  const nombreResponsable = await obtenerNombresResponsables(carga.historial.map(h => responsableCarga(h.actor, h.solicitud.accion)));
+  for (const h of carga.historial) { h.actorNombre = nombreResponsable(responsableCarga(h.actor, h.solicitud.accion)); h.accionDescripcion = describirAccionRuta(h.solicitud.accion); }
   return carga;
 }

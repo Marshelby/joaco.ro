@@ -13,11 +13,10 @@ export type GestionAdministradores = {
   administradores: (UsuarioGestorInterno & { principal: boolean; propio: boolean })[];
 };
 
-function Identidad({ usuario }: { usuario: UsuarioGestorInterno }) {
+function Identidad({ usuario, administrador = false }: { usuario: UsuarioGestorInterno; administrador?: boolean }) {
   return <div className="min-w-0 flex-1">
-    <p className="break-words text-sm font-medium">{usuario.nombre || "Sin nombre registrado"}</p>
+    <p className="break-words text-sm font-medium">{usuario.nombre || (administrador ? "Administrador sin nombre registrado" : "Sin nombre registrado")}</p>
     <p className="break-all text-xs text-muted-foreground">{usuario.correo || "Sin correo registrado"}</p>
-    <p className="break-all text-xs text-muted-foreground">{usuario.usuario_id}</p>
   </div>;
 }
 
@@ -35,7 +34,8 @@ function PermisoAdministrador({ usuario, activo, onUpdated }: {
 }) {
   const clave = useRef<string | null>(null);
   const [error, setError] = useState("");
-  const identidad = usuario.correo || usuario.nombre || usuario.usuario_id;
+  const nombre = usuario.nombre || (activo ? "Usuario sin nombre registrado" : "Administrador sin nombre registrado");
+  const identidad = usuario.correo ? `${nombre} (${usuario.correo})` : nombre;
   const confirmation = useSubmitConfirmation();
 
   async function guardar() {
@@ -125,7 +125,7 @@ export function InternalManagerAdministratorsList({ gestion }: { gestion: Gestio
       <h3 ref={lista} tabIndex={-1} id="administradores-activos-title" className="text-sm font-semibold">Administradores activos</h3>
       <ul className="divide-y divide-border rounded-lg border border-border">
         {gestion.administradores.map(usuario => <li key={usuario.usuario_id} className="flex flex-wrap items-center gap-3 px-3 py-2">
-          <Identidad usuario={usuario} />
+          <Identidad usuario={usuario} administrador />
           {usuario.propio && <span className="text-xs text-muted-foreground">Tu cuenta</span>}
           {usuario.principal && <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">Principal protegido</span>}
           {gestion.configurado && !usuario.principal && !usuario.propio &&

@@ -6,7 +6,7 @@ import type { MensajeConversacion } from "@/types/chat";
 
 export function MessageBubble({ mensaje, tipoPropio = "cliente", hrefPedido, disableOrderLinks = false }: { mensaje: MensajeConversacion; tipoPropio?: "cliente" | "admin"; hrefPedido?: (id: string) => string; disableOrderLinks?: boolean }) {
   const esPropio = mensaje.remitenteTipo === tipoPropio;
-  const emisor = esPropio ? "Tú" : mensaje.remitenteNombreSnapshot || "Hidro Leufú";
+  const emisor = esPropio ? "Tú" : mensaje.remitenteTipo === "admin" ? "Hidro Leufú" : mensaje.remitenteNombreSnapshot || "Hidro Leufú";
 
   return (
     <li className={esPropio ? "flex justify-end" : "flex justify-start"}>

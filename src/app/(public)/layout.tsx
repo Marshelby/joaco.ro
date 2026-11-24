@@ -12,7 +12,7 @@ export default async function PublicLayout({ children }: Readonly<{ children: Re
   const identidad = await obtenerIdentidadActual();
   return (
     <PublicNavigationFeedbackProvider>
-      <PublicIdentityProvider identidad={identidad}>
+      <PublicIdentityProvider identidad={identidad ? { rol: identidad.rol } : null}>
         <CartPreview>
           <div className="flex min-h-full w-full min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
             <PublicHeader identidad={identidad} />

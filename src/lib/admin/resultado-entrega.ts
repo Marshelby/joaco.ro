@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ModoCantidadSnapshot } from "@/lib/order-preparation";
-import { obtenerIdsReparto, obtenerNombresRepartidores } from "@/lib/reparto/nombres";
+import { obtenerNombresResponsables, rolResponsable } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 type Persona = { id: string; nombre: string | null };
@@ -23,7 +23,7 @@ export type ResultadoEntrega = {
   definitivo: number | null;
   productos: Producto[];
   actor: Persona | null;
-  rol_actor: "repartidor" | "admin" | null;
+  rol_actor: "repartidor" | "admin" | "cliente" | "sistema" | null;
   repartidor: Persona | null;
   total_cobrado: number | null;
 };
@@ -44,17 +44,11 @@ export async function obtenerResultadosEntrega(ids: string[]): Promise<Record<st
     Object.assign(resultados, data);
   }
   const entradas = Object.entries(resultados);
-  const reparto = entradas.some(([, r]) => r.actor && r.rol_actor == null) ? await obtenerIdsReparto() : null;
-  const repartidorPorPedido = new Map<string, string>();
-  for (const [pedidoId, { actor, rol_actor }] of entradas) {
-    // El padrón sólo ayuda a identificar al actor de la entrega en contratos antiguos.
-    if (actor?.id && (rol_actor === "repartidor" || (rol_actor == null && reparto?.has(actor.id)))) {
-      repartidorPorPedido.set(pedidoId, actor.id);
-    }
-  }
-  const nombre = await obtenerNombresRepartidores(db, [...repartidorPorPedido.values()]);
+  const nombre = await obtenerNombresResponsables(entradas.map(([, r]) =>
+    ({ id: r.actor?.id, rol: rolResponsable(r.rol_actor) })));
   return Object.fromEntries(entradas.map(([pedidoId, resultado]) => {
-    const id = repartidorPorPedido.get(pedidoId);
-    return [pedidoId, { ...resultado, repartidor: id ? { id, nombre: nombre(id) } : null }];
+    const { actor, rol_actor } = resultado;
+    const responsable = actor ? { ...actor, nombre: nombre({ id: actor.id, rol: rolResponsable(rol_actor) }) } : null;
+    return [pedidoId, { ...resultado, actor: responsable, repartidor: rol_actor === "repartidor" ? responsable : null }];
   }));
 }

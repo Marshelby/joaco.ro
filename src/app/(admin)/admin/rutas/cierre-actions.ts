@@ -1,12 +1,13 @@
 "use server";
 
+import { obtenerNombresResponsables } from "@/lib/admin/responsables";
 import { esFechaCalendario } from "@/lib/operational-date";
 import { revalidatePath } from "next/cache";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type ResumenCierre = {
   fecha: string; estado: "en_ruta" | "cerrada"; version: number; huella: string;
-  cerrada_en?: string; cerrada_por?: string;
+  cerrada_en?: string; cerrada_por?: string; cerradaPorNombre?: string;
   pedidos: { id: string; numero: string; cliente: string; estado: string; version: number; motivo: string | null }[];
 };
 export type SolicitudCierre = { fecha: string; version: number; clave: string; huella: string };
@@ -25,6 +26,13 @@ function resumenValido(data: ResumenCierre | null, fecha: string): data is Resum
     && Array.isArray(data.pedidos) && data.pedidos.every(p => typeof p.id === "string"
       && typeof p.estado === "string" && Number.isSafeInteger(p.version) && p.version >= 0);
 }
+async function agregarNombreCierre(resumen: ResumenCierre) {
+  if (resumen.estado !== "cerrada") return resumen;
+  const actor = { id: resumen.cerrada_por };
+  const nombre = await obtenerNombresResponsables([actor]);
+  return { ...resumen, cerradaPorNombre: nombre(actor) };
+}
+
 export async function revisarCierreRuta(fecha: string): Promise<{ resumen?: ResumenCierre; error?: string }> {
   if (!esFechaCalendario(fecha)) return { error: "Fecha inválida." };
   try {
@@ -32,7 +40,7 @@ export async function revisarCierreRuta(fecha: string): Promise<{ resumen?: Resu
     const { data, error } = await db.rpc("revisar_cierre_ruta", { p_fecha: fecha });
     if (error) return { error: mensajes[error.message] ?? "No se pudo revisar el cierre. Comprueba el complemento SQL manual de Fase 2." };
     if (!resumenValido(data, fecha)) return { error: "No se pudo verificar el resumen de la carga." };
-    return { resumen: data };
+    return { resumen: await agregarNombreCierre(data) };
   } catch { return { error: "No se pudo recuperar el resumen. Reintenta." }; }
 }
 export async function cerrarRuta(s: SolicitudCierre): Promise<{ resumen?: ResumenCierre; error?: string }> {
@@ -51,5 +59,5 @@ export async function cerrarRuta(s: SolicitudCierre): Promise<{ resumen?: Resume
   for (const ruta of ["/admin/rutas", "/admin/pedidos", "/reparto"]) {
     try { revalidatePath(ruta, "layout"); } catch { /* El cliente también refresca. */ }
   }
-  return { resumen };
+  return { resumen: await agregarNombreCierre(resumen) };
 }

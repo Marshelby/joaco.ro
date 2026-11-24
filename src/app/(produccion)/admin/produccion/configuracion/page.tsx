@@ -6,7 +6,7 @@ import { consultarProduccion } from "@/lib/produccion/servidor";
 import { hoySantiago, fechaVisible, nombresUnidad } from "@/lib/produccion/contrato";
 import { FormularioProduccion } from "@/components/produccion/formulario";
 export default async function ConfiguracionProduccionPage() {
-  const { lugares, unidades, configuraciones } = await consultarProduccion();
+  const { lugares, unidades, configuraciones } = await consultarProduccion(true);
   const fecha = hoySantiago();
   const naves = lugares.filter(l => l.tipo === "nave" && l.activo);
   return <>
@@ -32,7 +32,7 @@ export default async function ConfiguracionProduccionPage() {
             <p className="rounded-lg bg-primary/5 p-3 text-sm">{vigente ? `Vigente hoy: ${u.tipo === "meson" ? capacidadVisible(vigente) : `${vigente.cantidad_gallinas} gallinas`}` : "Sin configuración vigente hoy"}</p>
             {u.activo && l.activo && <details className="rounded-lg border p-3"><summary className="cursor-pointer py-2 text-sm font-semibold">Agregar configuración</summary><div className="pt-3"><FormularioProduccion operacion="configuracion" clave={crypto.randomUUID()} unidadId={u.id} cultivo={cultivoEnFecha(u, configuraciones, fecha)} avicola={u.tipo === "avicola"} fecha={fecha} /></div></details>}
             <details><summary className="cursor-pointer py-3 text-sm font-semibold">Historial de configuraciones ({historial.length})</summary>
-              {!historial.length ? <p className="text-sm text-muted-foreground">Todavía no hay configuraciones.</p> : <ol className="space-y-3">{historial.map((c, i) => <li key={c.id} className="rounded-lg bg-muted/50 p-3 text-sm"><p className="font-medium">Desde {fechaVisible(c.vigente_desde)}{i > 0 ? ` hasta antes del ${fechaVisible(historial[i - 1].vigente_desde)}` : " en adelante"}</p><p>{u.tipo === "meson" ? capacidadVisible(c) : `${c.cantidad_gallinas} gallinas`}</p><p className="mt-1 text-xs text-muted-foreground">{c.vigente_desde > fecha ? "Programada" : c.id === vigente?.id ? "Vigente hoy" : "Histórica"}</p>{c.observaciones && <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">{c.observaciones}</p>}</li>)}</ol>}
+              {!historial.length ? <p className="text-sm text-muted-foreground">Todavía no hay configuraciones.</p> : <ol className="space-y-3">{historial.map((c, i) => <li key={c.id} className="rounded-lg bg-muted/50 p-3 text-sm"><p className="font-medium">Desde {fechaVisible(c.vigente_desde)}{i > 0 ? ` hasta antes del ${fechaVisible(historial[i - 1].vigente_desde)}` : " en adelante"}</p><p>{u.tipo === "meson" ? capacidadVisible(c) : `${c.cantidad_gallinas} gallinas`}</p><p className="mt-1 text-xs text-muted-foreground">{c.vigente_desde > fecha ? "Programada" : c.id === vigente?.id ? "Vigente hoy" : "Histórica"}</p>{c.autorNombre && <p className="mt-1 text-xs text-muted-foreground">Registró: {c.autorNombre}</p>}{c.observaciones && <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">{c.observaciones}</p>}</li>)}</ol>}
             </details>
           </> : <p className="text-sm text-muted-foreground">Esta unidad no requiere configuración de capacidad en esta fase.</p>}
         </article>;

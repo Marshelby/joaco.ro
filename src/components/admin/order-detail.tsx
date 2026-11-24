@@ -38,27 +38,32 @@ import { ExternalLink } from "lucide-react";
 export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, aceptarEditable = false }: { id: string; modal?: boolean; vistaRuta?: boolean; aceptarEditable?: boolean }) {
   const [pedido, identidad] = await Promise.all([obtenerPedidoAdmin(id), obtenerIdentidadActual()]);
   if (!pedido) notFound();
+  const resultadosEntrega = obtenerResultadosEntrega(pedido.estado === "entregado" ? [id] : []);
   const [contextoEntrega, contabilidad, historial, resultados, fallo] = await Promise.all([
-    obtenerContextoEntrega(id), obtenerResumenContablePedido(id), obtenerHistorialPedido(id),
-    obtenerResultadosEntrega(pedido.estado === "entregado" ? [id] : []),
+    obtenerContextoEntrega(id, resultadosEntrega), obtenerResumenContablePedido(id), obtenerHistorialPedido(id, resultadosEntrega),
+    resultadosEntrega,
     pedido.estado === "entrega_fallida" ? obtenerUltimoFalloEntrega(id) : null,
   ]);
 
   const resultado = esResultadoEntrega(pedido.estado) ? presentarResultadoEntrega(pedido.estado, pedido.total, resultados[id],
     pedido.items.map(item => productoSolicitado(item.id, item.nombreProductoSnapshot, item.nombrePresentacionSnapshot, item.unidadSnapshot, item.cantidad, item.totalLinea)),
     contextoEntrega) : null;
+  const entregaAuditada = historial?.eventos.find(e => e.id === "entrega-definitiva");
   const importeRegistrado = resultado?.definitivo ?? null;
   const cobradoRegistrado = resultado?.resultado?.total_cobrado ?? null;
   const guia = identidad?.rol === "admin" && resultado
     ? prepararGuiaEntrega(pedido, resultado, contabilidad)
     : null;
 
+  const creacion = historial?.eventos.find(e => e.tipo === "Creación administrativa");
+  const aceptacion = historial?.eventos.find(e => e.tipo === "Aceptación administrativa")
+    ?? historial?.eventos.find(e => e.tipo === "Confirmación del pedido");
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(pedido.fechaEntrega);
   const direccion = [pedido.direccionSnapshot, pedido.comunaSnapshot, pedido.regionSnapshot].filter(Boolean).join(", ");
   const mapsUrl = getGoogleMapsLocationUrl(pedido.latitudEntrega, pedido.longitudEntrega);
   const pagoPrevisto = formatearMetodosPagoPrevistos(pedido.metodosPagoPrevistos) ?? "No registrado";
   const telefonoEntrega = pedido.telefonoContactoEntrega ?? pedido.telefonoClienteSnapshot;
-  const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
+  const nombreEmisor = identidad?.rol === "admin" ? identidad.nombrePersonal : null;
 
   const dato = (tono: keyof typeof tonoJornada) => vistaRuta ? `${bloqueJornada} ${tonoJornada[tono]}` : undefined;
   const tarjeta = vistaRuta ? "min-w-0 rounded-xl border border-border bg-card p-3" : "min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm";
@@ -90,7 +95,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
       {pedido.estado === "cancelado" ? <p className="text-sm text-muted-foreground">Pedido cancelado. Consulta el historial para revisar el motivo y el tratamiento de pagos y créditos; la cancelación no realiza devoluciones automáticas.</p> : null}
 
       {resultado && <DeliveryResult vistaRuta={vistaRuta} tipo={resultado.tipo}>
-        <DeliveryResultDetails vistaRuta={vistaRuta} datos={resultado} contexto={contextoEntrega} fallo={fallo} ocultarOriginal />
+        <DeliveryResultDetails vistaRuta={vistaRuta} datos={resultado} contexto={contextoEntrega} fallo={fallo} responsableHistorico={entregaAuditada?.actorNombre} ocultarOriginal />
       </DeliveryResult>}
       <section className="min-w-0 rounded-xl border border-border bg-card p-3" aria-labelledby="resumen-contable-title">
         <h2 id="resumen-contable-title" className="text-sm font-semibold tracking-tight text-foreground">Resumen contable de la entrega</h2>
@@ -134,6 +139,8 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
         <section className={tarjeta}>
           <h2 className="text-sm font-semibold tracking-tight text-foreground">Entrega</h2>
           <dl className={ficha}>
+            {creacion && <div><dt className="text-muted-foreground">Creación administrativa</dt><dd className="mt-1 font-medium">{creacion.actorNombre}</dd></div>}
+            {aceptacion && <div><dt className="text-muted-foreground">{aceptacion.tipo}</dt><dd className="mt-1 font-medium">{aceptacion.actorNombre} · {formatDateTimeCL(aceptacion.fecha)}</dd></div>}
             <div><dt className="text-muted-foreground">Fecha de entrega</dt><dd className="mt-1 font-medium text-foreground">{pedido.fechaEntrega ? formatFechaEntregaLarga(pedido.fechaEntrega) : "Sin fecha registrada"}</dd></div>
             {pedido.destinatarioEntrega ? <div><dt className="text-muted-foreground">Destinatario</dt><dd className="mt-1 font-medium text-foreground">{pedido.destinatarioEntrega}</dd></div> : null}
             {telefonoEntrega ? <div><dt className="text-muted-foreground">Teléfono</dt><dd className="mt-1"><DeliveryContactActions telefono={telefonoEntrega} numeroPedido={pedido.numeroPedido} estado={pedido.estado} nombreEmisor={nombreEmisor} /></dd></div> : null}
@@ -199,7 +206,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
                   <div className={dato("informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>{ajuste.totalOriginal === null ? "Precio de referencia unitario" : "Total original de línea"}</dt><dd className={vistaRuta ? "mt-0.5 text-sm font-semibold" : "mt-1"}>{formatCLP(ajuste.totalOriginal ?? ajuste.precioReferencia)}</dd></div>
                   <div className={dato(ajuste.totalAplicado != null || ajuste.precioAplicado != null ? "venta" : "informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>{ajuste.totalAplicado === null ? "Precio aplicado unitario" : "Total final de línea"}</dt><dd className={vistaRuta ? "mt-0.5 text-sm font-semibold" : "mt-1"}>{formatCLP(ajuste.totalAplicado ?? ajuste.precioAplicado ?? 0)}</dd></div>
                   <div className="sm:col-span-2"><dt className="text-muted-foreground">Motivo</dt><dd className="mt-1 whitespace-pre-wrap break-words">{ajuste.motivo}</dd></div>
-                  <div><dt className="text-muted-foreground">Actor (ID administrador)</dt><dd className="mt-1 break-all">{ajuste.administradorId}</dd></div>
+                  <div><dt className="text-muted-foreground">Administrador que autorizó</dt><dd className="mt-1 break-all">{ajuste.administradorNombre}</dd></div>
                   <div><dt className="text-muted-foreground">Fecha de autorización</dt><dd className="mt-1"><time dateTime={ajuste.fechaAutorizacion}>{formatDateTimeCL(ajuste.fechaAutorizacion)}</time></dd></div>
                 </dl>
               </li>;

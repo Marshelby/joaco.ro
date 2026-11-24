@@ -1,5 +1,7 @@
 import "server-only";
 
+import { nombrePersonal } from "@/lib/admin/responsables";
+
 import { cache } from "react";
 
 import { ensureCurrentCustomerAccount, esErrorClienteInactivo } from "@/lib/account/ensure-customer-account";
@@ -11,6 +13,7 @@ export type CuentaDashboard = {
   estado: EstadoCuentaDashboard;
   email: string | null;
   nombreAdmin: string | null;
+  errorNombreAdmin?: boolean;
   cliente: { id: string; nombre: string; telefono: string | null; email: string | null } | null;
 };
 
@@ -32,8 +35,8 @@ export const obtenerCuentaDashboard = cache(async (): Promise<CuentaDashboard> =
   }
 
   if (cuenta.rol === "admin") {
-    const { data: perfil } = await supabase.from("perfiles").select("nombre").eq("usuario_id", sesion.user.id).maybeSingle();
-    return { estado: "admin", email: sesion.user.email ?? null, nombreAdmin: perfil?.nombre?.trim() || null, cliente: null };
+    const { data: perfil, error } = await supabase.from("perfiles").select("nombre").eq("usuario_id", sesion.user.id).maybeSingle();
+    return { estado: "admin", email: sesion.user.email ?? null, nombreAdmin: nombrePersonal(perfil?.nombre), errorNombreAdmin: Boolean(error), cliente: null };
   }
 
   if (!cuenta.clienteActivo || !cuenta.clienteId) {

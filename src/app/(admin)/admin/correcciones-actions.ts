@@ -1,5 +1,6 @@
 "use server";
 
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { revalidatePath } from "next/cache";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { ContextoCorreccion, HistorialCorreccion, SolicitudCorreccion } from "@/lib/admin/correcciones-types";
@@ -24,13 +25,18 @@ async function historialVenta(db: Awaited<ReturnType<typeof administrador>>, id:
   }
 }
 
+async function agregarNombres(historial: HistorialCorreccion[]) {
+  const nombre = await obtenerNombresResponsables(historial.map(h => responsableAdmin(h.actor_id)));
+  return historial.map(h => ({ ...h, actorNombre: nombre(responsableAdmin(h.actor_id)) }));
+}
+
 export async function cargarCorreccion(tipo: "venta" | "pago", id: string): Promise<{ contexto?: ContextoCorreccion; error?: string }> {
   try {
     const db = await administrador();
     if (tipo === "pago") {
       const { data, error } = await db.rpc("leer_correccion_pago_administrativo", { p_pago_id: id });
       if (error) throw error;
-      return { contexto: { tipo, id, ...data } as ContextoCorreccion };
+      return { contexto: { tipo, id, ...data, historial: await agregarNombres(data.historial ?? []) } as ContextoCorreccion };
     }
     const [pedido, version, historial, items, preparacion, saldo] = await Promise.all([
       db.from("pedidos").select("cliente_id,estado,regimen_contable,venta_definitiva_snapshot").eq("id", id).single(),
@@ -45,7 +51,7 @@ export async function cargarCorreccion(tipo: "venta" | "pago", id: string): Prom
     return { contexto: { tipo, id, clienteId: pedido.data.cliente_id, version: version.data.version,
       original: pedido.data.venta_definitiva_snapshot, vigente: historial.data?.[0]?.nuevos ?? pedido.data.venta_definitiva_snapshot,
       reglas: (items.data ?? []).map(i => ({ ...i, preparacion: preparacion.data?.find(p => p.item_pedido_id === i.id)?.importe_linea_operativo })),
-      historial: historial.data ?? [], saldo: saldo.data } as ContextoCorreccion };
+      historial: await agregarNombres(historial.data), saldo: saldo.data } as ContextoCorreccion };
   } catch { return { error: "No se pudo consultar la corrección. Comprueba tu sesión administrativa; si persiste, solicita habilitar la integración administrativa." }; }
 }
 

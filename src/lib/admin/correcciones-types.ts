@@ -10,7 +10,7 @@ export type SnapshotPago = {
   aplicaciones: { id: string; pedido_id: string; monto_aplicado: number; activa: boolean }[];
 };
 export type ReemplazoPago = { monto: number; metodo: string; referencia: string | null; aplicaciones: { pedido_id: string; monto: number }[] };
-export type HistorialCorreccion = { id: string; fecha: string; actor_id: string; motivo: string; anteriores: unknown; nuevos: unknown; resultado?: unknown; diferencia?: number };
+export type HistorialCorreccion = { id: string; fecha: string; actor_id: string; actorNombre?: string; motivo: string; anteriores: unknown; nuevos: unknown; resultado?: unknown; diferencia?: number };
 export type ContextoCorreccion =
   | { tipo: "venta"; id: string; clienteId: string; version: number; original: SnapshotVenta; vigente: SnapshotVenta;
       reglas: { id: string; total_linea: number; total_final_administrativo: number | null; preparacion: number }[];

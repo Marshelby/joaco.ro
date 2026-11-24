@@ -104,7 +104,7 @@ function diferenciaFormateada(valor: number) {
   return `${valor > 0 ? "+" : ""}${formatCLP(valor)}`;
 }
 
-export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal = false, vistaRuta = false, children }: { datos: Presentacion; ocultarOriginal?: boolean; vistaRuta?: boolean; contexto?: ContextoEntrega; fallo?: FalloEntrega | null; children?: ReactNode }) {
+export function DeliveryResultDetails({ datos, contexto, fallo, responsableHistorico, ocultarOriginal = false, vistaRuta = false, children }: { datos: Presentacion; ocultarOriginal?: boolean; vistaRuta?: boolean; contexto?: ContextoEntrega; fallo?: FalloEntrega | null; responsableHistorico?: string; children?: ReactNode }) {
   const { tipo, productos, faltanCantidades, diferencia, original, resultado } = datos;
   const rol = resultado?.rol_actor;
   const actor = resultado?.actor;
@@ -121,8 +121,8 @@ export function DeliveryResultDetails({ datos, contexto, fallo, ocultarOriginal 
       {fallo.actor && <div><dt className="text-muted-foreground">Responsable del registro</dt><dd>{fallo.actor}</dd></div>}
       {fallo.observaciones && <div className={vistaRuta ? estiloDato("incidencia", "col-span-full") : "sm:col-span-2"}><dt className={vistaRuta ? "font-semibold" : "text-muted-foreground"}>Observaciones del registro</dt><dd className="whitespace-pre-wrap">{fallo.observaciones}</dd></div>}
     </dl>}
-    {tipo !== "fallida" && (vistaRuta || repartidor) && <p><strong>Repartidor:</strong> {repartidor?.nombre ?? NOMBRE_REPARTIDOR_NO_REGISTRADO}</p>}
-    {tipo !== "fallida" && actor && !repartidor && (rol === "admin" || !vistaRuta) && <p><strong>{rol === "admin" ? "Administrador que registró" : "Actor registrado"}</strong> · {actor.nombre ?? "Nombre no disponible"}</p>}
+    {tipo !== "fallida" && repartidor && <p><strong>Repartidor que registró:</strong> {repartidor.nombre ?? NOMBRE_REPARTIDOR_NO_REGISTRADO}</p>}
+    {tipo !== "fallida" && (resultado || responsableHistorico) && !repartidor && <p><strong>{rol === "admin" ? "Administrador que registró" : rol === "cliente" ? "Cliente que registró" : "Responsable del registro"}</strong> · {actor?.nombre ?? responsableHistorico ?? (rol === "sistema" ? "Sistema" : "Responsable no registrado")}</p>}
     {tipo !== "fallida" && diferencia != null && diferencia !== 0 && <dl className={vistaRuta ? cuadriculaDetalleJornada : "grid grid-cols-2 gap-2 tabular-nums"}>
       {!ocultarOriginal && <div className={estiloDato("informativo")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Total original</dt><dd className="font-semibold">{formatCLP(original)}</dd></div>}
       <div className={estiloDato(diferencia < 0 ? "incidencia" : "pendiente")}><dt className={vistaRuta ? undefined : "text-muted-foreground"}>Diferencia respecto del total original</dt><dd className="font-semibold">{diferenciaFormateada(diferencia)}</dd></div>

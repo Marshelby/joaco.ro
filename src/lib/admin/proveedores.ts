@@ -3,9 +3,9 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
 export type ProveedorResumen = { id: string; nombre: string; descripcion: string | null; telefono: string | null; direccion: string | null; saldo_actual: number };
 export type ProveedorDetalle = ProveedorResumen & {
-  compras?: { id: string; fecha: string; producto_snapshot: string | null; presentacion_snapshot: string | null; unidad: string | null; cantidad_asignada: number; precio_compra: number; actor?: string; administrador_nombre?: string; total: number; pagado: number; saldo: number }[];
-  asientos_compras?: { id: string; compra_id: string; version: number; concepto: "obligacion" | "pago"; importe: number; actor: string; administrador_nombre?: string; fecha: string }[];
-  movimientos: { id: string; fecha: string; tipo: "deuda" | "abono"; monto: number; comentario: string; administrador_id: string; administrador_nombre: string }[];
+  compras?: { id: string; fecha: string; producto_snapshot: string | null; presentacion_snapshot: string | null; unidad: string | null; cantidad_asignada: number; precio_compra: number; actor?: string; administrador_nombre?: string; responsableNombre?: string; total: number; pagado: number; saldo: number }[];
+  asientos_compras?: { id: string; compra_id: string; version: number; concepto: "obligacion" | "pago"; importe: number; actor: string; administrador_nombre?: string; responsableNombre?: string; fecha: string }[];
+  movimientos: { id: string; fecha: string; tipo: "deuda" | "abono"; monto: number; comentario: string; administrador_id: string; administrador_nombre: string; responsableNombre?: string }[];
 };
 
 export async function clienteAdminProveedores() {

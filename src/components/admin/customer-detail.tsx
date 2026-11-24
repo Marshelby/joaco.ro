@@ -59,6 +59,7 @@ export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = f
                   <div className="col-span-2 min-w-0 @lg:col-span-1">
                     <h3 className="font-semibold text-foreground">{tituloMovimiento(movimiento)}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{descripcionMovimiento(movimiento)}</p>
+                    {movimiento.responsableNombre && <p className="text-sm text-muted-foreground">Responsable: {movimiento.responsableNombre}</p>}
                     <time dateTime={movimiento.fecha} className="mt-2 block text-sm text-muted-foreground">{formatDateTimeCL(movimiento.fecha)}</time>
                   </div>
                   <div className="text-sm tabular-nums">
@@ -88,6 +89,8 @@ export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = f
                   <div className="min-w-0">
                     <h3 className="font-semibold text-foreground">{pago.estado === "anulado" ? "Pago anulado" : "Pago"}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{pago.metodoPago}{pago.referencia ? ` · ${pago.referencia}` : ""}</p>
+                    {pago.registradoPorNombre && <p className="text-sm text-muted-foreground">Registró: {pago.registradoPorNombre}</p>}
+                    {pago.anuladoPorNombre && <p className="text-sm text-muted-foreground">Anuló: {pago.anuladoPorNombre}</p>}
                     <time dateTime={pago.fechaPago} className="mt-2 block text-sm text-muted-foreground">{formatDateTimeCL(pago.fechaPago)}</time>
                   </div>
                   <dl className="grid grid-cols-2 gap-3 text-sm tabular-nums @xl:block">

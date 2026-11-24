@@ -1,4 +1,5 @@
 import "server-only";
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { administradorProduccion } from "./servidor";
 import type { VersionActividad } from "./actividades";
 
@@ -24,5 +25,7 @@ export async function consultarVersionesProduccion(actividadId?: string) {
     const importes = new Map((data ?? []).map(i => [i.version_id, Number(i.precio_total)]));
     for (const version of lote) version.precio_total = importes.get(version.id);
   }
+  const nombre = await obtenerNombresResponsables(versiones.map(v => responsableAdmin(v.autor_id)));
+  for (const version of versiones) version.autorNombre = nombre(responsableAdmin(version.autor_id));
   return versiones.sort((a, b) => b.numero_version - a.numero_version);
 }

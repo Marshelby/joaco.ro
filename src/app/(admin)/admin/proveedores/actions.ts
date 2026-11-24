@@ -1,5 +1,6 @@
 "use server";
 
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { revalidatePath } from "next/cache";
 import { clienteAdminProveedores, type ProveedorDetalle } from "@/lib/admin/proveedores";
 
@@ -27,29 +28,17 @@ export async function verProveedor(id: string): Promise<Resultado<ProveedorDetal
     if (error) throw error;
     if (!data) return { ok: false, error: "Proveedor no encontrado." };
     const detalle = data as ProveedorDetalle;
-    // Solo nombres de los responsables referenciados, con la sesión y RLS existentes.
-    // No usar snapshots históricos: un perfil eliminado debe quedar no disponible.
-    const ids = [...new Set([
-      ...detalle.movimientos.map((m) => m.administrador_id),
-      ...(detalle.compras ?? []).map((c) => c.actor),
-      ...(detalle.asientos_compras ?? []).map((a) => a.actor),
-    ].filter((actor): actor is string => typeof actor === "string" && uuid.test(actor)))];
-    const nombres = new Map<string, string>();
-    for (let i = 0; i < ids.length; i += 100) {
-      const { data: perfiles, error: errorPerfiles } = await supabase.from("perfiles")
-        .select("usuario_id,nombre").in("usuario_id", ids.slice(i, i + 100));
-      if (!errorPerfiles) for (const perfil of perfiles ?? []) {
-        const nombre = perfil.nombre?.trim();
-        if (nombre && !uuid.test(nombre)) nombres.set(perfil.usuario_id, nombre);
-      }
-    }
-    const responsable = (actor?: string) => (actor && nombres.get(actor)) || "Administrador no disponible";
+    const nombre = await obtenerNombresResponsables([
+      ...detalle.movimientos.map(m => responsableAdmin(m.administrador_id, m.administrador_nombre)),
+      ...(detalle.compras ?? []).map(c => responsableAdmin(c.actor, c.administrador_nombre)),
+      ...(detalle.asientos_compras ?? []).map(a => responsableAdmin(a.actor, a.administrador_nombre)),
+    ]);
     return { ok: true, dato: {
       ...detalle,
       saldo_actual: Number(detalle.saldo_actual),
-      compras: detalle.compras?.map((c) => ({ ...c, administrador_nombre: responsable(c.actor) })),
-      asientos_compras: detalle.asientos_compras?.map((a) => ({ ...a, administrador_nombre: responsable(a.actor) })),
-      movimientos: detalle.movimientos.map((m) => ({ ...m, monto: Number(m.monto), administrador_nombre: responsable(m.administrador_id) })),
+      compras: detalle.compras?.map((c) => ({ ...c, responsableNombre: nombre(responsableAdmin(c.actor, c.administrador_nombre)) })),
+      asientos_compras: detalle.asientos_compras?.map((a) => ({ ...a, responsableNombre: nombre(responsableAdmin(a.actor, a.administrador_nombre)) })),
+      movimientos: detalle.movimientos.map((m) => ({ ...m, monto: Number(m.monto), responsableNombre: nombre(responsableAdmin(m.administrador_id, m.administrador_nombre)) })),
     } };
   } catch (error) { return { ok: false, error: mensaje(error), corregible: esRechazoConfirmado(error) }; }
 }

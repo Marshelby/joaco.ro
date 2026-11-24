@@ -47,7 +47,8 @@ async function AccountContent() {
         {tarjetaReparto}
         <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
           <p className="text-sm text-muted-foreground">Identidad</p>
-          <p className="mt-1 break-all text-lg font-semibold text-foreground">{cuenta.nombreAdmin ?? cuenta.email ?? "Administrador"}</p>
+          <p className="mt-1 break-all text-lg font-semibold text-foreground">{cuenta.errorNombreAdmin ? "No se pudo consultar el nombre" : cuenta.nombreAdmin ?? "Administrador sin nombre registrado"}</p>
+          {cuenta.email && <p className="break-all text-sm text-muted-foreground">{cuenta.email}</p>}
           <p className="mt-4 text-sm text-muted-foreground">Rol</p>
           <p className="mt-1 font-medium text-foreground">Administrador</p>
           <AdminNameForm nombre={cuenta.nombreAdmin} />

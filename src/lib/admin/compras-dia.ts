@@ -1,4 +1,5 @@
 import "server-only";
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { cache } from "react";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 import type { ProductoCompraDia } from "@/components/admin/day-purchase-row";
@@ -36,5 +37,10 @@ export const leerComprasDia = cache(async (fecha: string): Promise<{ contrato: n
     !data.productos.every((p: unknown) => esProducto(p, data.contrato >= 2)) ||
     (data.contrato === 3 && (!Array.isArray(data.proveedores) || !data.proveedores.every((v: { id?: unknown; nombre?: unknown }) => v && typeof v.id === "string" && /^[a-f0-9-]{36}$/i.test(v.id) && typeof v.nombre === "string") || !data.productos.every((p: ProductoCompraDia) => Array.isArray(p.compras) && p.compras.every(c => (c.proveedor_id === null || (typeof c.proveedor_id === "string" && /^[a-f0-9-]{36}$/i.test(c.proveedor_id))) && ["por_pagar", "pagado", "parcial"].includes(c.estado ?? "") && monto(c.pagado) && monto(c.total_contable) && c.pagado <= c.total_contable)))) ||
     new Set(data.productos.map((p: ProductoCompraDia) => p.clave)).size !== data.productos.length) return null;
-  return data as { contrato: number; productos: ProductoCompraDia[]; proveedores?: { id: string; nombre: string }[] };
+  const resultado = data as { contrato: number; productos: ProductoCompraDia[]; proveedores?: { id: string; nombre: string }[] };
+  const nombre = await obtenerNombresResponsables(resultado.productos.flatMap(p =>
+    (p.compras ?? []).map(c => responsableAdmin(c.actor))));
+  return { ...resultado, productos: resultado.productos.map(p => p.compras ? {
+    ...p, compras: p.compras.map(c => ({ ...c, actorNombre: nombre(responsableAdmin(c.actor)) })),
+  } : p) };
 });

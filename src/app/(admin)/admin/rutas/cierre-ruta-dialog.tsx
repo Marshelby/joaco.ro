@@ -66,7 +66,7 @@ export function CierreRutaDialog({ fecha, cerrada }: { fecha: string; cerrada: b
               <p>{p.estado === "entregado" ? "Entregado" : p.estado === "entrega_fallida" ? `No entregado · ${p.motivo ?? "Consultar historial"}` : `Pendiente · ${p.estado}`}</p>
               {!finalizada && !enviado && p.estado === "en_reparto" ? <EntregaFallidaDialog habilitada={!pendiente} pedidoId={p.id} versionEsperada={p.version} numero={p.numero} cliente={p.cliente} ubicacion={null} productos={0} totalReferencia={0} ocultarReferencia botonConFondo={false} onRegistrada={revisar} /> : null}
             </li>)}</ul>
-            {finalizada ? <p role="status" className="break-words text-sm">Cerrada el {formatDateTimeCL(resumen.cerrada_en)} · Actor {resumen.cerrada_por}</p> : <>
+            {finalizada ? <p role="status" className="break-words text-sm">Cerrada el {formatDateTimeCL(resumen.cerrada_en)} · Responsable: {resumen.cerradaPorNombre ?? "Responsable no registrado"}</p> : <>
               {pendientes.length > 0 ? <p className="text-sm">Registra cada pendiente como No entregado con su motivo, o completa su entrega antes de cerrar. Otros estados requieren revisión administrativa.</p> : null}
               <p className="text-sm">El cierre no genera ventas, pagos ni cargos. Los saldos previos se conservan.</p>
               <label className="flex gap-2 text-sm"><input type="checkbox" checked={confirmado} disabled={pendiente || enviado || pendientes.length > 0} onChange={e => setConfirmado(e.target.checked)} />Confirmo el resultado y deseo cerrar esta ruta.</label>

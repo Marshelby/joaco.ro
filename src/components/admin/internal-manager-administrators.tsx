@@ -1,3 +1,4 @@
+import { nombrePersonal } from "@/lib/admin/responsables";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 import { InternalManagerAdministratorsList, type GestionAdministradores } from "./internal-manager-administrators-list";
 
@@ -13,5 +14,8 @@ export default async function InternalManagerAdministrators() {
     </p>;
   }
 
-  return <InternalManagerAdministratorsList gestion={data as GestionAdministradores} />;
+  const gestion = data as GestionAdministradores;
+  return <InternalManagerAdministratorsList gestion={{ ...gestion, administradores: gestion.administradores.map(usuario => ({
+    ...usuario, nombre: nombrePersonal(usuario.nombre),
+  })) }} />;
 }

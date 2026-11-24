@@ -5,7 +5,7 @@ import { baseEncabezadoProductoJornada, bloqueJornada, importeJornada, tonoJorna
 import { totalCompraCLP } from "@/lib/admin/compra-importes";
 import { guardarCompraDia } from "@/app/(admin)/admin/rutas/compra-actions";
 
-export type CompraDia = { id: string; cantidad_asignada: number; precio_compra: number; version: number; actualizado_en: string; proveedor_id?: string | null; estado?: string; pagado?: number; total_contable?: number };
+export type CompraDia = { id: string; cantidad_asignada: number; precio_compra: number; version: number; actualizado_en: string; actor?: string; actorNombre?: string; proveedor_id?: string | null; estado?: string; pagado?: number; total_contable?: number };
 export type ProductoCompraDia = {
   clave: string; clave_operativa: string | null; requiere_ajuste: boolean; producto: string; presentacion: string | null; unidad: string;
   modo: string; requerida: number; revision: string; asignada: number | null;
@@ -83,6 +83,7 @@ export function DayPurchaseRow({ producto: p, fecha, proveedores }: { producto: 
           <span className={`${importeJornada} ${tonoJornada.completado}`}>{formato(c.cantidad_asignada)}</span>
           {" × $"}{numero(c.precio_compra)}{" = "}
           <span className={`${importeJornada} ${tonoJornada.informativo}`}>${numero(c.cantidad_asignada * c.precio_compra)} CLP</span>
+          <span className="mt-1 block text-muted-foreground">Último registro: {c.actorNombre ?? "Responsable no registrado"}</span>
           {proveedores && <span className="mt-1 block text-muted-foreground">
             {proveedores.find(v => v.id === c.proveedor_id)?.nombre ?? "Sin proveedor"}
             {c.proveedor_id ? <>

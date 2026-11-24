@@ -2,8 +2,9 @@ import { cache } from "react";
 
 import { obtenerResultadosEntrega, type ResultadoEntrega } from "@/lib/admin/resultado-entrega";
 import { exigirSesionAdmin } from "@/lib/admin/sesion";
-import { obtenerContextoEntrega, type ContextoEntrega } from "@/lib/admin/entrega-contexto";
-import { obtenerNombresResponsables } from "@/lib/admin/responsables";
+import { leerContextoEntrega, responsableObservacion, type ContextoEntrega } from "@/lib/admin/entrega-contexto";
+import { obtenerUltimosFallosEntrega } from "@/lib/admin/intentos-entrega";
+import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { hoySantiago } from "@/lib/operational-date";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
@@ -65,6 +66,7 @@ export type PedidoEntregaAdmin = PedidoAdminListado & {
   costoEntrega: number | null;
   descuento: number | null;
   contextoEntrega: ContextoEntrega;
+  falloEntrega?: { motivo: string | null; observaciones: string | null; fecha: string | null; actor: string } | null;
   resultadoEntrega: ResultadoEntrega | null;
   versionPreparacion: number;
   historialPreparacion: RevisionPreparacion[];
@@ -125,6 +127,7 @@ export type AjustePrecioPedidoAdmin = {
   totalAplicado: number | null;
   motivo: string;
   administradorId: string;
+  administradorNombre: string;
   fechaAutorizacion: string;
 };
 
@@ -313,7 +316,8 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
       throw error;
     });
   if (data === null) return null;
-  return (data ?? []).map((fila) => ({
+  const nombre = await obtenerNombresResponsables(data.map(fila => responsableAdmin(fila.administrador_id)));
+  return data.map((fila) => ({
     itemPedidoId: fila.item_pedido_id,
     precioReferencia: Number(fila.precio_referencia),
     precioAplicado: fila.precio_aplicado == null ? null : Number(fila.precio_aplicado),
@@ -321,6 +325,7 @@ async function obtenerHistorialPreciosAdministrativos(supabase: Awaited<ReturnTy
     totalAplicado: fila.total_aplicado == null ? null : Number(fila.total_aplicado),
     motivo: fila.motivo,
     administradorId: fila.administrador_id,
+    administradorNombre: nombre(responsableAdmin(fila.administrador_id)),
     fechaAutorizacion: fila.fecha_autorizacion,
   }));
 }
@@ -380,21 +385,36 @@ export async function obtenerDetalleEntregaAdmin(fecha: string): Promise<Detalle
     items: [],
   }));
   const importesCalculados = new Map<string, string | null>();
-  const [resultadosEntrega] = await Promise.all([
+  const [resultadosEntrega, fallos] = await Promise.all([
     obtenerResultadosEntrega(pedidos.filter(p => p.estado === "entregado").map(p => p.id)),
+    obtenerUltimosFallosEntrega(pedidos.filter(p => p.estado === "entrega_fallida").map(p => p.id)),
     Promise.all(pedidos.map(async (pedido) => {
       const { data: meta, error: errorMeta } = await supabase.rpc("leer_preparacion_explicita", { p_pedido_id: pedido.id });
       if (errorMeta) throw errorMeta;
       for (const [id, importe] of Object.entries(meta.importes ?? {})) importesCalculados.set(id, importe === null ? null : String(importe));
-      pedido.contextoEntrega = await obtenerContextoEntrega(pedido.id);
+      pedido.contextoEntrega = await leerContextoEntrega(pedido.id);
       pedido.versionPreparacion = Number(meta.version);
       pedido.historialPreparacion = meta.historial as RevisionPreparacion[];
       pedido.importeOperativoPreparacion = meta.importe_operativo === null ? null : Number(meta.importe_operativo);
     })),
   ]);
-  for (const pedido of pedidos) pedido.resultadoEntrega = resultadosEntrega[pedido.id] ?? null;
-  const nombreResponsable = await obtenerNombresResponsables(pedidos.flatMap(p => p.historialPreparacion.map(h => h.actor_id)));
-  for (const p of pedidos) for (const h of p.historialPreparacion) h.actorNombre = nombreResponsable(h.actor_id);
+  const nombreResponsable = await obtenerNombresResponsables(pedidos.flatMap(p => [
+    ...p.historialPreparacion.map(h => responsableAdmin(h.actor_id)),
+    responsableObservacion(p.contextoEntrega.observacion, resultadosEntrega[p.id]),
+  ]));
+  for (const pedido of pedidos) {
+    pedido.resultadoEntrega = resultadosEntrega[pedido.id] ?? null;
+    const observacion = pedido.contextoEntrega.observacion;
+    if (observacion) pedido.contextoEntrega = {
+      ...pedido.contextoEntrega, observacion: { ...observacion, autor: nombreResponsable(responsableObservacion(observacion, resultadosEntrega[pedido.id])) },
+    };
+    const fallo = fallos.get(pedido.id);
+    const sinStock = fallo && pedido.historialPreparacion.find(h =>
+      h.valores_nuevos.origen === "sin_stock_pre_despacho" && fallo.actorId === h.actor_id && fallo.version === h.version);
+    pedido.falloEntrega = fallo && sinStock
+      ? { ...fallo, actor: nombreResponsable(responsableAdmin(sinStock.actor_id)) } : fallo ?? null;
+    for (const h of pedido.historialPreparacion) h.actorNombre = nombreResponsable(responsableAdmin(h.actor_id));
+  }
   const idsPedidos = pedidos.map((pedido) => pedido.id);
 
   let resumenProductos: readonly ResumenProductoEntrega[] = [];

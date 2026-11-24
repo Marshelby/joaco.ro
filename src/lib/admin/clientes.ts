@@ -1,3 +1,4 @@
+import { obtenerNombresResponsables, responsableAdmin, responsablePago } from "@/lib/admin/responsables";
 import type { DatosFacturacion } from "@/lib/admin/cliente-facturacion";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { EstadoPedidoAdmin } from "@/lib/admin/pedidos";
@@ -24,6 +25,8 @@ export type MovimientoCuentaCliente = {
   cargo: number;
   abono: number;
   saldoAcumulado: number;
+  responsableId?: string | null;
+  responsableNombre?: string;
 };
 
 export type PedidoClienteAdmin = {
@@ -43,6 +46,10 @@ export type PagoClienteAdmin = {
   metodoPago: string;
   referencia: string | null;
   fechaPago: string;
+  registradoPor?: string | null;
+  registradoPorNombre?: string;
+  anuladoPor?: string | null;
+  anuladoPorNombre?: string;
   estado: "registrado" | "pendiente_verificacion" | "confirmado" | "anulado";
 };
 
@@ -91,13 +98,16 @@ type MovimientoFila = {
 };
 type PedidoFila = {
   id: string;
+  regimen_contable: string;
+  actor_venta: string | null;
+  venta_reconocida_en: string | null;
   numero_pedido: string;
   fecha_creacion: string;
   estado: EstadoPedidoAdmin;
   total: number | string;
 };
 type SaldoPedidoFila = { pedido_id: string; saldo_pendiente: number | string };
-type PagoFila = { id: string; monto: number | string; metodo_pago: string; referencia: string | null; fecha_pago: string; estado: PagoClienteAdmin["estado"] };
+type PagoFila = { id: string; registrado_por: string | null; clave_idempotencia: string | null; anulado_por: string | null; monto: number | string; metodo_pago: string; referencia: string | null; fecha_pago: string; estado: PagoClienteAdmin["estado"] };
 type SaldoPagoFila = { pago_id: string; monto_aplicado: number | string; monto_disponible: number | string };
 
 function mapSaldo(cliente: ClienteFila, saldo?: SaldoFila): ClienteAdminListado {
@@ -159,9 +169,9 @@ export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetal
     supabase.from("clientes").select("id,nombre,telefono,email,activo,usuario_id").eq("id", id).maybeSingle(),
     supabase.from("v_saldos_cuenta_clientes").select("cliente_id,total_pedidos,total_pagos_confirmados,total_ajustes_cargo,total_ajustes_abono,saldo_actual,cantidad_pedidos,fecha_ultimo_movimiento").eq("cliente_id", id).maybeSingle(),
     supabase.from("v_movimientos_cuenta_cliente").select("referencia_id,fecha,tipo_movimiento,referencia,concepto,cargo,abono,saldo_acumulado").eq("cliente_id", id).order("fecha", { ascending: false }),
-    supabase.from("pedidos").select("id,numero_pedido,fecha_creacion,estado,total").eq("cliente_id", id).order("fecha_creacion", { ascending: false }),
+    supabase.from("pedidos").select("id,numero_pedido,fecha_creacion,estado,total,regimen_contable,venta_reconocida_en,actor_venta:venta_definitiva_snapshot->>actor_id").eq("cliente_id", id).order("fecha_creacion", { ascending: false }),
     supabase.from("v_saldos_pedidos").select("pedido_id,saldo_pendiente").eq("cliente_id", id),
-    supabase.from("pagos").select("id,monto,metodo_pago,referencia,fecha_pago,estado").eq("cliente_id", id).order("fecha_pago", { ascending: false }),
+    supabase.from("pagos").select("id,monto,metodo_pago,referencia,fecha_pago,estado,registrado_por,clave_idempotencia,anulado_por").eq("cliente_id", id).order("fecha_pago", { ascending: false }),
     supabase.from("v_saldos_pagos").select("pago_id,monto_aplicado,monto_disponible").eq("cliente_id", id),
     supabase.rpc("obtener_invitacion_acceso_cliente_administrativa", { p_cliente_id: id }),
   ]);
@@ -175,6 +185,31 @@ export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetal
   if (invitacionResultado.error) throw invitacionResultado.error;
   if (!clienteResultado.data) return null;
 
+  const pagos = (pagosResultado.data ?? []) as PagoFila[];
+  const pedidos = (pedidosResultado.data ?? []) as PedidoFila[];
+  const ventasPorPedido = new Map(pedidos.filter(p => p.regimen_contable === "entrega_v1" && p.venta_reconocida_en).map(p => [p.id, p]));
+  const movimientos = (movimientosResultado.data ?? []) as MovimientoFila[];
+  const pagosPorId = new Map(pagos.map(p => [p.id, p]));
+  const ajustes = new Map<string, { registrado_por: string | null }>();
+  const idsAjustes = [...new Set(movimientos.filter(m => m.tipo_movimiento === "ajuste").map(m => m.referencia_id))];
+  const ajustesNoConsultados = new Set<string>();
+  for (let i = 0; i < idsAjustes.length; i += 100) {
+    const lote = idsAjustes.slice(i, i + 100);
+    try {
+      const { data, error } = await supabase.from("ajustes_cuenta_cliente").select("id,registrado_por")
+        .eq("cliente_id", id).in("id", lote);
+      if (error) throw error;
+      for (const ajuste of data ?? []) ajustes.set(ajuste.id, ajuste);
+    } catch (error) {
+      for (const ajusteId of lote) ajustesNoConsultados.add(ajusteId);
+      console.error("[movimientos-cliente] Error de lectura de responsables de ajustes", error);
+    }
+  }
+  const nombre = await obtenerNombresResponsables([
+    ...pagos.flatMap(p => [responsablePago(p), responsableAdmin(p.anulado_por)]),
+    ...Array.from(ajustes.values(), a => responsableAdmin(a.registrado_por)),
+    ...Array.from(ventasPorPedido.values(), v => ({ id: v.actor_venta })),
+  ]);
   const resumen = mapSaldo(clienteResultado.data as ClienteFila, (saldoResultado.data as SaldoFila | null) ?? undefined);
   const saldo = saldoResultado.data as SaldoFila | null;
   return {
@@ -195,17 +230,28 @@ export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetal
     totalPagosConfirmados: Number(saldo?.total_pagos_confirmados ?? 0),
     totalAjustesCargo: Number(saldo?.total_ajustes_cargo ?? 0),
     totalAjustesAbono: Number(saldo?.total_ajustes_abono ?? 0),
-    movimientos: (movimientosResultado.data as MovimientoFila[] ?? []).map((movimiento) => ({
-      id: movimiento.referencia_id,
-      fecha: movimiento.fecha,
-      tipo: movimiento.tipo_movimiento,
-      referencia: movimiento.referencia,
-      concepto: movimiento.concepto,
-      cargo: Number(movimiento.cargo),
-      abono: Number(movimiento.abono),
-      saldoAcumulado: Number(movimiento.saldo_acumulado),
-    })),
-    pedidos: (pedidosResultado.data as PedidoFila[] ?? []).map((pedido) => ({
+    movimientos: movimientos.map(movimiento => {
+      const esAjuste = movimiento.tipo_movimiento === "ajuste";
+      const ajuste = esAjuste ? ajustes.get(movimiento.referencia_id) : undefined;
+      const pago = movimiento.tipo_movimiento === "pago" ? pagosPorId.get(movimiento.referencia_id) : undefined;
+      const venta = movimiento.tipo_movimiento === "pedido" ? ventasPorPedido.get(movimiento.referencia_id) : undefined;
+      const actor = esAjuste ? responsableAdmin(ajuste?.registrado_por)
+        : venta ? { id: venta.actor_venta } : responsablePago(pago ?? {});
+      return {
+        id: movimiento.referencia_id,
+        fecha: movimiento.fecha,
+        tipo: movimiento.tipo_movimiento,
+        referencia: movimiento.referencia,
+        concepto: movimiento.concepto,
+        cargo: Number(movimiento.cargo),
+        abono: Number(movimiento.abono),
+        saldoAcumulado: Number(movimiento.saldo_acumulado),
+        responsableId: actor.id,
+        responsableNombre: ajustesNoConsultados.has(movimiento.referencia_id) ? "No se pudo consultar el nombre del responsable"
+          : esAjuste || pago || venta ? nombre(actor) : undefined,
+      };
+    }),
+    pedidos: pedidos.map((pedido) => ({
       id: pedido.id,
       numeroPedido: pedido.numero_pedido,
       fechaCreacion: pedido.fecha_creacion,
@@ -213,9 +259,10 @@ export async function obtenerClienteAdmin(id: string): Promise<ClienteAdminDetal
       total: Number(pedido.total),
       saldoPendiente: Number((saldosPedidosResultado.data as SaldoPedidoFila[] ?? []).find((saldoPedido) => saldoPedido.pedido_id === pedido.id)?.saldo_pendiente ?? 0),
     })),
-    pagos: (pagosResultado.data as PagoFila[] ?? []).map((pago) => {
+    pagos: pagos.map(pago => {
       const saldoPago = (saldosPagosResultado.data as SaldoPagoFila[] ?? []).find((saldo) => saldo.pago_id === pago.id);
-      return { id: pago.id, monto: Number(pago.monto), montoAplicado: Number(saldoPago?.monto_aplicado ?? 0), montoDisponible: Number(saldoPago?.monto_disponible ?? 0), metodoPago: pago.metodo_pago, referencia: pago.referencia, fechaPago: pago.fecha_pago, estado: pago.estado };
+      return { id: pago.id, registradoPor: pago.registrado_por, registradoPorNombre: nombre(responsablePago(pago)),
+        anuladoPor: pago.anulado_por, anuladoPorNombre: pago.estado === "anulado" ? nombre(responsableAdmin(pago.anulado_por)) : undefined, monto: Number(pago.monto), montoAplicado: Number(saldoPago?.monto_aplicado ?? 0), montoDisponible: Number(saldoPago?.monto_disponible ?? 0), metodoPago: pago.metodo_pago, referencia: pago.referencia, fechaPago: pago.fecha_pago, estado: pago.estado };
     }),
   };
 }

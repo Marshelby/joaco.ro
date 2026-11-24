@@ -1,3 +1,4 @@
+import { nombrePersonal } from "@/lib/admin/responsables";
 import { cache } from "react";
 
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
@@ -5,6 +6,7 @@ import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 export type IdentidadCuenta = {
   rol: "cliente" | "admin";
   nombreMostrado: string;
+  nombrePersonal: string | null;
   email: string;
 };
 
@@ -33,11 +35,13 @@ const obtenerCuentaActual = cache(async (): Promise<CuentaActual | null> => {
 
   if (!perfil || (perfil.rol !== "cliente" && perfil.rol !== "admin")) return null;
 
+  const nombrePerfil = nombrePersonal(perfil.nombre);
   if (perfil.rol === "admin") {
     return {
       identidad: {
         rol: "admin",
-        nombreMostrado: perfil.nombre?.trim() || user.email,
+        nombreMostrado: nombrePerfil ?? "Administrador sin nombre registrado",
+        nombrePersonal: nombrePerfil,
         email: user.email,
       },
       cliente: null,
@@ -51,10 +55,12 @@ const obtenerCuentaActual = cache(async (): Promise<CuentaActual | null> => {
     .eq("activo", true)
     .maybeSingle();
 
+  const nombreCliente = cliente?.nombre?.trim() || nombrePerfil;
   return {
     identidad: {
       rol: "cliente",
-      nombreMostrado: cliente?.nombre?.trim() || perfil.nombre?.trim() || user.email,
+      nombreMostrado: nombreCliente ?? "Cliente sin nombre registrado",
+      nombrePersonal: nombreCliente,
       email: user.email,
     },
     cliente,

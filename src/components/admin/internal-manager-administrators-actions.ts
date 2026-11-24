@@ -1,5 +1,6 @@
 "use server";
 
+import { nombrePersonal } from "@/lib/admin/responsables";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -13,7 +14,9 @@ export async function buscarUsuariosAdministracion(consulta: string) {
 
   const { data, error } = await db.rpc("leer_gestion_administradores", { p_busqueda: busqueda });
   if (error || !data) return { error: "No se pudo buscar usuarios. Intenta nuevamente." };
-  return { usuarios: data.usuarios as UsuarioGestorInterno[] };
+  return { usuarios: (data.usuarios as UsuarioGestorInterno[]).map(usuario => ({
+    ...usuario, nombre: nombrePersonal(usuario.nombre),
+  })) };
 }
 
 const cambioPermiso = z.object({ usuario: z.uuid(), activo: z.boolean(), clave: z.uuid() });

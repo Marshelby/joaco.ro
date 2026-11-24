@@ -38,7 +38,7 @@ export default async function HistorialPedidoPage({ params, searchParams }: { pa
           <span className={`rounded-full px-2 py-1 text-xs font-medium ${evento.provisional ? "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100" : "bg-primary/10 text-primary"}`}>{evento.provisional ? "Provisional / pendiente" : "Registro confirmado"}</span>
         </div>
         <time dateTime={evento.fecha} className="mt-2 block text-sm text-muted-foreground">{formatearInstanteSantiago(evento.fecha, { dateStyle: "long", timeStyle: "medium", hourCycle: "h23" })}</time>
-        {evento.actor ? <p className="mt-2 break-all text-xs text-muted-foreground">Actor (ID): {evento.actor}</p> : null}
+        <p className="mt-2 break-words text-xs text-muted-foreground">Responsable: {evento.actorNombre}</p>
         {evento.detalles.length ? <ul className="mt-3 space-y-2 text-sm leading-6 [overflow-wrap:anywhere]">{evento.detalles.map((detalle, indice) => <li key={indice}>{detalle}</li>)}</ul> : null}
       </li>)}
     </ol>

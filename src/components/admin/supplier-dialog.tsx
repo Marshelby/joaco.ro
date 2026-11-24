@@ -195,7 +195,7 @@ export function SupplierDialog({ proveedorId }: { proveedorId?: string }) {
                             <dt>Pendiente de compra</dt><dd className="font-semibold">{formatCLP(c.saldo)}</dd>
                           </div>
                         </dl>
-                        <p className="text-xs text-muted-foreground">Administrador: {c.administrador_nombre ?? "Administrador no disponible"}</p>
+                        <p className="text-xs text-muted-foreground">Administrador: {c.responsableNombre ?? "Responsable no registrado"}</p>
                       </li>
                     ))}
                   </ul>
@@ -219,7 +219,7 @@ export function SupplierDialog({ proveedorId }: { proveedorId?: string }) {
                             <p className={producto ? `${encabezadoProductoJornada} text-xs font-semibold` : `${importeJornada} ${tonoJornada.informativo} text-xs`}>{producto ?? "Compra histórica"}</p>
                             <p className={`${importeJornada} ${a.concepto === "pago" ? tonoJornada.completado : tonoJornada.venta} text-xs`}>Importe: {formatCLP(Math.abs(a.importe))}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">Versión {a.version} · Administrador: {a.administrador_nombre ?? "Administrador no disponible"}</p>
+                          <p className="text-xs text-muted-foreground">Versión {a.version} · Administrador: {a.responsableNombre ?? "Responsable no registrado"}</p>
                         </li>
                       );
                     })}
@@ -244,7 +244,7 @@ export function SupplierDialog({ proveedorId }: { proveedorId?: string }) {
                           <time dateTime={m.fecha} className={fechaHistorial}>{formatDateTimeCL(m.fecha)}</time>
                         </div>
                         <p className="whitespace-pre-wrap">{m.comentario}</p>
-                        <p className="text-xs text-muted-foreground">Administrador: {m.administrador_nombre}</p>
+                        <p className="text-xs text-muted-foreground">Administrador: {m.responsableNombre ?? "Responsable no registrado"}</p>
                       </li>
                     ))}
                   </ol>

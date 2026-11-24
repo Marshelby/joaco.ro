@@ -28,7 +28,7 @@ export default async function AdminDeliveryDayPage({ params }: { params: Promise
   const contabilidad = resultados.length ? await obtenerContabilidadRutas(fecha, resultados.map(pedido => pedido.id)) : null;
   const permisoPreparacion = obtenerPermisoTemporalPreparacion(fecha);
   const tituloFecha = formatFechaEntregaLarga(fecha).toLocaleLowerCase("es-CL");
-  const nombreEmisor = identidad?.rol === "admin" && identidad.nombreMostrado.trim() !== identidad.email ? identidad.nombreMostrado : null;
+  const nombreEmisor = identidad?.rol === "admin" ? identidad.nombrePersonal : null;
 
   return (
     <div className="space-y-8">

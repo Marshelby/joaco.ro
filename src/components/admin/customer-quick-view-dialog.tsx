@@ -141,6 +141,7 @@ function CustomerQuickViewContent({ cliente }: { cliente: Extract<ResultadoVista
                   <li key={`${movimiento.tipo}:${movimiento.id}`} className="rounded-xl border border-border bg-muted/25 px-3 py-2 text-sm">
                     <p className="font-medium text-foreground">{movimiento.referencia}</p>
                     <p className="mt-0.5 text-muted-foreground">{movimiento.concepto}</p>
+                    {movimiento.responsableNombre && <p className="text-muted-foreground">Responsable: {movimiento.responsableNombre}</p>}
                     <time dateTime={movimiento.fecha} className="mt-0.5 block text-muted-foreground">{formatDateTimeCL(movimiento.fecha)}</time>
                     <p className="mt-1 font-semibold tabular-nums text-foreground">{movimiento.cargo > 0 ? `+${formatCLP(movimiento.cargo)}` : `-${formatCLP(movimiento.abono)}`}</p>
                   </li>

@@ -15,11 +15,10 @@ import { obtenerContabilidadRutas } from "@/lib/admin/rutas-contabilidad";
 import { RutasContabilidadPedido, RutasContabilidadJornada } from "@/components/admin/rutas-contabilidad";
 import { DeliveryProductDetail, DeliveryOrderTotals } from "@/components/admin/delivery-product-detail";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
-import { obtenerNombresResponsables, describirAccionRuta } from "@/lib/admin/responsables";
+import { obtenerNombresResponsables, describirAccionRuta, responsableAdmin, responsableRuta } from "@/lib/admin/responsables";
 import type { Metadata } from "next";
 import { RutasNavigation, RutasLink as Link, RutasFechaForm } from "./rutas-navigation";
 import { notFound } from "next/navigation";
-import { obtenerNombresRepartidores } from "@/lib/reparto/nombres";
 import { exigirAdminReparto } from "@/lib/reparto/server";
 import { obtenerDetalleEntregaAdmin, obtenerFechaLocalActual, obtenerCoordenadasRuta, obtenerConteoPedidosPorFecha } from "@/lib/admin/pedidos";
 import { obtenerPermisoTemporalPreparacion } from "@/lib/order-preparation";
@@ -58,10 +57,13 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
   const ruta = modelo.rutas.find(r => r.id === params.ruta);
   if (params.ruta && !ruta) notFound();
   const habilitados = new Set(modelo.repartidores.map(r => r.usuario_id));
-  const [nombreRepartidor, nombreResponsable] = await Promise.all([
-    obtenerNombresRepartidores(db, ruta ? [...habilitados, ...ruta.repartidores] : []),
-    obtenerNombresResponsables(ruta?.historial.map(e => e.actor) ?? [], true),
+  const repartidores = ruta ? [...habilitados, ...ruta.repartidores] : [];
+  const nombreResponsable = await obtenerNombresResponsables([
+    ...repartidores.map(id => ({ id, rol: "repartidor" as const })),
+    ...(ruta?.historial ?? []).map(e => responsableRuta(e.actor, e.accion)),
+    ...(ruta?.autorizaciones ?? []).map(a => responsableAdmin(a.actor)),
   ]);
+  const nombreRepartidor = (id: string) => nombreResponsable({ id, rol: "repartidor" });
   const entrega = await obtenerDetalleEntregaAdmin(fecha);
   const contabilidad = await obtenerContabilidadRutas(fecha, entrega.pedidos.map(p => p.id));
   const utilidadDia = await obtenerPresentacionUtilidadDia(fecha);
@@ -135,7 +137,14 @@ async function AdminRoutesContent({ searchParams }: { searchParams: Promise<{ fe
       {ruta.estado === "planificacion" && <RutaMultipleForm comando={comando("preparar")} etiqueta="Iniciar preparación de esta ruta" disabled={!permiso.permitida} />}
       {ruta.estado === "en_reparto" && <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">Salida registrada. Asigna los pedidos nuevos a otra ruta independiente desde «Crear ruta».</p>}
       {ruta.estado === "cerrada" && <p className="text-sm text-muted-foreground">Ruta cerrada: sus pedidos y operaciones están bloqueados. Usa «Crear ruta» para una nueva salida.</p>}
-      {!!ruta.historial.length && <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Historial de operaciones de esta ruta</summary><ol className="space-y-3 text-sm">{ruta.historial.map(e => <li key={e.clave} className="break-words rounded-lg border p-3"><p>{formatearInstanteSantiago(e.instante, { dateStyle: "short", timeStyle: "medium", hourCycle: "h23" })} · {describirAccionRuta(e.accion)} · {e.resultado.ok ? "Confirmada" : "Sin confirmar"}</p><p>Responsable: {nombreResponsable(e.actor)} · Versión: {e.resultado.version}</p>{e.pedido && <p>Pedido: {porId.get(e.pedido)?.numeroPedido ?? e.pedido}</p>}{e.resultado.modalidad && <p>{e.resultado.modalidad.replaceAll("_", " ")} · Pedidos incorporados: {e.resultado.pedidos_agregados?.map(id => porId.get(id)?.numeroPedido ?? id).join(", ")}</p>}{e.motivo && <p>Motivo: {e.motivo}</p>}</li>)}</ol></details>}
+      {ruta.autorizaciones.length > 0 && <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Autorizaciones de preparación parcial</summary>
+        <ul className="space-y-2 text-sm">{ruta.autorizaciones.map(a => <li key={a.pedido} className="rounded-lg border p-3">
+          <p>Pedido {porId.get(a.pedido)?.numeroPedido ?? "sin número disponible"} · Revisión {a.version}</p>
+          <p>Autorizó: {nombreResponsable(responsableAdmin(a.actor))}</p>
+          <p>{a.motivo}</p>
+        </li>)}</ul>
+      </details>}
+      {!!ruta.historial.length && <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">Historial de operaciones de esta ruta</summary><ol className="space-y-3 text-sm">{ruta.historial.map(e => <li key={e.clave} className="break-words rounded-lg border p-3"><p>{formatearInstanteSantiago(e.instante, { dateStyle: "short", timeStyle: "medium", hourCycle: "h23" })} · {e.accion === "confirmar" ? "Entrega confirmada" : describirAccionRuta(e.accion)} · {e.resultado.ok ? "Confirmada" : "Sin confirmar"}</p><p>Responsable: {nombreResponsable(responsableRuta(e.actor, e.accion))}{e.resultado.version != null && ` · Versión: ${e.resultado.version}`}</p>{e.pedido && <p>Pedido: {porId.get(e.pedido)?.numeroPedido ?? e.pedido}</p>}{e.resultado.modalidad && <p>{e.resultado.modalidad.replaceAll("_", " ")} · Pedidos incorporados: {e.resultado.pedidos_agregados?.map(id => porId.get(id)?.numeroPedido ?? id).join(", ")}</p>}{e.motivo && <p>Motivo: {e.motivo}</p>}</li>)}</ol></details>}
     </section>}
     <JornadaModos documentos={<AccionesDocumentosJornada fecha={fecha} pedidos={entrega.pedidos} />} key={ruta?.id ?? fecha} titulo={ruta?.nombre ?? "Pedidos del día"} mensaje={ruta ? permiso.mensaje : "Abre una ruta para preparar sus pedidos. Los pedidos nuevos quedan disponibles hasta asignarlos."} preparacion={<>
       {!pedidos.length && <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No hay pedidos en esta selección. Asigna pedidos disponibles o consulta otra fecha.</p>}<ul className="space-y-2">{pedidos.map((p, n) => <DeliveryOrderCard key={p.id} pedido={p} contabilidad={contabilidad?.[p.id] ?? null} operativa soloPreparacion numeroPreparacion={n + 1} rutaMultiple soloLecturaRuta={!ruta || ruta.estado !== "preparacion"} />)}</ul>

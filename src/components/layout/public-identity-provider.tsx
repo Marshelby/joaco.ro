@@ -4,9 +4,10 @@ import { createContext, useContext, type ReactNode } from "react";
 
 import type { IdentidadCuenta } from "@/lib/account/identity";
 
-const PublicIdentityContext = createContext<IdentidadCuenta | null>(null);
+type IdentidadPublica = Pick<IdentidadCuenta, "rol">;
+const PublicIdentityContext = createContext<IdentidadPublica | null>(null);
 
-export function PublicIdentityProvider({ children, identidad }: { children: ReactNode; identidad: IdentidadCuenta | null }) {
+export function PublicIdentityProvider({ children, identidad }: { children: ReactNode; identidad: IdentidadPublica | null }) {
   return <PublicIdentityContext value={identidad}>{children}</PublicIdentityContext>;
 }
 

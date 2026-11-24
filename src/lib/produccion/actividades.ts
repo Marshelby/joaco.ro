@@ -15,7 +15,7 @@ export function medidasActividad(unidad: Unidad["tipo"], actividad: TipoActivida
   if (unidad === "flores" && actividad === "cosecha") return ["unidad", "ramo"];
   return [];
 }
-export type ActividadDiaria = { cultivo?: string | null; id: string; actividad_id: string; tipo_unidad: Unidad["tipo"]; fecha_operativa: string; tipo_actividad: TipoActividad; cantidad: number | null; unidad_medida: string | null; observaciones: string | null; fecha_registro: string; produccion_actividades: { unidad_id: string }; precio_total?: number };
+export type ActividadDiaria = { cultivo?: string | null; id: string; actividad_id: string; tipo_unidad: Unidad["tipo"]; fecha_operativa: string; tipo_actividad: TipoActividad; cantidad: number | null; unidad_medida: string | null; observaciones: string | null; fecha_registro: string; autor_id?: string; autorNombre?: string; produccion_actividades: { unidad_id: string }; precio_total?: number };
 export type VersionActividad = ActividadDiaria & {
   numero_version: number;
   evento: "registro" | "correccion" | "anulacion";

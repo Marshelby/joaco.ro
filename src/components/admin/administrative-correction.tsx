@@ -167,7 +167,7 @@ function EditorCorreccion({ contexto: c, vistaRuta }: { contexto: ContextoCorrec
     {resultado !== undefined ? <div role="status"><p className="font-semibold">Corrección guardada. La cuenta y los pedidos se han actualizado.</p><Datos titulo="Resultado contable" valor={resultado} /></div> : null}
     <h3 className="font-semibold">Historial de correcciones</h3>
     {historial.length ? historial.map(h => <article key={h.id} className={vistaRuta ? "space-y-2 rounded-lg border border-border bg-muted/25 p-2" : "space-y-2 border-t border-border pt-3"}>
-      <p>{formatDateTimeCL(h.fecha)} · Administrador {h.actor_id}</p><p className="whitespace-pre-wrap">Motivo: {h.motivo}</p>
+      <p>{formatDateTimeCL(h.fecha)} · Responsable: {h.actorNombre ?? "Responsable no registrado"}</p><p className="whitespace-pre-wrap">Motivo: {h.motivo}</p>
       {h.diferencia !== undefined ? <p className={vistaRuta ? `${importeJornada} ${h.diferencia < 0 ? tonoJornada.incidencia : tonoJornada.informativo}` : undefined}>Diferencia: {formatCLP(h.diferencia)}</p> : null}
       <Datos titulo="Valores anteriores" valor={h.anteriores} /><Datos titulo="Valores nuevos" valor={h.nuevos} />
       {h.resultado ? <Datos titulo="Resultado" valor={h.resultado} /> : null}
@@ -184,12 +184,13 @@ const etiquetas: Record<string, string> = {
   total_corregido: "Total corregido", saldo_cuenta: "Saldo de cuenta", saldo_pedido: "Saldo del pedido",
   deuda: "Deuda", deuda_pedido: "Deuda del pedido", saldo_a_favor: "Saldo a favor",
   credito_por_sobreaplicacion: "Crédito por sobreaplicación", pagos_reemplazo: "Pagos de reemplazo",
-  actor_id: "Administrador", registrado_por: "Registrado por", motivo_anulacion: "Motivo de anulación",
+  motivo_anulacion: "Motivo de anulación",
 };
+const camposIdentidad = new Set(["actor_id", "actor", "registrado_por", "anulado_por", "anulada_por", "administrador_id"]);
 const importes = /^(monto|monto_aplicado|importe_definitivo|total|subtotal|costo_entrega|descuento|diferencia|total_corregido|saldo_cuenta|saldo_pedido|saldo_pendiente|total_pedido|total_pagado|deuda|deuda_pedido|saldo_a_favor|credito_por_sobreaplicacion)$/;
 function Valores({ valor, nombre = "" }: { valor: unknown; nombre?: string }) {
   if (valor === null || valor === undefined) return <span>Sin registro</span>;
   if (Array.isArray(valor)) return valor.length ? <ol className="space-y-2">{valor.map((v, i) => <li key={i} className="border-l border-border pl-3"><Valores valor={v} /></li>)}</ol> : <span>Sin registros</span>;
-  if (typeof valor === "object") return <dl className="space-y-2">{Object.entries(valor).map(([k, v]) => <div key={k}><dt className="font-medium">{etiquetas[k] ?? k.replaceAll("_", " ")}</dt><dd className="break-words pl-3"><Valores valor={v} nombre={k} /></dd></div>)}</dl>;
+  if (typeof valor === "object") return <dl className="space-y-2">{Object.entries(valor).filter(([k]) => !camposIdentidad.has(k)).map(([k, v]) => <div key={k}><dt className="font-medium">{etiquetas[k] ?? k.replaceAll("_", " ")}</dt><dd className="break-words pl-3"><Valores valor={v} nombre={k} /></dd></div>)}</dl>;
   return <span>{typeof valor === "boolean" ? valor ? "Sí" : "No" : importes.test(nombre) ? formatCLP(Number(valor)) : String(valor)}</span>;
 }

@@ -92,14 +92,14 @@ export function claseResultadoEntrega(tipo: ResultadoVisual) {
 
 export function DeliveryResult({ children, compact, ...resumen }: Resumen & {
   children: ReactNode;
-  compact?: { solicitud?: string | null; entrega?: string | null; ubicacion?: string | null; acciones: ReactNode };
+  compact?: { solicitud?: string | null; ubicacion?: string | null; acciones: ReactNode };
 }) {
   if (compact && resumen.importe) {
     return <div className={tarjetaPedido}>
       <div className={filaPedido}>
         <OrderListIdentity cliente={resumen.cliente ?? ""} referencia={resumen.numero && `Pedido ${resumen.numero}`} ubicacion={compact.ubicacion} />
         <span className={`justify-self-start rounded-full px-2 py-0.5 text-xs font-semibold ${estilos[resumen.tipo].etiqueta}`}>{estilos[resumen.tipo].titulo}</span>
-        <OrderListData solicitud={compact.solicitud} entrega={compact.entrega} etiquetaEntrega="Entrega programada" importe={formatCLP(resumen.importe.valor)} etiquetaImporte={resumen.importe.etiqueta} />
+        <OrderListData solicitud={compact.solicitud} ocultarEntrega importe={formatCLP(resumen.importe.valor)} etiquetaImporte={resumen.importe.etiqueta} />
         <div className={accionesPedido}>{compact.acciones}</div>
       </div>
       <details className="group/resultado border-t border-border">

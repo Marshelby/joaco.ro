@@ -1,3 +1,4 @@
+import { OrderDeliveryDateGroups } from "@/components/admin/order-delivery-date-groups";
 import { OrderDeliveryImage } from "@/components/admin/order-delivery-image";
 import { fechaEntregaDefinitiva } from "@/lib/admin/guia-entrega";
 import { DeliveryResult, DeliveryResultDetails, esResultadoEntrega, importeResultado, presentarResultadoEntrega } from "@/components/admin/delivery-result";
@@ -55,7 +56,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   if (vista === "posibles") return <div className="@container space-y-3">
     {cabecera}
     {navegacion}
-    <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded />
+    <PossibleOrdersList params={params} baseHref="/admin/pedidos?filtro=posibles" embedded agruparPorEntrega />
   </div>;
 
   const soloRecibidos = vista === "recibidos";
@@ -70,37 +71,38 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       <section className="space-y-2" aria-labelledby="lista-pedidos-title">
         <h2 id="lista-pedidos-title" className="sr-only">{soloRecibidos ? "Pedidos recibidos" : vista === "entregados" ? "Entregados" : "Todos los pedidos"}</h2>
         {pedidos.length > 0 ? (
-          <ul className="space-y-1.5" aria-label="Pedidos">
-            {pedidos.map((pedido) => {
-              const verPedido = <ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>;
-              if (esResultadoEntrega(pedido.estado)) {
-                const datos = presentarResultadoEntrega(pedido.estado, pedido.total, resultados[pedido.id]);
-                return <li key={pedido.id}>
-                  <DeliveryResult tipo={datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={importeResultado(datos)}
-                    compact={{
-                      solicitud: pedido.fechaCreacion,
-                      entrega: pedido.fechaEntrega,
-                      ubicacion: pedido.nombreUbicacionSnapshot,
-                      acciones: <>
-                        <RecycleOrderLink pedidoId={pedido.id} />
-                        {verPedido}
-                        {fechaEntregaDefinitiva(pedido) && <OrderDeliveryImage pedidoId={pedido.id} />}
-                      </>,
-                    }}>
-                    <DeliveryResultDetails datos={datos}>
-                      {datos.resultado?.total_cobrado != null && <p>Total cobrado en la entrega · <strong>{formatCLP(datos.resultado.total_cobrado)}</strong></p>}
-                    </DeliveryResultDetails>
-                  </DeliveryResult>
+          <OrderDeliveryDateGroups pedidos={pedidos} fechaEntrega={pedido => pedido.fechaEntrega} orden={soloRecibidos ? "ascendente" : "descendente"}>
+            {grupo => <ul className="space-y-1.5" aria-label="Pedidos">
+              {grupo.map((pedido) => {
+                const verPedido = <ActionLink href={ROUTES.adminOrder(pedido.id)} scroll={false} prefetch={false} variant="quiet" aria-label={`Ver pedido ${pedido.numeroPedido}`}>Ver pedido</ActionLink>;
+                if (esResultadoEntrega(pedido.estado)) {
+                  const datos = presentarResultadoEntrega(pedido.estado, pedido.total, resultados[pedido.id]);
+                  return <li key={pedido.id}>
+                    <DeliveryResult tipo={datos.tipo} cliente={pedido.nombreClienteSnapshot} numero={pedido.numeroPedido} importe={importeResultado(datos)}
+                      compact={{
+                        solicitud: pedido.fechaCreacion,
+                        ubicacion: pedido.nombreUbicacionSnapshot,
+                        acciones: <>
+                          <RecycleOrderLink pedidoId={pedido.id} />
+                          {verPedido}
+                          {fechaEntregaDefinitiva(pedido) && <OrderDeliveryImage pedidoId={pedido.id} />}
+                        </>,
+                      }}>
+                      <DeliveryResultDetails datos={datos}>
+                        {datos.resultado?.total_cobrado != null && <p>Total cobrado en la entrega · <strong>{formatCLP(datos.resultado.total_cobrado)}</strong></p>}
+                      </DeliveryResultDetails>
+                    </DeliveryResult>
+                  </li>;
+                }
+                return <li key={pedido.id} className={`${tarjetaPedido} ${filaPedido}`}>
+                  <OrderListIdentity cliente={pedido.nombreClienteSnapshot} referencia={`Pedido ${pedido.numeroPedido}`} ubicacion={pedido.nombreUbicacionSnapshot} />
+                  <div><OrderStatusBadge estado={pedido.estado} /></div>
+                  <OrderListData solicitud={pedido.fechaCreacion} ocultarEntrega importe={formatCLP(pedido.total)} etiquetaImporte="Total original" />
+                  <div className={accionesPedido}>{verPedido}</div>
                 </li>;
-              }
-              return <li key={pedido.id} className={`${tarjetaPedido} ${filaPedido}`}>
-                <OrderListIdentity cliente={pedido.nombreClienteSnapshot} referencia={`Pedido ${pedido.numeroPedido}`} ubicacion={pedido.nombreUbicacionSnapshot} />
-                <div><OrderStatusBadge estado={pedido.estado} /></div>
-                <OrderListData solicitud={pedido.fechaCreacion} entrega={pedido.fechaEntrega} importe={formatCLP(pedido.total)} etiquetaImporte="Total original" />
-                <div className={accionesPedido}>{verPedido}</div>
-              </li>;
-            })}
-          </ul>
+              })}
+            </ul>}
+          </OrderDeliveryDateGroups>
         ) : <EmptyState title={soloRecibidos ? "No hay pedidos recibidos" : "No hay pedidos"} description={soloRecibidos ? "Los nuevos pedidos aparecerán aquí para su revisión." : "Cuando existan pedidos, podrás revisarlos aquí."} />}
       </section>
     </div>

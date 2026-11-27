@@ -1,3 +1,4 @@
+import { OrderDeliveryDateGroups } from "@/components/admin/order-delivery-date-groups";
 import { obtenerUltimosFallosEntrega } from "@/lib/admin/intentos-entrega";
 import { DeliveryResult, DeliveryResultDetails, importeResultado, presentarResultadoEntrega, productoSolicitado } from "@/components/admin/delivery-result";
 import { UndeliveredHistoryLink, UndeliveredScrollRestoration } from "@/components/admin/undelivered-history-navigation";
@@ -31,26 +32,29 @@ export async function UndeliveredOrders({ filtros }: { filtros: FiltrosNoEntrega
     <p className="text-sm text-muted-foreground">Los históricos carecen de un intento fallido auditado y requieren revisión. “Pendiente de resolución” identifica fallos con evidencia operativa; no significa pedido pendiente de entrega.</p>
     {resultado.error ? <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">{resultado.error}</div> : <>
       <p role="status" className="text-sm text-muted-foreground">{resultado.total} pedidos · Página {resultado.pagina}</p>
-      {resultado.pedidos.length ? <ul className="space-y-1.5" aria-label="Pedidos no entregados">{resultado.pedidos.map(p => {
-        const datos = presentarResultadoEntrega("entrega_fallida", p.total, null,
-          p.productos.map((producto, i) => productoSolicitado(String(i), producto.nombre, producto.presentacion, producto.unidad, producto.cantidad)));
-        const fallo = fallos.get(p.id);
-        return <li key={p.id} className="min-w-0">
-          <DeliveryResult tipo={datos.tipo} cliente={p.cliente} numero={p.numero_pedido} importe={importeResultado(datos)}
-            compact={{
-              solicitud: fechasSolicitud.get(p.id),
-              entrega: p.fecha_entrega,
-              acciones: <>
-                <ActionLink href={`/admin/pedidos/detalle/${p.id}`} scroll={false} prefetch={false} variant="quiet">Ver pedido completo</ActionLink>
-                <UndeliveredHistoryLink pedidoId={p.id} retorno={hrefPagina(resultado.pagina)} />
-              </>,
-            }}>
-            <p className="text-xs text-muted-foreground">{p.historico ? "Histórico · revisar evidencia" : "Pendiente de resolución"}</p>
-            <DeliveryResultDetails datos={datos} fallo={{ motivo: p.motivo, observaciones: p.observaciones, fecha: p.fecha_fallo, actor: fallo?.fecha === p.fecha_fallo ? fallo?.actor ?? "Responsable no registrado" : "Responsable no registrado" }} />
-            <UndeliveredOrderActions pedidoId={p.id} historico={p.historico} />
-          </DeliveryResult>
-        </li>;
-      })}</ul> : <EmptyState title="Sin pedidos no entregados" description="No hay resultados para los filtros seleccionados." />}
+      {resultado.pedidos.length ? <OrderDeliveryDateGroups pedidos={resultado.pedidos} fechaEntrega={p => p.fecha_entrega} orden="descendente">
+        {grupo => <ul className="space-y-1.5" aria-label="Pedidos no entregados">
+          {grupo.map(p => {
+            const datos = presentarResultadoEntrega("entrega_fallida", p.total, null,
+              p.productos.map((producto, i) => productoSolicitado(String(i), producto.nombre, producto.presentacion, producto.unidad, producto.cantidad)));
+            const fallo = fallos.get(p.id);
+            return <li key={p.id} className="min-w-0">
+              <DeliveryResult tipo={datos.tipo} cliente={p.cliente} numero={p.numero_pedido} importe={importeResultado(datos)}
+                compact={{
+                  solicitud: fechasSolicitud.get(p.id),
+                  acciones: <>
+                    <ActionLink href={`/admin/pedidos/detalle/${p.id}`} scroll={false} prefetch={false} variant="quiet">Ver pedido completo</ActionLink>
+                    <UndeliveredHistoryLink pedidoId={p.id} retorno={hrefPagina(resultado.pagina)} />
+                  </>,
+                }}>
+                <p className="text-xs text-muted-foreground">{p.historico ? "Histórico · revisar evidencia" : "Pendiente de resolución"}</p>
+                <DeliveryResultDetails datos={datos} fallo={{ motivo: p.motivo, observaciones: p.observaciones, fecha: p.fecha_fallo, actor: fallo?.fecha === p.fecha_fallo ? fallo?.actor ?? "Responsable no registrado" : "Responsable no registrado" }} />
+                <UndeliveredOrderActions pedidoId={p.id} historico={p.historico} />
+              </DeliveryResult>
+            </li>;
+          })}
+        </ul>}
+      </OrderDeliveryDateGroups> : <EmptyState title="Sin pedidos no entregados" description="No hay resultados para los filtros seleccionados." />}
       <nav aria-label="Páginas de pedidos no entregados" className="flex flex-wrap gap-3">{resultado.pagina > 1 ? <ActionLink href={hrefPagina(resultado.pagina - 1)} variant="secondary">Anterior</ActionLink> : null}{resultado.pagina * 20 < resultado.total ? <ActionLink href={hrefPagina(resultado.pagina + 1)} variant="secondary">Siguiente</ActionLink> : null}</nav>
     </>}
   </section>;

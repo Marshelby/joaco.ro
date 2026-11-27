@@ -8,16 +8,17 @@ export const tarjetaPedido = "min-w-0 rounded-lg border border-border bg-card";
 export const accionesPedido = "flex flex-wrap items-center gap-1.5 col-span-2 @min-[42rem]:col-span-3 @min-[62rem]:col-span-1 @min-[62rem]:max-w-72 [&>a]:min-h-9 [&>a]:px-2.5 [&>a]:text-xs [&>button]:min-h-9 [&>button]:text-xs";
 export const filaPedido = "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-3 py-2 @min-[42rem]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.7fr)_minmax(0,1.65fr)] @min-[62rem]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.7fr)_minmax(0,1.65fr)_auto]";
 
-export function OrderListData({ solicitud, entrega, etiquetaEntrega = "Entrega", importe, etiquetaImporte }: {
+export function OrderListData({ solicitud, entrega, etiquetaEntrega = "Entrega", ocultarEntrega = false, importe, etiquetaImporte }: {
   solicitud?: string | null;
   entrega?: string | null;
   etiquetaEntrega?: string;
+  ocultarEntrega?: boolean;
   importe: string;
   etiquetaImporte: string;
 }) {
-  return <span className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-x-2 text-xs wrap-anywhere col-span-2 @min-[42rem]:col-span-1">
+  return <span className={`grid min-w-0 gap-x-2 text-xs wrap-anywhere col-span-2 @min-[42rem]:col-span-1 ${ocultarEntrega ? "grid-cols-2" : "grid-cols-3"}`}>
     <OrderListField label="Solicitud">{solicitud ? formatearInstanteSantiago(solicitud, { ...fechaCorta, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "Sin registro"}</OrderListField>
-    <OrderListField label={etiquetaEntrega}>{entrega ? formatearFechaCalendario(entrega, fechaCorta) : "Sin fecha"}</OrderListField>
+    {!ocultarEntrega && <OrderListField label={etiquetaEntrega}>{entrega ? formatearFechaCalendario(entrega, fechaCorta) : "Sin fecha"}</OrderListField>}
     <OrderListField label={etiquetaImporte}>{importe}</OrderListField>
   </span>;
 }

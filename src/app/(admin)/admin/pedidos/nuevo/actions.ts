@@ -8,7 +8,7 @@ import { aceptarPedidoAdmin } from "../actions";
 import { z } from "zod";
 import { administradorComercial, leerFichaComercial } from "@/lib/admin/cliente-comercial";
 import { obtenerClienteAdmin, obtenerClientesAdmin } from "@/lib/admin/clientes";
-import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, totalLineaPedido, type LineaPedidoBorrador, type PedidoBorrador, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
+import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, totalLineaPedido, type LineaPedidoBorrador, type PedidoBorrador, type PresentacionPedido, type CrearPedidoAdministrativoParametros, type CrearPedidoAdministrativoResultado, type ConfirmarPedidoAdministrativoRespuesta } from "@/lib/admin/pedido-borrador";
 import { PAYMENT_INTENT_OPTIONS, esMetodoPagoPrevisto } from "@/lib/payment-intent";
 import { cotizarDespacho } from "@/lib/delivery-pricing";
 import { ROUTES } from "@/config/routes";
@@ -298,11 +298,16 @@ export async function cargarPedidoParaAceptar(id: string) {
     const fraccionable = item.modo_cantidad_snapshot
       ? item.modo_cantidad_snapshot === "kg_fraccionable"
       : item.unidad_snapshot.trim().toUpperCase() === "KG" && !/(saco|malla|caja|paquete|docena)/i.test(item.nombre_presentacion_snapshot ?? "");
-    const snapshot = {
+    // La FK permite un solo producto, aunque el cliente sin esquema infiera un arreglo.
+    const relacionProducto = item.productos;
+    const producto = Array.isArray(relacionProducto) ? relacionProducto[0] : relacionProducto;
+    const rutaImagen: unknown = producto?.ruta_imagen;
+    const snapshot: PresentacionPedido = {
       productoId: item.producto_id ?? item.id, presentacionId: item.presentacion_producto_id ?? item.id,
       nombre: item.nombre_producto_snapshot, presentacionNombre: item.nombre_presentacion_snapshot ?? "",
       unidad: item.unidad_snapshot, cantidadPresentacion: 0,
-      precioFinalReferencia: precioOriginal, rutaImagen: item.productos?.ruta_imagen ?? undefined,
+      precioFinalReferencia: precioOriginal,
+      rutaImagen: typeof rutaImagen === "string" ? rutaImagen : undefined,
     };
     const vinculo = item.vinculos_items_posible_pedido;
     const protegida = Boolean(auditoria || (Array.isArray(vinculo) ? vinculo.length : vinculo));

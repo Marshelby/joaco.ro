@@ -290,7 +290,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
             <label className="mt-2 block">Precio total final (CLP)<input type="text" inputMode="numeric" className={campo} value={linea.totalFinal} onChange={(event) => {
               const valor = event.target.value;
               setLineas((previas) => previas.map((previa) => previa.presentacion.presentacionId === id ? { ...previa, precioReferencia: linea.actual!.precioFinalReferencia, totalFinal: valor, motivoAjuste: leerPrecioPedido(valor) === original ? "" : previa.motivoAjuste } : previa));
-            }} /></div>
+            }} /></label>
             {aceptacion && !linea.historica && linea.actual && linea.precioReferencia !== linea.actual.precioFinalReferencia
               ? <p role="alert" className="mt-2 text-destructive">El precio vigente cambió. Restaura el total de referencia o revisa el ajuste.</p> : null}
             {precio === null ? <p role="alert" className="mt-2 text-destructive">Ingresa un precio en CLP enteros, mayor o igual a cero y dentro del rango seguro.</p> : null}

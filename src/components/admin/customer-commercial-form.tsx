@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition, type ReactNode } from "react";
-import { UserPlus } from "lucide-react";
+import { useId, useRef, useState, useTransition, type ReactNode } from "react";
+import { ChevronDown, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cargarFichaComercial, guardarFichaComercial } from "@/app/(admin)/admin/clientes/comercial-actions";
@@ -191,23 +191,35 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
   </form>;
 }
 
-export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false, accionFacturacion, compact = false }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean; accionFacturacion?: ReactNode; compact?: boolean }) {
+export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false, accionFacturacion, compact = false, desplegable = false }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean; accionFacturacion?: ReactNode; compact?: boolean; desplegable?: boolean }) {
   const [editando, setEditando] = useState(false);
-  return <section className={compact ? "space-y-2 rounded-xl border bg-card p-3" : "space-y-4"} aria-labelledby="direcciones-comerciales-title">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="direcciones-comerciales-title" className={compact ? "text-base font-semibold" : "text-2xl font-semibold tracking-tight"}>Ubicaciones comerciales</h2>
+  const [expandida, setExpandida] = useState(false);
+  const ubicacionesId = useId();
+
+  return <section className={compact ? `rounded-xl border bg-card p-3 ${desplegable ? "flex flex-col gap-2" : "space-y-2"}` : "space-y-4"} aria-labelledby="direcciones-comerciales-title">
+    <div className={`flex flex-wrap items-center justify-between ${desplegable ? "gap-2" : "gap-3"}`}>
+      <h2 id="direcciones-comerciales-title" className={compact ? "text-base font-semibold" : "text-2xl font-semibold tracking-tight"}>
+        {desplegable ? (
+          <button type="button" className="group flex min-h-9 items-center gap-2 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-ring" aria-expanded={expandida} aria-controls={ubicacionesId} onClick={() => setExpandida(!expandida)}>
+            <ChevronDown className="size-4 shrink-0 group-aria-expanded:rotate-180" aria-hidden="true" />
+            <span>Ubicaciones comerciales ({ficha.direcciones.length})</span>
+          </button>
+        ) : "Ubicaciones comerciales"}
+      </h2>
       <div className="flex flex-wrap gap-2">
         {!readOnly && !editando && <Button type="button" variant="secondary" size={compact ? "sm" : "default"} onClick={() => setEditando(true)}>Agregar ubicación</Button>}
         {accionFacturacion}
       </div>
     </div>
     {!compact && <p className="text-sm text-muted-foreground">Hasta 50 ubicaciones por cliente, con nombre único y punto confirmado en el mapa. Las ubicaciones históricas pueden conservar sus datos actuales.</p>}
-    {!editando && (ficha.direcciones.length === 0 ? <p className={compact ? "text-sm text-muted-foreground" : "rounded-xl border bg-card p-5 text-sm text-muted-foreground"}>Sin ubicaciones comerciales registradas.</p> : <div className={compact ? "grid gap-2 @xl:grid-cols-2 @5xl:grid-cols-3" : "grid gap-4 sm:grid-cols-2"}>{ficha.direcciones.map((d, i) => <article key={d.id} className={compact ? "min-w-0 space-y-1.5 rounded-lg border bg-background p-2.5" : "min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6"}>
-      <ResumenUbicacion ubicacion={d} indice={i} compact={compact} />
-      {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{[d.destinatario, d.telefono_contacto, d.referencia].filter(Boolean).join(" · ")}</p>}
-      <p className="text-sm text-muted-foreground">{zonas.find((zona) => zona.id === d.zona_entrega_id)?.nombre ?? (d.zona_entrega_id ? "Zona asignada" : "Sin zona asignada")}</p>
-      {!readOnly && !editando && <Button type="button" variant="outline" size={compact ? "sm" : "default"} className="w-full sm:w-auto" onClick={() => setEditando(true)}>Editar ubicación</Button>}
-    </article>)}</div>)}
+    <div id={ubicacionesId} hidden={(desplegable && !expandida) || editando}>
+      {!editando && (ficha.direcciones.length === 0 ? <p className={compact ? "text-sm text-muted-foreground" : "rounded-xl border bg-card p-5 text-sm text-muted-foreground"}>Sin ubicaciones comerciales registradas.</p> : <div className={compact ? "grid gap-2 @xl:grid-cols-2 @5xl:grid-cols-3" : "grid gap-4 sm:grid-cols-2"}>{ficha.direcciones.map((d, i) => <article key={d.id} className={compact ? "min-w-0 space-y-1.5 rounded-lg border bg-background p-2.5" : "min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6"}>
+        <ResumenUbicacion ubicacion={d} indice={i} compact={compact} />
+        {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{[d.destinatario, d.telefono_contacto, d.referencia].filter(Boolean).join(" · ")}</p>}
+        <p className="text-sm text-muted-foreground">{zonas.find((zona) => zona.id === d.zona_entrega_id)?.nombre ?? (d.zona_entrega_id ? "Zona asignada" : "Sin zona asignada")}</p>
+        {!readOnly && !editando && <Button type="button" variant="outline" size={compact ? "sm" : "default"} className="w-full sm:w-auto" onClick={() => setEditando(true)}>Editar ubicación</Button>}
+      </article>)}</div>)}
+    </div>
     {editando && <Formulario ficha={ficha} zonas={zonas} soloDirecciones cerrar={() => setEditando(false)} />}
   </section>;
 }

@@ -32,7 +32,7 @@ function descripcionMovimiento(movimiento: MovimientoCuentaCliente) {
   return movimiento.concepto;
 }
 
-export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = false }: { id: string; readOnly?: boolean; desdeRutas?: boolean }) {
+export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = false, cabeceraCompacta = false }: { id: string; readOnly?: boolean; desdeRutas?: boolean; cabeceraCompacta?: boolean }) {
   const cliente = await obtenerClienteAdmin(id);
   if (!cliente) notFound();
   const [zonas, ficha, facturacion] = await Promise.all([zonasComerciales(), leerFichaComercial(id), obtenerDatosFacturacion(id)]);
@@ -41,15 +41,30 @@ export async function AdminCustomerDetail({ id, readOnly = false, desdeRutas = f
   const mostrarAccionesClientes = !readOnly && !desdeRutas;
   const interpretacion = saldo.texto === "Al día" ? "La cuenta está al día." : saldo.texto === "Debe" ? `Debe ${formatCLP(saldo.monto)} a Hidro Leufú.` : `Tiene ${formatCLP(saldo.monto)} a favor.`;
 
+  const accesoWeb = <CustomerWebAccess compact={compact && !cabeceraCompacta} modal={cabeceraCompacta} readOnly={readOnly} clienteId={cliente.id} clienteActivo={cliente.activo} usuarioId={cliente.usuarioId} invitacion={cliente.invitacionAcceso} />;
+  const claseAccion = cabeceraCompacta ? "min-h-9 px-3" : undefined;
+
   return (
     <div className={`@container min-w-0 ${compact ? "space-y-3" : "space-y-6 sm:space-y-8"}`}>
-      <PageHeader className={`min-w-0 items-start rounded-2xl border bg-card wrap-anywhere sm:flex-col sm:items-start @5xl:flex-row @5xl:items-center ${compact ? "gap-2 p-3 sm:p-4 [&>div]:min-w-0 [&>div]:max-w-full" : "p-4 sm:p-6"}`} title={cliente.nombre} description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."} actions={<div className="flex min-w-0 flex-wrap gap-2">{mostrarAccionesClientes && <CreateOrderLink clienteId={cliente.id} />}{readOnly ? <OrderCustomerMessagesLink /> : <ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary">Enviar mensaje</ActionLink>}{mostrarAccionesClientes && <ActionLink href={ROUTES.adminCustomers} variant="secondary">Volver a clientes</ActionLink>}</div>} />
+      <PageHeader
+        className={`min-w-0 items-start rounded-2xl border bg-card wrap-anywhere sm:flex-col sm:items-start ${cabeceraCompacta ? "@4xl:flex-row @4xl:items-start @4xl:[&>div:last-child]:max-w-[65%] [&>div:first-child]:space-y-1 [&_h1]:text-2xl sm:[&_h1]:text-3xl" : "@5xl:flex-row @5xl:items-center"} ${compact ? "gap-2 p-3 sm:p-4 [&>div]:min-w-0 [&>div]:max-w-full" : "p-4 sm:p-6"}`}
+        title={cliente.nombre}
+        description={[cliente.email, cliente.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto."}
+        actions={
+          <div className={`flex min-w-0 flex-wrap gap-2 ${cabeceraCompacta ? "@4xl:justify-end" : ""}`}>
+            {mostrarAccionesClientes && <CreateOrderLink clienteId={cliente.id} className={claseAccion} />}
+            {readOnly ? <OrderCustomerMessagesLink /> : <ActionLink href={ROUTES.adminCustomerMessages(cliente.id)} variant="primary" className={claseAccion}>Enviar mensaje</ActionLink>}
+            {mostrarAccionesClientes && <ActionLink href={ROUTES.adminCustomers} variant="secondary" className={claseAccion}>Volver a clientes</ActionLink>}
+            {cabeceraCompacta && accesoWeb}
+          </div>
+        }
+      />
       {!readOnly && <CustomerCommercialForm clienteId={cliente.id} zonas={zonas} />}
       {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{cliente.activo ? "Cliente activo" : "Cliente inactivo"}{ficha.cliente.observaciones ? ` · ${ficha.cliente.observaciones}` : ""}</p>}
-      <CustomerCommercialAddresses key={ficha.revision} ficha={ficha} zonas={zonas} readOnly={readOnly} compact={compact}
+      <CustomerCommercialAddresses key={ficha.revision} ficha={ficha} zonas={zonas} readOnly={readOnly} compact={compact} desplegable={cabeceraCompacta}
         accionFacturacion={<CustomerBillingDialog clienteId={id} datos={facturacion} readOnly={readOnly} compact={compact} />}
       />
-      <CustomerWebAccess compact={compact} readOnly={readOnly} clienteId={cliente.id} clienteActivo={cliente.activo} usuarioId={cliente.usuarioId} invitacion={cliente.invitacionAcceso} />
+      {!cabeceraCompacta && accesoWeb}
       <section className={compact ? "space-y-2" : "space-y-5"} aria-labelledby="cuenta-corriente-title">
         <div><h2 id="cuenta-corriente-title" className={compact ? "text-lg font-semibold tracking-tight" : "text-2xl font-semibold tracking-tight text-foreground"}>Cuenta corriente</h2>
           {!compact && <p className="mt-2 text-sm text-muted-foreground">Resumen derivado de pedidos no cancelados, pagos confirmados y ajustes históricos.</p>}

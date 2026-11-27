@@ -20,9 +20,9 @@ function nuevaDireccion(es_principal: boolean): DireccionComercial {
 }
 const camposDireccion = [ ["nombre_ubicacion", "Nombre de ubicación"], ["destinatario", "Destinatario (opcional)"], ["telefono_contacto", "Teléfono de contacto (opcional)"], ["region", "Región (opcional)"], ["referencia", "Referencia (opcional)"] ] as const;
 
-function ResumenUbicacion({ ubicacion: d, indice, provisional = false }: { ubicacion: DireccionComercial; indice: number; provisional?: boolean }) {
+function ResumenUbicacion({ ubicacion: d, indice, provisional = false, compact = false }: { ubicacion: DireccionComercial; indice: number; provisional?: boolean; compact?: boolean }) {
   const confirmada = d.latitud !== null && d.longitud !== null;
-  return <div className="min-w-0 space-y-3">
+  return <div className={compact ? "min-w-0 space-y-1" : "min-w-0 space-y-3"}>
     <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
       <span className="text-muted-foreground">Ubicación {indice + 1}</span>
       {d.es_principal && <span className="rounded-full bg-primary px-3 py-1 text-primary-foreground">Principal comercial</span>}
@@ -33,7 +33,7 @@ function ResumenUbicacion({ ubicacion: d, indice, provisional = false }: { ubica
       {d.direccion && <p>{d.direccion}</p>}
       {(d.comuna || d.region) && <p>{[d.comuna, d.region].filter(Boolean).join(" · ")}</p>}
     </address>}
-    <div role="status" className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+    <div role="status" className={compact ? "rounded-md bg-muted/50 px-2 py-1 text-xs" : "space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-sm"}>
       <p className="font-medium">{provisional ? "Marcador pendiente de confirmación" : confirmada ? "Geolocalización confirmada" : "Ubicación pendiente de geolocalizar"}</p>
       {confirmada && <p className="break-words font-mono text-xs text-muted-foreground">Coordenadas confirmadas: {d.latitud!.toFixed(6)}, {d.longitud!.toFixed(6)}</p>}
       {provisional && <p className="text-muted-foreground">Confirma el punto provisional en el mapa antes de guardar.</p>}
@@ -191,22 +191,22 @@ function Formulario({ ficha, zonas, posible, cerrar, soloDirecciones = false }: 
   </form>;
 }
 
-export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false, accionFacturacion }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean; accionFacturacion?: ReactNode }) {
+export function CustomerCommercialAddresses({ ficha, zonas, readOnly = false, accionFacturacion, compact = false }: { ficha: FichaComercial; zonas: Props["zonas"]; readOnly?: boolean; accionFacturacion?: ReactNode; compact?: boolean }) {
   const [editando, setEditando] = useState(false);
-  return <section className="space-y-4" aria-labelledby="direcciones-comerciales-title">
+  return <section className={compact ? "space-y-2 rounded-xl border bg-card p-3" : "space-y-4"} aria-labelledby="direcciones-comerciales-title">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="direcciones-comerciales-title" className="text-2xl font-semibold tracking-tight">Ubicaciones comerciales</h2>
+      <h2 id="direcciones-comerciales-title" className={compact ? "text-base font-semibold" : "text-2xl font-semibold tracking-tight"}>Ubicaciones comerciales</h2>
       <div className="flex flex-wrap gap-2">
-        {!readOnly && !editando && <Button type="button" variant="secondary" onClick={() => setEditando(true)}>Agregar ubicación</Button>}
+        {!readOnly && !editando && <Button type="button" variant="secondary" size={compact ? "sm" : "default"} onClick={() => setEditando(true)}>Agregar ubicación</Button>}
         {accionFacturacion}
       </div>
     </div>
-    <p className="text-sm text-muted-foreground">Hasta 50 ubicaciones por cliente, con nombre único y punto confirmado en el mapa. Las ubicaciones históricas pueden conservar sus datos actuales.</p>
-    {!editando && (ficha.direcciones.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">Sin ubicaciones comerciales registradas.</p> : <div className="grid gap-4 sm:grid-cols-2">{ficha.direcciones.map((d, i) => <article key={d.id} className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6">
-      <ResumenUbicacion ubicacion={d} indice={i} />
+    {!compact && <p className="text-sm text-muted-foreground">Hasta 50 ubicaciones por cliente, con nombre único y punto confirmado en el mapa. Las ubicaciones históricas pueden conservar sus datos actuales.</p>}
+    {!editando && (ficha.direcciones.length === 0 ? <p className={compact ? "text-sm text-muted-foreground" : "rounded-xl border bg-card p-5 text-sm text-muted-foreground"}>Sin ubicaciones comerciales registradas.</p> : <div className={compact ? "grid gap-2 @xl:grid-cols-2 @5xl:grid-cols-3" : "grid gap-4 sm:grid-cols-2"}>{ficha.direcciones.map((d, i) => <article key={d.id} className={compact ? "min-w-0 space-y-1.5 rounded-lg border bg-background p-2.5" : "min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6"}>
+      <ResumenUbicacion ubicacion={d} indice={i} compact={compact} />
       {readOnly && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{[d.destinatario, d.telefono_contacto, d.referencia].filter(Boolean).join(" · ")}</p>}
       <p className="text-sm text-muted-foreground">{zonas.find((zona) => zona.id === d.zona_entrega_id)?.nombre ?? (d.zona_entrega_id ? "Zona asignada" : "Sin zona asignada")}</p>
-      {!readOnly && !editando && <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setEditando(true)}>Editar ubicación</Button>}
+      {!readOnly && !editando && <Button type="button" variant="outline" size={compact ? "sm" : "default"} className="w-full sm:w-auto" onClick={() => setEditando(true)}>Editar ubicación</Button>}
     </article>)}</div>)}
     {editando && <Formulario ficha={ficha} zonas={zonas} soloDirecciones cerrar={() => setEditando(false)} />}
   </section>;

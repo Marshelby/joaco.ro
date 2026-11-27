@@ -57,10 +57,11 @@ function SelectorGeografico({ nombre, etiqueta, valor }: {
   );
 }
 
-export function CustomerBillingDialog({ clienteId, datos, readOnly }: {
+export function CustomerBillingDialog({ clienteId, datos, readOnly, compact = false }: {
   clienteId: string;
   datos: DatosFacturacion | null;
   readOnly: boolean;
+  compact?: boolean;
 }) {
   const [abierta, setAbierta] = useState(false);
   const [error, setError] = useState("");
@@ -91,7 +92,7 @@ export function CustomerBillingDialog({ clienteId, datos, readOnly }: {
       setError("");
       setAbierta(valor);
     }}>
-      <Dialog.Trigger type="button" className={buttonVariants({ variant: "outline" })}>{titulo}</Dialog.Trigger>
+      <Dialog.Trigger type="button" className={buttonVariants({ variant: "outline", size: compact ? "sm" : "default" })}>{titulo}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="motion-dialog-backdrop fixed inset-0 z-50 bg-foreground/25" />
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">

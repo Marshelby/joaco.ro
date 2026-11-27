@@ -1,10 +1,61 @@
 "use client";
 
+import { Combobox } from "@base-ui/react/combobox";
 import { Dialog } from "@base-ui/react/dialog";
-import { useState, useTransition, type FormEvent } from "react";
+import { ChevronDown, X } from "lucide-react";
+import { useId, useState, useTransition, type FormEvent } from "react";
 import { guardarDatosFacturacion } from "@/app/(admin)/admin/clientes/facturacion-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { camposFacturacion, type DatosFacturacion } from "@/lib/admin/cliente-facturacion";
+import { ciudadesYLocalidadesValparaiso, comunasValparaiso } from "@/lib/admin/geografia-facturacion";
+
+function SelectorGeografico({ nombre, etiqueta, valor }: {
+  nombre: "comuna" | "ciudad";
+  etiqueta: string;
+  valor: string | null;
+}) {
+  const id = useId();
+  const catalogo = nombre === "comuna" ? comunasValparaiso : ciudadesYLocalidadesValparaiso;
+  const historico = valor && !catalogo.includes(valor) ? valor : null;
+  const opciones = historico ? [historico, ...catalogo] : catalogo;
+
+  return (
+    <div className="min-w-0 text-sm font-medium">
+      <Combobox.Root
+        name={nombre}
+        items={opciones}
+        defaultValue={valor}
+        openOnInputClick
+        locale="es-CL"
+      >
+        <label htmlFor={id}>{etiqueta}</label>
+        <Combobox.InputGroup className="mt-1 flex h-10 items-center rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring/50">
+          <Combobox.Input id={id} placeholder="Buscar…" className="min-w-0 flex-1 bg-transparent pl-3 outline-none" />
+          <Combobox.Clear type="button" aria-label={`Quitar ${etiqueta.toLowerCase()}`} className="p-2">
+            <X className="size-4" aria-hidden="true" />
+          </Combobox.Clear>
+          <Combobox.Trigger type="button" aria-label={`Mostrar opciones de ${etiqueta.toLowerCase()}`} className="p-2">
+            <ChevronDown className="size-4" aria-hidden="true" />
+          </Combobox.Trigger>
+        </Combobox.InputGroup>
+        <Combobox.Portal>
+          <Combobox.Positioner sideOffset={4} className="z-[60] w-(--anchor-width)">
+            <Combobox.Popup className="rounded-lg border bg-card shadow-lg">
+              <Combobox.Empty className="px-3 py-2 text-muted-foreground">Sin coincidencias</Combobox.Empty>
+              <Combobox.List className="max-h-[min(14rem,var(--available-height))] overflow-y-auto overscroll-contain">
+                {(opcion: string) => (
+                  <Combobox.Item key={opcion} value={opcion} className="cursor-default px-3 py-2 wrap-anywhere data-highlighted:bg-muted data-selected:font-semibold">
+                    {opcion}{opcion === historico && <span className="ml-1 text-muted-foreground">(valor histórico)</span>}
+                  </Combobox.Item>
+                )}
+              </Combobox.List>
+            </Combobox.Popup>
+          </Combobox.Positioner>
+        </Combobox.Portal>
+      </Combobox.Root>
+    </div>
+  );
+}
 
 export function CustomerBillingDialog({ clienteId, datos, readOnly }: {
   clienteId: string;
@@ -52,7 +103,7 @@ export function CustomerBillingDialog({ clienteId, datos, readOnly }: {
                   {camposFacturacion.map(({ nombre, etiqueta }) => (
                     <div key={nombre} className="min-w-0">
                       <dt className="text-sm text-muted-foreground">{etiqueta}</dt>
-                      <dd className="wrap-anywhere text-sm font-medium">{datos?.[nombre]}</dd>
+                      <dd className="wrap-anywhere text-sm font-medium">{datos?.[nombre] || "Sin dato"}</dd>
                     </div>
                   ))}
                 </dl>
@@ -62,12 +113,15 @@ export function CustomerBillingDialog({ clienteId, datos, readOnly }: {
               </>
             ) : (
               <form onSubmit={guardar} className="space-y-4">
+                <p className="text-sm text-muted-foreground">Completa al menos un campo.</p>
                 <fieldset disabled={pendiente} className="grid min-w-0 gap-3 sm:grid-cols-2">
-                  {camposFacturacion.map(({ nombre, etiqueta, maximo }) => (
+                  {camposFacturacion.map(({ nombre, etiqueta, maximo }) => nombre === "comuna" || nombre === "ciudad" ? (
+                    <SelectorGeografico key={nombre} nombre={nombre} etiqueta={nombre === "ciudad" ? "Ciudad o localidad" : etiqueta} valor={datos?.[nombre] ?? null} />
+                  ) : (
                     <label key={nombre} className={nombre === "direccion_tributaria" || nombre === "correo_facturacion" ? "block min-w-0 text-sm font-medium sm:col-span-2" : "block min-w-0 text-sm font-medium"}>
                       {etiqueta}
                       <input name={nombre} type={nombre === "correo_facturacion" ? "email" : "text"}
-                        defaultValue={datos?.[nombre]} required maxLength={maximo}
+                        defaultValue={datos?.[nombre] ?? ""} maxLength={maximo}
                         className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
                     </label>
                   ))}

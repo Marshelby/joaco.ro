@@ -1,5 +1,5 @@
 import { obtenerNombresResponsables, responsableAdmin, responsablePago } from "@/lib/admin/responsables";
-import type { DatosFacturacion } from "@/lib/admin/cliente-facturacion";
+import { camposFacturacion, type DatosFacturacion } from "@/lib/admin/cliente-facturacion";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import type { EstadoPedidoAdmin } from "@/lib/admin/pedidos";
 
@@ -129,6 +129,11 @@ export async function obtenerClientesAdmin(busqueda = "", pagina = 1, limitePagi
     let consulta = grupo
       ? tabla.select("id,nombre,telefono,email,activo,facturacion:clientes_datos_facturacion(cliente_id)", { count: "exact" })
       : tabla.select("id,nombre,telefono,email,activo", { count: "exact" });
+    if (grupo) {
+      consulta = consulta.or(camposFacturacion.map(({ nombre }) => `${nombre}.not.is.null`).join(","), {
+        referencedTable: "facturacion",
+      });
+    }
     if (grupo === "con") consulta = consulta.not("facturacion", "is", null);
     if (grupo === "sin") consulta = consulta.is("facturacion", null);
     if (termino) {

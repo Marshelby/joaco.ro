@@ -8,4 +8,4 @@ export const camposFacturacion = [
   { nombre: "correo_facturacion", etiqueta: "Correo de facturación", maximo: 254 },
 ] as const;
 
-export type DatosFacturacion = Record<(typeof camposFacturacion)[number]["nombre"], string>;
+export type DatosFacturacion = Record<(typeof camposFacturacion)[number]["nombre"], string | null>;

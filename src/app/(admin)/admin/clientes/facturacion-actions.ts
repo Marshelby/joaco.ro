@@ -8,14 +8,17 @@ import { camposFacturacion } from "@/lib/admin/cliente-facturacion";
 export async function guardarDatosFacturacion(clienteId: string, formulario: FormData) {
   if (!z.uuid().safeParse(clienteId).success) return { error: "Cliente inválido." };
 
-  const argumentos: Record<string, string> = { p_cliente_id: clienteId };
+  const argumentos: Record<string, string | null> = { p_cliente_id: clienteId };
   for (const campo of camposFacturacion) {
     const entrada = formulario.get(campo.nombre);
     const valor = typeof entrada === "string" ? entrada.trim() : "";
-    if (!valor || valor.length > campo.maximo || /[\u0000-\u001f\u007f-\u009f]/.test(valor)) {
+    if (valor.length > campo.maximo || /[\u0000-\u001f\u007f-\u009f]/.test(valor)) {
       return { error: `Revisa el campo ${campo.etiqueta}.` };
     }
-    argumentos[`p_${campo.nombre}`] = valor;
+    argumentos[`p_${campo.nombre}`] = valor || null;
+  }
+  if (!camposFacturacion.some(({ nombre }) => argumentos[`p_${nombre}`] !== null)) {
+    return { error: "Ingresa al menos un dato de facturación." };
   }
 
   try {

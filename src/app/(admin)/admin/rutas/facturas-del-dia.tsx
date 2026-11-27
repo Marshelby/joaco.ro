@@ -86,7 +86,7 @@ export async function FacturasDelDia({ fecha, pedidos }: { fecha: string; pedido
       cliente: pedido.nombreClienteSnapshot,
       estado: <><OrderStatusBadge estado={pedido.estado} />{!["en_reparto", "entregado", "entrega_fallida"].includes(pedido.estado)
         && <PreparationStatusBadge estado={pedido.preparacionEstado} />}</>,
-      tributarios: camposFacturacion.map(({ nombre, etiqueta }) => ({ id: nombre, etiqueta, valor: ficha[nombre] })),
+      tributarios: camposFacturacion.map(({ nombre, etiqueta }) => ({ id: nombre, etiqueta, valor: ficha[nombre] || null })),
       productos: productosFactura(pedido, ventasPorPedido.get(pedido.id)),
     }];
   });

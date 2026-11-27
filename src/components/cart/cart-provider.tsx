@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
 
-import { getCartLineSubtotal, getCartQuantityStep, isValidCartQuantity } from "@/lib/cart-quantity";
+import { adjustCartQuantity, getCartLineSubtotal, getCartQuantityMinimum, isFractionalKgItem, isValidCartQuantity, roundQuantity } from "@/lib/cart-quantity";
 import type { CartItem, CartProductInput } from "@/types/cart";
 
 const STORAGE_KEY = "hidro-leufu-cart-v1";
@@ -50,7 +50,8 @@ function cargarLineasEnEstado(actuales: readonly CartItem[], lineas: readonly Li
       continue;
     }
 
-    const cantidadFusionada = items[index].cantidad + linea.cantidad;
+    const suma = items[index].cantidad + linea.cantidad;
+    const cantidadFusionada = isFractionalKgItem(linea.item) ? roundQuantity(suma) : suma;
     if (!isValidCartQuantity(linea.item, cantidadFusionada)) {
       omitidas += 1;
       continue;
@@ -75,7 +76,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         if (action.cantidad !== undefined) {
           return isValidCartQuantity(item, action.cantidad) ? { ...item, cantidad: action.cantidad } : item;
         }
-        const nextQuantity = item.cantidad + getCartQuantityStep(item);
+        const nextQuantity = adjustCartQuantity(item, item.cantidad, 1);
         return isValidCartQuantity(item, nextQuantity) ? { ...item, cantidad: nextQuantity } : item;
       }) }
       : isValidCartQuantity(action.item, action.cantidad ?? 1)
@@ -84,13 +85,14 @@ function cartReducer(state: CartState, action: CartAction): CartState {
   }
   if (action.type === "increment") return { items: state.items.map((item) => {
     if (!sameItem(item, action.productoId, action.presentacionId)) return item;
-    const nextQuantity = item.cantidad + getCartQuantityStep(item);
+    const nextQuantity = adjustCartQuantity(item, item.cantidad, 1);
     return isValidCartQuantity(item, nextQuantity) ? { ...item, cantidad: nextQuantity } : item;
   }) };
   if (action.type === "decrement") return { items: state.items.flatMap((item) => {
     if (!sameItem(item, action.productoId, action.presentacionId)) return [item];
-    const nextQuantity = item.cantidad - getCartQuantityStep(item);
-    return isValidCartQuantity(item, nextQuantity) ? [{ ...item, cantidad: nextQuantity }] : [];
+    const nextQuantity = adjustCartQuantity(item, item.cantidad, -1);
+    if (isValidCartQuantity(item, nextQuantity)) return [{ ...item, cantidad: nextQuantity }];
+    return item.cantidad === getCartQuantityMinimum(item) ? [] : [item];
   }) };
   if (action.type === "set-quantity") return { items: state.items.map((item) => {
     if (!sameItem(item, action.productoId, action.presentacionId)) return item;

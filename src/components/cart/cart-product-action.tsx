@@ -7,9 +7,11 @@ import { useCart } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
 import { crearCartProductInput } from "@/lib/cart-product-input";
 import {
+  adjustCartQuantity,
   formatCartQuantity,
+  getCartQuantityInputStep,
+  getCartQuantityMaximum,
   getCartQuantityMinimum,
-  getCartQuantityStep,
   getSubtotalParaCantidad,
   isFractionalKgItem,
   isValidCartQuantity,
@@ -29,7 +31,7 @@ type CartProductActionProps = {
 export function CartProductAction({ product, className, compact = false }: CartProductActionProps) {
   const { agregarItem, obtenerCantidad, setQuantity, isHydrated } = useCart();
   const [editingMode, setEditingMode] = useState<EditingMode>(null);
-  const [draftQuantity, setDraftQuantity] = useState<number | null>(null);
+  const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const [confirmationMessage, setConfirmationMessage] = useState("");
   const item = crearCartProductInput(product);
   const confirmedQuantity = item ? obtenerCantidad(item.productoId, item.presentacionId) : 0;
@@ -42,23 +44,25 @@ export function CartProductAction({ product, className, compact = false }: CartP
   }
 
   const fractionalKg = isFractionalKgItem(item);
-  const step = getCartQuantityStep(item);
   const minimum = getCartQuantityMinimum(item);
   const quantityLabel = fractionalKg ? "kilos" : "cantidad";
   const isEditing = editingMode !== null;
-  const activeDraftQuantity = draftQuantity ?? minimum;
-  const canDecrease = isValidCartQuantity(item, activeDraftQuantity - step);
-  const canIncrease = isValidCartQuantity(item, activeDraftQuantity + step);
+  const activeDraftQuantity = Number(draftQuantity ?? minimum);
+  const previousQuantity = adjustCartQuantity(item, activeDraftQuantity, -1);
+  const nextQuantity = adjustCartQuantity(item, activeDraftQuantity, 1);
+  const validQuantity = isValidCartQuantity(item, activeDraftQuantity);
+  const canDecrease = validQuantity && isValidCartQuantity(item, previousQuantity);
+  const canIncrease = validQuantity && isValidCartQuantity(item, nextQuantity);
   const draftSubtotal = getSubtotalParaCantidad(activeDraftQuantity, item.precioFinalReferencia);
 
   const startEditing = (mode: Exclude<EditingMode, null>) => {
     setEditingMode(mode);
-    setDraftQuantity(mode === "existing" ? confirmedQuantity : minimum);
+    setDraftQuantity(String(mode === "existing" ? confirmedQuantity : minimum));
     setConfirmationMessage("");
   };
 
   const confirmDraft = () => {
-    if (!isValidCartQuantity(item, activeDraftQuantity)) return;
+    if (!validQuantity) return;
 
     if (editingMode === "new") {
       agregarItem(item, activeDraftQuantity);
@@ -81,15 +85,22 @@ export function CartProductAction({ product, className, compact = false }: CartP
     return (
       <div className={cn("min-w-0 max-w-full space-y-2", className)}>
         <div className="flex min-h-11 min-w-0 max-w-full items-center justify-between rounded-lg border border-primary/25 bg-primary/5 px-1" aria-label={`Seleccionando ${quantityLabel} de ${product.name}`}>
-          <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={!canDecrease} onClick={() => setDraftQuantity(activeDraftQuantity - step)} aria-label={`Disminuir ${quantityLabel} de ${product.name}`}><Minus aria-hidden="true" /></Button>
-          <span className={cn("min-w-0 flex-1 whitespace-nowrap px-1 text-center text-sm font-semibold text-foreground", compact && "px-0.5 text-xs md:px-1 md:text-sm")}>{formatCartQuantity(item, activeDraftQuantity)}</span>
-          <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={!canIncrease} onClick={() => setDraftQuantity(activeDraftQuantity + step)} aria-label={`Aumentar ${quantityLabel} de ${product.name}`}><Plus aria-hidden="true" /></Button>
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={!canDecrease} onClick={() => setDraftQuantity(String(previousQuantity))} aria-label={`Disminuir ${quantityLabel} de ${product.name}`}><Minus aria-hidden="true" /></Button>
+          {fractionalKg ? <label className="flex min-w-0 flex-1 items-center gap-1 text-sm font-semibold">
+            <input type="number" inputMode="decimal" aria-label={`Cantidad de ${product.name} en kg`} aria-invalid={!validQuantity}
+              min={minimum} max={getCartQuantityMaximum(item)} step={getCartQuantityInputStep(item)}
+              value={draftQuantity ?? String(minimum)} onChange={(event) => setDraftQuantity(event.target.value)}
+              className="min-w-0 w-full rounded bg-background px-1 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+            kg
+          </label> : <span className={cn("min-w-0 flex-1 whitespace-nowrap px-1 text-center text-sm font-semibold text-foreground", compact && "px-0.5 text-xs md:px-1 md:text-sm")}>{formatCartQuantity(item, activeDraftQuantity)}</span>}
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={!canIncrease} onClick={() => setDraftQuantity(String(nextQuantity))} aria-label={`Aumentar ${quantityLabel} de ${product.name}`}><Plus aria-hidden="true" /></Button>
         </div>
         <div className={cn("min-w-0 max-w-full px-1 text-sm", compact ? "flex flex-col items-start gap-0.5 md:flex-row md:items-baseline md:justify-between md:gap-3" : "flex items-baseline justify-between gap-3")}>
           <span className="text-muted-foreground">Subtotal</span>
-          <strong className={cn("whitespace-nowrap text-foreground", compact && "self-end md:self-auto")}>{formatCLP(draftSubtotal)}</strong>
+          <strong className={cn("whitespace-nowrap text-foreground", compact && "self-end md:self-auto")}>{validQuantity ? formatCLP(draftSubtotal) : "—"}</strong>
         </div>
-        <Button type="button" variant="secondary" className="w-full min-w-0 max-w-full" onClick={confirmDraft} aria-label={`Confirmar cantidad de ${product.name}`}>Listo</Button>
+        {!validQuantity ? <p className="text-xs text-destructive">Ingresa de 0,1 a 10 kg con hasta tres decimales.</p> : null}
+        <Button type="button" disabled={!validQuantity} variant="secondary" className="w-full min-w-0 max-w-full" onClick={confirmDraft} aria-label={`Confirmar cantidad de ${product.name}`}>Listo</Button>
         <Button type="button" variant="ghost" className="w-full min-w-0 max-w-full" onClick={cancelDraft}>Cancelar</Button>
       </div>
     );

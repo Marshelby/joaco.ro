@@ -1,7 +1,8 @@
+import { hasQuantityPrecision } from "@/lib/cart-quantity";
 import { z } from "zod";
 import { fechaISO } from "./contrato";
 const base = { id: z.uuid(), version: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER), clave: z.uuid() };
-const cantidad = z.number().finite().positive().max(100000);
+const cantidad = z.number().finite().positive().max(100000).refine(hasQuantityPrecision);
 export const lineasEdicion = z.array(z.union([
   z.strictObject({ item_id: z.uuid(), cantidad }), z.strictObject({ presentacion_id: z.uuid(), cantidad }),
 ])).min(1).max(100);

@@ -39,15 +39,11 @@ export function leerPrecioPedido(valor: string): number | null {
 
 export function totalLineaPedido(item: PresentacionPedido, cantidad: string, precio: number | null): number | null {
   const unidades = Number(cantidad);
-  if (!cantidad.trim() || unidades > 100000 || !isValidCartQuantity(item, unidades) || !Number.isSafeInteger(unidades * 2)
+  if (!cantidad.trim() || unidades > 100000 || !isValidCartQuantity(item, unidades)
     || precio === null || !Number.isSafeInteger(precio) || precio < 0 || precio > IMPORTE_MAXIMO_PEDIDO) return null;
-  // Coincidir también con la clasificación SQL (subcadenas y unidad sin espacios).
-  const fraccionableSQL = item.unidad.trim().toUpperCase() === "KG"
-    && item.cantidadPresentacion === 1 && !/(saco|malla|caja|paquete|docena)/i.test(item.presentacionNombre);
-  if (!Number.isInteger(unidades) && !fraccionableSQL) return null;
-  // Las cantidades admitidas son enteras o medios kilos. Redondeo al peso
-  // por línea, igual que el contrato de cantidades, sin multiplicación decimal.
-  const total = (BigInt(unidades * 2) * BigInt(precio) + BigInt(1)) / BigInt(2);
+  // Redondear al peso por línea con aritmética entera, igual que el RPC.
+  const milesimas = BigInt(Math.round(unidades * 1000));
+  const total = (milesimas * BigInt(precio) + BigInt(500)) / BigInt(1000);
   return total <= BigInt(IMPORTE_MAXIMO_PEDIDO) ? Number(total) : null;
 }
 

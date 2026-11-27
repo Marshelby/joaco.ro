@@ -1,5 +1,6 @@
 "use server";
 
+import { hasQuantityPrecision } from "@/lib/cart-quantity";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { obtenerFechasEntregaDisponibles } from "@/lib/delivery-availability";
 import { revalidatePath } from "next/cache";
@@ -20,7 +21,7 @@ const pedidoConfirmacion: z.ZodType<PedidoBorrador> = z.strictObject({
   ubicacionId: z.uuid(),
   lineas: z.array(z.strictObject({
     productoId: z.uuid(), presentacionId: z.uuid(),
-    cantidad: z.number().positive().max(100000),
+    cantidad: z.number().positive().max(100000).refine(hasQuantityPrecision),
     precioReferencia: importe.positive(), totalFinal: importe,
     motivoAjuste: z.string().max(1000).nullable(), totalOriginal: importe,
   })).min(1).max(100),
@@ -37,7 +38,7 @@ const edicionPedidoRecibido = z.strictObject({
     z.strictObject({ itemId: z.uuid() }),
     z.strictObject({
       itemId: z.uuid().nullable(), productoId: z.uuid().nullable(), presentacionId: z.uuid().nullable(),
-      cantidad: z.number().positive().max(100000), precioReferencia: importe,
+      cantidad: z.number().positive().max(100000).refine(hasQuantityPrecision), precioReferencia: importe,
       totalOriginal: importe, totalFinal: importe, motivoAjuste: z.string().max(1000).nullable(),
     }),
   ])).min(1).max(100),

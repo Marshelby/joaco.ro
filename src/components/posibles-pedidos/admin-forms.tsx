@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { operarPosiblePedido, type EstadoOperacionPosible } from "@/app/(admin)/admin/posibles-pedidos/actions";
 import { huellaSolicitud } from "@/lib/posibles-pedidos/intentos";
 import type { ClientePosible, LineaPosible, PosiblePedido, PresentacionPosible } from "@/lib/posibles-pedidos/administracion";
+import { OrderQuantityInput } from "@/components/admin/order-quantity-input";
+import { isFractionalKgItem } from "@/lib/cart-quantity";
 import { formatCLP } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 export const campoAdmin = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -27,14 +29,33 @@ function OperacionForm({ pedido, tipo, titulo, children, peligro = false }: { pe
   </form>;
 }
 export function EditarPosibleForm({ pedido, lineas, presentaciones }: { pedido: PosiblePedido; lineas: LineaPosible[]; presentaciones: PresentacionPosible[] }) {
-  const [editadas, setEditadas] = useState(lineas.map((l) => ({ ...l, cantidad: Number(l.cantidad) })));
+  const [editadas, setEditadas] = useState(lineas.map((l) => ({ ...l, cantidad: String(l.cantidad) })));
   const [nueva, setNueva] = useState(""); const [cantidadNueva, setCantidadNueva] = useState("1");
-  const lista = editadas.filter((l) => l.activo).map((l) => ({ item_id: l.id, cantidad: l.cantidad }));
+  const lista = editadas.filter((l) => l.activo).map((l) => ({ item_id: l.id, cantidad: Number(l.cantidad) }));
   const nuevas = presentaciones.filter((p) => !lineas.some((l) => l.presentacion_producto_id === p.id));
-  return <OperacionForm pedido={pedido} tipo="editar" titulo="Guardar productos y cantidades"><input type="hidden" name="lineas" value={JSON.stringify([...lista,...(nueva ? [{ presentacion_id: nueva, cantidad: Number(cantidadNueva) }] : [])])} />
+  const seleccionada = nuevas.find((p) => p.id === nueva);
+  const formatoNuevo = seleccionada && { unidad: seleccionada.unidad, cantidadPresentacion: Number(seleccionada.cantidad), presentacionNombre: seleccionada.nombre };
+  return <OperacionForm pedido={pedido} tipo="editar" titulo="Guardar productos y cantidades">
+    <input type="hidden" name="lineas" value={JSON.stringify([...lista, ...(formatoNuevo ? [{ presentacion_id: nueva, cantidad: Number(cantidadNueva) }] : [])])} />
     <p className="text-sm leading-6 text-muted-foreground">Desmarca para retirar una línea. Reactivarla conserva su precio original. Las líneas nuevas capturan el precio vigente.</p>
-    {editadas.map((l,index) => <div key={l.id} className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3 rounded-lg bg-muted/40 p-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={l.activo} onChange={(e) => setEditadas(editadas.map((x) => x.id===l.id ? { ...x, activo: e.target.checked } : x))} />{l.nombre_producto_snapshot} · {l.nombre_presentacion_snapshot}</label><label className="text-xs">Cantidad<input aria-label={`Cantidad de ${l.nombre_producto_snapshot}`} type="number" step="0.5" min="0.5" max="100000" disabled={!l.activo} required={l.activo} value={l.cantidad} onChange={(e) => setEditadas(editadas.map((x) => x.id===l.id ? { ...x, cantidad: Number(e.target.value) } : x))} className={campoAdmin} /></label><div className="col-span-2 flex gap-2"><Button type="button" variant="ghost" disabled={index===0} onClick={() => { const copia=[...editadas];[copia[index-1],copia[index]]=[copia[index],copia[index-1]];setEditadas(copia); }}>Subir</Button><Button type="button" variant="ghost" disabled={index===editadas.length-1} onClick={() => { const copia=[...editadas];[copia[index+1],copia[index]]=[copia[index],copia[index+1]];setEditadas(copia); }}>Bajar</Button></div></div>)}
-    <label className="block text-sm">Añadir una presentación<select value={nueva} onChange={(e) => setNueva(e.target.value)} className={campoAdmin}><option value="">Sin nueva línea</option>{nuevas.map((p) => <option key={p.id} value={p.id}>{p.productos.nombre} · {p.nombre} · {formatCLP(p.precio_final)}</option>)}</select></label>{nueva ? <label className="block text-sm">Cantidad nueva<input type="number" min="0.5" step="0.5" max="100000" required value={cantidadNueva} onChange={(e) => setCantidadNueva(e.target.value)} className={campoAdmin} /></label> : null}
+    {editadas.map((l, index) => {
+      const formato = { unidad: l.unidad_snapshot, cantidadPresentacion: Number(l.cantidad_presentacion_snapshot), presentacionNombre: l.nombre_presentacion_snapshot };
+      const unidad = isFractionalKgItem(formato) ? "kg" : "presentaciones";
+      return <div key={l.id} className="grid sm:grid-cols-[minmax(0,1fr)_11rem] gap-3 rounded-lg bg-muted/40 p-3">
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={l.activo} onChange={(e) => setEditadas(editadas.map((x) => x.id === l.id ? { ...x, activo: e.target.checked } : x))} />{l.nombre_producto_snapshot} · {l.nombre_presentacion_snapshot}</label>
+        <div className="text-xs">Cantidad ({unidad})
+          <OrderQuantityInput item={formato} label={`Cantidad de ${l.nombre_producto_snapshot} en ${unidad}`}
+            disabled={!l.activo} required={l.activo} maximum={100000} value={l.cantidad} className={campoAdmin}
+            onValueChange={(valor) => setEditadas(editadas.map((x) => x.id === l.id ? { ...x, cantidad: valor } : x))} />
+        </div>
+        <div className="flex gap-2 sm:col-span-2"><Button type="button" variant="ghost" disabled={index===0} onClick={() => { const copia=[...editadas];[copia[index-1],copia[index]]=[copia[index],copia[index-1]];setEditadas(copia); }}>Subir</Button><Button type="button" variant="ghost" disabled={index===editadas.length-1} onClick={() => { const copia=[...editadas];[copia[index+1],copia[index]]=[copia[index],copia[index+1]];setEditadas(copia); }}>Bajar</Button></div>
+      </div>;
+    })}
+    <label className="block text-sm">Añadir una presentación<select value={nueva} onChange={(e) => setNueva(e.target.value)} className={campoAdmin}><option value="">Sin nueva línea</option>{nuevas.map((p) => <option key={p.id} value={p.id}>{p.productos.nombre} · {p.nombre} · {formatCLP(p.precio_final)}</option>)}</select></label>
+    {formatoNuevo ? <div className="text-sm">Cantidad nueva ({isFractionalKgItem(formatoNuevo) ? "kg" : "presentaciones"})
+      <OrderQuantityInput item={formatoNuevo} label={`Cantidad nueva en ${isFractionalKgItem(formatoNuevo) ? "kg" : "presentaciones"}`}
+        required maximum={100000} value={cantidadNueva} onValueChange={setCantidadNueva} className={campoAdmin} />
+    </div> : null}
   </OperacionForm>;
 }
 export function AsociarPosibleForm({ pedido, clientes }: { pedido: PosiblePedido; clientes: ClientePosible[] }) {

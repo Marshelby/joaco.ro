@@ -1,11 +1,12 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { X } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { ItemPreparacionPedidoAdmin } from "@/lib/admin/pedidos";
+import { KG_QUANTITY_INPUT_STEP, KG_QUANTITY_STEP, roundQuantity } from "@/lib/cart-quantity";
 import { formatearCantidadPreparacionEntrega } from "@/lib/delivery-preparation-quantity";
 import { formatCLP } from "@/lib/formatters";
 
@@ -195,6 +196,13 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
     const texto = cantidades[item.id] ?? "";
     return /^\d+(\.\d{1,3})?$/.test(texto) && Number(texto) < 1e9 && (fraccionable(item) || Number.isInteger(Number(texto)));
   }
+  function editarCantidad(itemId: string, valor: string) {
+    setResumen(null);
+    setBalancePrevisto(null);
+    setError(null);
+    setCantidades((actual) => ({ ...actual, [itemId]: valor }));
+  }
+
   const cantidadesValidas = items.every(cantidadValida) && items.some(item => Number(cantidades[item.id]) !== item.cantidadPreparada);
   const pagoValido = Number.isSafeInteger(recibido) && metodo !== null && (!usaEfectivo || (numeroValido(efectivo) && Number.isSafeInteger(Number(efectivo)) && Number(efectivo) > 0)) && (!usaTransferencia || (numeroValido(transferencia) && Number.isSafeInteger(Number(transferencia)) && Number(transferencia) > 0)) && (metodo !== "pendiente" || confirmarDeuda);
 
@@ -210,14 +218,28 @@ function ContenidoEntrega({ habilitada, pedidoId, versionEsperada, numero, clien
 
   const productosPreparados = <ul className="space-y-2">{items.map((item) => {
     const formato = (valor: number) => formatearCantidadPreparacionEntrega(valor, item.nombrePresentacion, item.unidad, item.modoCantidadSnapshot);
+    const enKg = fraccionable(item);
+    const cantidad = Number(cantidades[item.id] ?? "");
+    const anterior = Math.max(0, roundQuantity(cantidad - KG_QUANTITY_STEP));
+    const siguiente = roundQuantity(cantidad + KG_QUANTITY_STEP);
     return <li key={item.id} className="rounded-xl border border-border p-3">
       <p className="break-words text-sm font-semibold">{item.nombreProducto}{item.nombrePresentacion ? ` · ${item.nombrePresentacion}` : ""}</p>
       <p className="mt-1 text-xs text-muted-foreground">Preparado: {item.cantidadPreparada === null ? "Sin registrar" : formato(item.cantidadPreparada)} · Solicitado: {formato(item.cantidad)}</p>
       <p className="mt-1 text-xs text-muted-foreground">Importe provisional de preparación: {formatCLP(item.importeOperativo ?? item.importeOriginal)}{item.importeOperativo === null ? " (referencia original)" : ""}</p>
-      {paso === 1 && diferencias ? <label className="mt-3 block text-sm" htmlFor={`${id}-${item.id}`}>Cantidad realmente entregada
-        <input id={`${id}-${item.id}`} type="number" inputMode="decimal" min="0" step={fraccionable(item) ? "0.001" : "1"} disabled={cargando || enviado} className={campo} value={cantidades[item.id]} onChange={(event) => { setResumen(null); setBalancePrevisto(null); setError(null); setCantidades((actual) => ({ ...actual, [item.id]: event.target.value })); }} aria-invalid={!cantidadValida(item)} />
-        <span className="mt-1 block text-xs text-muted-foreground">{fraccionable(item) ? "Kilogramos, hasta tres decimales." : "Unidades o presentaciones completas, sin decimales."} Se permite cero y superar lo preparado.</span>
-      </label> : <p className="mt-2 text-sm font-medium">Entregado: {formato(diferencias ? Number(cantidades[item.id]) : item.cantidadPreparada ?? 0)}</p>}
+      {paso === 1 && diferencias ? <div className="mt-3">
+        <label className="block text-sm" htmlFor={`${id}-${item.id}`}>Cantidad realmente entregada ({enKg ? "kg" : "unidades o presentaciones"})</label>
+        <div className="flex items-center gap-2">
+          {enKg ? <Button type="button" variant="outline" size="icon" aria-label={`Restar 0,1 kg de ${item.nombreProducto}`}
+            disabled={cargando || enviado || !cantidadValida(item) || cantidad === 0} onClick={() => editarCantidad(item.id, String(anterior))}><Minus aria-hidden="true" /></Button> : null}
+          <input id={`${id}-${item.id}`} type="number" inputMode={enKg ? "decimal" : "numeric"} min="0" max={999999999.999}
+            step={enKg ? KG_QUANTITY_INPUT_STEP : 1} disabled={cargando || enviado}
+            className={enKg ? `${campo} min-w-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none` : campo}
+            value={cantidades[item.id]} onChange={(event) => editarCantidad(item.id, event.target.value)} aria-invalid={!cantidadValida(item)} />
+          {enKg ? <Button type="button" variant="outline" size="icon" aria-label={`Sumar 0,1 kg de ${item.nombreProducto}`}
+            disabled={cargando || enviado || !cantidadValida(item) || siguiente >= 1e9} onClick={() => editarCantidad(item.id, String(siguiente))}><Plus aria-hidden="true" /></Button> : null}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{enKg ? "Hasta tres decimales." : "Cantidades enteras."} Se permite cero y superar lo preparado.</p>
+      </div> : <p className="mt-2 text-sm font-medium">Entregado: {formato(diferencias ? Number(cantidades[item.id]) : item.cantidadPreparada ?? 0)}</p>}
     </li>;
   })}</ul>;
 

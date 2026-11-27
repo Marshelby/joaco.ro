@@ -1,9 +1,10 @@
+import { hasQuantityPrecision } from "@/lib/cart-quantity";
 import { esFechaCalendario } from "@/lib/operational-date";
 import { z } from "zod";
 import { normalizarTelefonoWhatsapp } from "@/lib/whatsapp";
 
 export const fechaISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(esFechaCalendario);
-export const itemSolicitud = z.strictObject({ presentacion_id: z.uuid().transform((id) => id.toLowerCase()), cantidad: z.number().finite().positive().max(100000) });
+export const itemSolicitud = z.strictObject({ presentacion_id: z.uuid().transform((id) => id.toLowerCase()), cantidad: z.number().finite().positive().max(100000).refine(hasQuantityPrecision) });
 export const datosSolicitud = z.strictObject({
   nombre: z.string().trim().min(1).max(160),
   telefono: z.string().trim().max(40).transform(normalizarTelefonoWhatsapp).refine((valor) => valor !== null),

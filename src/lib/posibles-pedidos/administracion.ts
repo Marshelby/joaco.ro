@@ -12,14 +12,14 @@ export type PosiblePedido = {
 };
 export type LineaPosible = {
   posible_pedido_id: string; id: string; presentacion_producto_id: string; nombre_producto_snapshot: string; nombre_presentacion_snapshot: string;
-  unidad_snapshot: string; cantidad: number; cantidad_original: number; activo: boolean; orden: number; subtotal: number;
+  unidad_snapshot: string; cantidad_presentacion_snapshot: number; cantidad: number; cantidad_original: number; activo: boolean; orden: number; subtotal: number;
   precio_neto_original_snapshot: number; precio_venta_original_snapshot: number;
   precio_neto_autorizado: number | null; precio_venta_autorizado: number | null; motivo_autorizacion_precio: string | null; fecha_autorizacion_precio: string | null;
   precio_autorizado_por?: string | null; precio_autorizador_nombre?: string;
 };
 export type EventoPosible = { id: string; evento: string; version_resultante: number; fecha_creacion: string; motivo: string | null; administrador_id: string | null; administrador_nombre: string; cambios: Record<string,unknown> };
 export type ClientePosible = { id: string; nombre: string; telefono: string | null };
-export type PresentacionPosible = { id: string; nombre: string; precio_final: number; productos: { nombre: string } };
+export type PresentacionPosible = { id: string; nombre: string; unidad: string; cantidad: number; precio_final: number; productos: { nombre: string } };
 const columnas = "solicitud_id,numero_version,id,codigo_publico,nombre_solicitante,telefono_contacto,fecha_entrega_solicitada,observaciones,estado,version,subtotal_estimado,costo_entrega_estimado,total_estimado,cliente_id,pedido_oficial_id,fecha_creacion";
 export async function clienteAdministradorPosibles() {
   if (!fasePosiblesPedidosHabilitada()) throw new Error("FLUJO_DESHABILITADO");
@@ -61,10 +61,10 @@ export async function detallePosiblePedido(id: string, buscarCliente = "") {
   let clientesQuery = supabase.from("clientes").select("id,nombre,telefono").eq("activo",true).order("nombre").limit(100);
   if (buscarCliente) clientesQuery = clientesQuery.ilike("nombre", `%${buscarCliente.replace(/[\\%_]/g,"\\$&")}%`);
   const [lineas, eventos, clientes, presentaciones, asociado] = await Promise.all([
-    supabase.from("items_posible_pedido").select("posible_pedido_id,id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,cantidad_original,activo,orden,subtotal,precio_neto_original_snapshot,precio_venta_original_snapshot,precio_neto_autorizado,precio_venta_autorizado,motivo_autorizacion_precio,fecha_autorizacion_precio,precio_autorizado_por").in("posible_pedido_id", versiones.map((v) => v.id)).order("orden"),
+    supabase.from("items_posible_pedido").select("posible_pedido_id,id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad_presentacion_snapshot,cantidad,cantidad_original,activo,orden,subtotal,precio_neto_original_snapshot,precio_venta_original_snapshot,precio_neto_autorizado,precio_venta_autorizado,motivo_autorizacion_precio,fecha_autorizacion_precio,precio_autorizado_por").in("posible_pedido_id", versiones.map((v) => v.id)).order("orden"),
     supabase.from("historial_posibles_pedidos").select("id,evento,version_resultante,fecha_creacion,motivo,administrador_id,cambios").eq("posible_pedido_id",id).order("version_resultante", { ascending: false }),
     clientesQuery,
-    supabase.from("presentaciones_producto").select("id,nombre,precio_final,productos!inner(nombre,activo,disponible)").eq("activa",true).eq("es_principal",true).eq("productos.activo",true).eq("productos.disponible",true).order("nombre").limit(500),
+    supabase.from("presentaciones_producto").select("id,nombre,unidad,cantidad,precio_final,productos!inner(nombre,activo,disponible)").eq("activa",true).eq("es_principal",true).eq("productos.activo",true).eq("productos.disponible",true).order("nombre").limit(500),
     pedido.cliente_id ? supabase.from("clientes").select("id,nombre,telefono").eq("id",pedido.cliente_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
   if ([lineas,eventos,clientes,presentaciones,asociado].some((r) => r.error)) throw new Error("LECTURA_NO_DISPONIBLE");

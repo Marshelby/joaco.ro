@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 import { useCart } from "@/components/cart/cart-provider";
 import { CatalogImage } from "@/components/media/catalog-image";
 import { Button } from "@/components/ui/button";
 import {
+  adjustCartQuantity,
   formatCartQuantity,
+  getCartQuantityInputStep,
+  getCartQuantityMaximum,
+  getCartQuantityMinimum,
   getCartLineSubtotal,
-  getCartQuantityStep,
   isFractionalKgItem,
   isValidCartQuantity,
 } from "@/lib/cart-quantity";
@@ -16,11 +20,13 @@ import { formatCLP } from "@/lib/formatters";
 import type { CartItem } from "@/types/cart";
 
 export function CartLineItem({ item }: { item: CartItem }) {
-  const { incrementar, disminuir, eliminar } = useCart();
+  const { incrementar, disminuir, eliminar, setQuantity } = useCart();
   const fractionalKg = isFractionalKgItem(item);
-  const step = getCartQuantityStep(item);
+  const [draft, setDraft] = useState<string | null>(null);
   const quantityLabel = fractionalKg ? "kilos" : "cantidad";
-  const canIncrease = isValidCartQuantity(item, item.cantidad + step);
+  const minimum = getCartQuantityMinimum(item);
+  const canIncrease = isValidCartQuantity(item, adjustCartQuantity(item, item.cantidad, 1));
+  const canDecrease = item.cantidad === minimum || isValidCartQuantity(item, adjustCartQuantity(item, item.cantidad, -1));
   const priceReference = fractionalKg ? "por kg" : "por presentación";
 
   return (
@@ -48,10 +54,24 @@ export function CartLineItem({ item }: { item: CartItem }) {
 
       <div className="col-span-2 mt-3 grid min-w-0 gap-3 min-[360px]:grid-cols-[minmax(0,1fr)_auto] min-[360px]:items-center sm:col-span-1 sm:col-start-2">
         <div className="inline-flex min-h-11 w-fit items-center rounded-lg border border-border">
-          <Button type="button" variant="ghost" size="icon" className="size-11" onClick={() => disminuir(item.productoId, item.presentacionId)} aria-label={`Disminuir ${quantityLabel} de ${item.nombre}`}>
+          <Button type="button" variant="ghost" size="icon" className="size-11" disabled={!canDecrease} onClick={() => disminuir(item.productoId, item.presentacionId)} aria-label={`Disminuir ${quantityLabel} de ${item.nombre}`}>
             <Minus aria-hidden="true" />
           </Button>
-          <span className="min-w-16 px-1 text-center text-sm font-semibold text-foreground">{formatCartQuantity(item, item.cantidad)}</span>
+          {fractionalKg ? <label className="flex items-center gap-1 text-sm font-semibold">
+            <input type="number" inputMode="decimal" aria-label={`Cantidad de ${item.nombre} en kg`}
+              min={minimum} max={getCartQuantityMaximum(item)} step={getCartQuantityInputStep(item)}
+              value={draft ?? String(item.cantidad)} aria-invalid={draft !== null && !isValidCartQuantity(item, Number(draft))}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={() => {
+                if (draft !== null && isValidCartQuantity(item, Number(draft))) {
+                  setQuantity(item.productoId, item.presentacionId, Number(draft));
+                }
+                setDraft(null);
+              }}
+              onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+              className="w-16 rounded bg-background px-1 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+            kg
+          </label> : <span className="min-w-16 px-1 text-center text-sm font-semibold text-foreground">{formatCartQuantity(item, item.cantidad)}</span>}
           <Button type="button" variant="ghost" size="icon" className="size-11" disabled={!canIncrease} onClick={() => incrementar(item.productoId, item.presentacionId)} aria-label={`Aumentar ${quantityLabel} de ${item.nombre}`}>
             <Plus aria-hidden="true" />
           </Button>

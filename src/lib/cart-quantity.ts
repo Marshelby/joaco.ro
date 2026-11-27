@@ -5,6 +5,9 @@ type CartQuantityItem = Pick<
   "cantidadPresentacion" | "unidad" | "presentacionNombre"
 >;
 
+export const KG_QUANTITY_STEP = 0.1;
+export const KG_QUANTITY_INPUT_STEP = 0.001;
+
 const CLOSED_FORMAT_PATTERN = /\b(saco|malla|caja|paquete|docena)\b/;
 
 function normalizePresentationName(value: string) {
@@ -20,27 +23,43 @@ export function getClosedPresentationKind(presentationName: string) {
 }
 
 export function isFractionalKgItem(item: CartQuantityItem) {
-  return item.unidad.toUpperCase() === "KG"
+  return item.unidad.trim().toUpperCase() === "KG"
     && item.cantidadPresentacion === 1
-    && !getClosedPresentationKind(item.presentacionNombre);
+    && !/(saco|malla|caja|paquete|docena)/i.test(item.presentacionNombre);
 }
 
 export function isValidCartQuantity(item: CartQuantityItem, cantidad: number) {
   if (!Number.isFinite(cantidad)) return false;
   if (!isFractionalKgItem(item)) return Number.isInteger(cantidad) && cantidad > 0;
 
-  const halfKiloSteps = cantidad * 2;
-  return cantidad >= 0.5
+  return cantidad >= getCartQuantityMinimum(item)
     && cantidad <= 10
-    && Number.isInteger(halfKiloSteps);
+    && hasQuantityPrecision(cantidad);
 }
 
-export function getCartQuantityStep(item: CartQuantityItem) {
-  return isFractionalKgItem(item) ? 0.5 : 1;
+export function hasQuantityPrecision(cantidad: number) {
+  return Number.isFinite(cantidad) && cantidad === roundQuantity(cantidad);
+}
+
+export function roundQuantity(cantidad: number) {
+  return Math.round(cantidad * 1000) / 1000;
+}
+
+function getCartQuantityStep(item: CartQuantityItem) {
+  return isFractionalKgItem(item) ? KG_QUANTITY_STEP : 1;
+}
+
+export function getCartQuantityInputStep(item: CartQuantityItem) {
+  return isFractionalKgItem(item) ? KG_QUANTITY_INPUT_STEP : 1;
+}
+
+export function adjustCartQuantity(item: CartQuantityItem, cantidad: number, direction: -1 | 1) {
+  const next = cantidad + direction * getCartQuantityStep(item);
+  return isFractionalKgItem(item) ? roundQuantity(next) : next;
 }
 
 export function getCartQuantityMinimum(item: CartQuantityItem) {
-  return isFractionalKgItem(item) ? 0.5 : 1;
+  return isFractionalKgItem(item) ? 0.1 : 1;
 }
 
 export function getCartQuantityMaximum(item: CartQuantityItem) {

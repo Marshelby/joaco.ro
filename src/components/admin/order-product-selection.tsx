@@ -1,10 +1,11 @@
 "use client";
 
 import { useOrderStep, useOrderWizard } from "@/components/admin/order-wizard";
+import { OrderQuantityInput } from "@/components/admin/order-quantity-input";
 import { OrderDeliverySelection } from "@/components/admin/order-delivery-selection";
 import { useEffect, useRef, useState } from "react";
 import { cargarCatalogoPedido, type cargarPedidoParaAceptar, type EdicionPedidoRecibido } from "@/app/(admin)/admin/pedidos/nuevo/actions";
-import { formatCartQuantity, getCartQuantityMaximum, getCartQuantityMinimum, getCartQuantityStep, isValidCartQuantity } from "@/lib/cart-quantity";
+import { adjustCartQuantity, formatCartQuantity, getCartQuantityInputStep, getCartQuantityMaximum, getCartQuantityMinimum, isFractionalKgItem, isValidCartQuantity } from "@/lib/cart-quantity";
 import { cotizarDespacho } from "@/lib/delivery-pricing";
 import { formatCLP } from "@/lib/formatters";
 import { buttonVariants } from "@/components/ui/button";
@@ -219,11 +220,11 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
         {presentaciones.map((item) => <option key={item.presentacionId} value={item.presentacionId}>{item.presentacionNombre} · {item.cantidadPresentacion} {item.unidad} · {formatCLP(item.precioFinalReferencia)}</option>)}
       </select></label> : null}
       {elegida ? <>
-        <p className="text-sm">Precio de venta vigente: {formatCLP(elegida.precioFinalReferencia)}. {getCartQuantityStep(elegida) === 0.5 ? "De 0,5 a 10 KG, en incrementos de 0,5 KG." : "Cantidad entera de presentaciones."}</p>
+        <p className="text-sm">Precio de venta vigente: {formatCLP(elegida.precioFinalReferencia)}. {isFractionalKgItem(elegida) ? "De 0,1 a 10 kg, con hasta tres decimales." : "Cantidad entera de presentaciones."}</p>
         <div className="flex flex-wrap items-end gap-2">
-          <button type="button" className={buttonVariants({ variant: "outline", size: "icon" })} aria-label={`Disminuir cantidad de ${elegida.nombre}`} disabled={!isValidCartQuantity(elegida, Number(cantidad) - getCartQuantityStep(elegida))} onClick={() => setCantidad(String(Number(cantidad) - getCartQuantityStep(elegida)))}>−</button>
-          <label className="block text-sm font-medium">Cantidad<input type="number" className={`${campo} max-w-32`} min={getCartQuantityMinimum(elegida)} max={getCartQuantityMaximum(elegida)} step={getCartQuantityStep(elegida)} value={cantidad} onChange={(event) => setCantidad(event.target.value)} /></label>
-          <button type="button" className={buttonVariants({ variant: "outline", size: "icon" })} aria-label={`Aumentar cantidad de ${elegida.nombre}`} disabled={!isValidCartQuantity(elegida, Number(cantidad) + getCartQuantityStep(elegida))} onClick={() => setCantidad(String(Number(cantidad) + getCartQuantityStep(elegida)))}>+</button>
+          <button type="button" className={buttonVariants({ variant: "outline", size: "icon" })} aria-label={`Disminuir cantidad de ${elegida.nombre}`} disabled={!isValidCartQuantity(elegida, adjustCartQuantity(elegida, Number(cantidad), -1))} onClick={() => setCantidad(String(adjustCartQuantity(elegida, Number(cantidad), -1)))}>−</button>
+          <label className="block text-sm font-medium">Cantidad {isFractionalKgItem(elegida) ? "(kg)" : "(presentaciones)"}<input type="number" inputMode={isFractionalKgItem(elegida) ? "decimal" : "numeric"} className={`${campo} max-w-32 ${isFractionalKgItem(elegida) ? "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" : ""}`} min={getCartQuantityMinimum(elegida)} max={getCartQuantityMaximum(elegida)} step={getCartQuantityInputStep(elegida)} value={cantidad} onChange={(event) => setCantidad(event.target.value)} /></label>
+          <button type="button" className={buttonVariants({ variant: "outline", size: "icon" })} aria-label={`Aumentar cantidad de ${elegida.nombre}`} disabled={!isValidCartQuantity(elegida, adjustCartQuantity(elegida, Number(cantidad), 1))} onClick={() => setCantidad(String(adjustCartQuantity(elegida, Number(cantidad), 1)))}>+</button>
           <span className="pb-3 text-sm" aria-live="polite">{isValidCartQuantity(elegida, Number(cantidad)) ? formatCartQuantity(elegida, Number(cantidad)) : "Cantidad pendiente"}</span>
         </div>
         <p className="text-sm" aria-live="polite">Subtotal: {totalLineaPedido(elegida, cantidad, elegida.precioFinalReferencia) !== null ? formatCLP(totalLineaPedido(elegida, cantidad, elegida.precioFinalReferencia)!) : "Pendiente"}</p>
@@ -242,15 +243,15 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
         return <div key={item.presentacionId} className="rounded-lg border border-border p-4 text-sm">
           <p className="font-semibold">{item.nombre} · {item.presentacionNombre} · {item.cantidadPresentacion || ""} {item.unidad}</p>
           <p>{linea.historica ? `Precio unitario guardado: ${formatCLP(item.precioFinalReferencia)}` : linea.actual ? `Precio de venta vigente: ${formatCLP(item.precioFinalReferencia)}` : "Pendiente de validar disponibilidad y precio vigente."}</p>
-          <label className="mt-2 block">Cantidad · {getCartQuantityStep(cantidadItem) === 0.5 ? "0,5 a 10 KG; incrementos de 0,5" : "presentaciones enteras"}<input type="number" disabled={(!listo && !linea.historica) || linea.historica?.protegida} className={campo} min={getCartQuantityMinimum(cantidadItem)} max={getCartQuantityMaximum(cantidadItem)} step={getCartQuantityStep(cantidadItem)} value={linea.cantidad} onChange={(event) => {
-            const valor = event.target.value;
+          <div className="mt-2">Cantidad · {isFractionalKgItem(cantidadItem) ? "kg (hasta tres decimales)" : "presentaciones enteras"}<OrderQuantityInput item={cantidadItem} label={`Cantidad de ${item.nombre} en ${isFractionalKgItem(cantidadItem) ? "kg" : "presentaciones"}`}
+            disabled={(!listo && !linea.historica) || linea.historica?.protegida} className={campo} value={linea.cantidad} onValueChange={(valor) => {
             setLineas((previas) => previas.map((previa) => {
               if (previa.presentacion.presentacionId !== item.presentacionId || (valor && Number(valor) === Number(previa.cantidad))) return previa;
               const original = aceptacion?.lineas.find((guardada) => guardada.presentacion.presentacionId === item.presentacionId);
               if (original && valor && Number(valor) === Number(original.cantidad)) return original;
               return { ...previa, cantidad: valor, precioReferencia: item.precioFinalReferencia, totalFinal: String(totalLineaPedido(cantidadItem, valor, item.precioFinalReferencia) ?? ""), motivoAjuste: "" };
             }));
-          }} /></label>
+          }} /></div>
           {(listo || linea.historica) && !valida(linea) ? <p role="alert" className="mt-2 text-destructive">{!linea.actual ? "Esta presentación ya no está disponible. Elimina la línea para continuar." : "Cantidad inválida para esta presentación o importe fuera de rango."}</p> : null}
           <p className="mt-2">Total de referencia de línea: {valida(linea) ? formatCLP(linea.totalOriginal!) : "Pendiente"}</p>
           <button type="button" disabled={linea.historica?.protegida} className="mt-2 underline" onClick={() => {
@@ -289,7 +290,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
             <label className="mt-2 block">Precio total final (CLP)<input type="text" inputMode="numeric" className={campo} value={linea.totalFinal} onChange={(event) => {
               const valor = event.target.value;
               setLineas((previas) => previas.map((previa) => previa.presentacion.presentacionId === id ? { ...previa, precioReferencia: linea.actual!.precioFinalReferencia, totalFinal: valor, motivoAjuste: leerPrecioPedido(valor) === original ? "" : previa.motivoAjuste } : previa));
-            }} /></label>
+            }} /></div>
             {aceptacion && !linea.historica && linea.actual && linea.precioReferencia !== linea.actual.precioFinalReferencia
               ? <p role="alert" className="mt-2 text-destructive">El precio vigente cambió. Restaura el total de referencia o revisa el ajuste.</p> : null}
             {precio === null ? <p role="alert" className="mt-2 text-destructive">Ingresa un precio en CLP enteros, mayor o igual a cero y dentro del rango seguro.</p> : null}

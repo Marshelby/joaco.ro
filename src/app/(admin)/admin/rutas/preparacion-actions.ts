@@ -1,5 +1,6 @@
 "use server";
 
+import { hasQuantityPrecision } from "@/lib/cart-quantity";
 import { revalidatePath } from "next/cache";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -10,7 +11,7 @@ export async function guardarAvancePreparacion(datos: FormData): Promise<{ error
   const version = /^\d+$/.test(versionTexto) ? Number(versionTexto) : NaN;
   const itemId = String(datos.get("itemPedidoId") ?? "");
   const clave = String(datos.get("clave") ?? "");
-  if (!cantidadTexto || !Number.isFinite(cantidad) || cantidad < 0 || cantidad >= 1e9 ||
+  if (!cantidadTexto || !hasQuantityPrecision(cantidad) || cantidad < 0 || cantidad >= 1e9 ||
       !Number.isSafeInteger(version) || version < 0 || !itemId || !clave) {
     return { error: "Revisa la cantidad cargada y recarga el pedido si es necesario." };
   }

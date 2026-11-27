@@ -1,4 +1,3 @@
-import { formatCLP } from "@/lib/formatters";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { crearEnlaceWhatsapp } from "@/lib/whatsapp";
 import type { DatosSolicitud, RespuestaSolicitud } from "./contrato";
@@ -12,9 +11,7 @@ export function mensajeSolicitud(datos: DatosSolicitud, respuesta: RespuestaSoli
     `*Fecha de entrega:* ${formatFechaEntregaLarga(respuesta.fecha_solicitada)}`,
     datos.observaciones.replace(/^Localidad:/, "*Localidad:*") || "*Localidad:* Sin especificar",
     "", "*Productos:*",
-    ...respuesta.items.map((i) => `• *${i.producto}* · ${i.presentacion} (${i.unidad})\n  Cantidad: ${i.cantidad} × ${formatCLP(i.precio_unitario)}\n  Subtotal: ${formatCLP(i.subtotal)}`),
-    "", `*Subtotal:* ${formatCLP(respuesta.subtotal)}`, `*Despacho:* ${formatCLP(respuesta.despacho)}`,
-    `*Total estimado:* ${formatCLP(respuesta.total)}`,
+    ...respuesta.items.map((i) => `• *${i.producto}* · ${i.cantidad} ${i.unidad} (${i.presentacion})`),
     "", "Quedo esperando la confirmacion de mi pedido. ¡Gracias!",
   ].join("\n");
 }

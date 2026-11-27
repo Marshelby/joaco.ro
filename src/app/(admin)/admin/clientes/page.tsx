@@ -42,10 +42,17 @@ export default async function AdminCustomersPage({ searchParams }: {
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Clientes" description="Revisa la cuenta corriente y los pedidos históricos de cada cliente." actions={<CustomerMessagesAccess />} />
-      <CustomerCommercialForm zonas={zonas} />
-      <CustomerSearch busqueda={busqueda} total={conFactura.total + sinFactura.total} />
+    <div className="@container space-y-4">
+      <div className="grid gap-x-6 gap-y-3 border-b border-border pb-3 @min-[45rem]:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <PageHeader title="Clientes" description="Revisa la cuenta corriente y los pedidos históricos de cada cliente." className="border-0 pb-0 sm:items-start" />
+        <CustomerCommercialForm
+          zonas={zonas}
+          controlesCabecera={{
+            mensajes: <CustomerMessagesAccess />,
+            buscador: <CustomerSearch busqueda={busqueda} total={conFactura.total + sinFactura.total} />,
+          }}
+        />
+      </div>
       <div id="resultados-clientes" className="space-y-4">
         {grupos.map(({ clave, titulo, resultado: { clientes, total, porPagina, pagina } }) => (
           <section key={clave} id={`clientes-${clave}`} aria-labelledby={`titulo-clientes-${clave}`} className="@container scroll-mt-4 space-y-2 rounded-xl border border-border bg-muted/30 p-2 sm:p-3">

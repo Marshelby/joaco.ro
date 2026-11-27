@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition, type ReactNode } from "react";
+import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cargarFichaComercial, guardarFichaComercial } from "@/app/(admin)/admin/clientes/comercial-actions";
@@ -41,19 +42,40 @@ function ResumenUbicacion({ ubicacion: d, indice, provisional = false }: { ubica
   </div>;
 }
 
-export function CustomerCommercialForm(props: Props) {
+export function CustomerCommercialForm({ controlesCabecera, ...props }: Props & {
+  controlesCabecera?: { mensajes: ReactNode; buscador: ReactNode };
+}) {
   const [abierto, setAbierto] = useState(false);
   const [ficha, setFicha] = useState<FichaComercial>();
   const [error, setError] = useState("");
   const [cargando, iniciar] = useTransition();
-  return <div className="space-y-3">
-    <Button type="button" variant="secondary" disabled={cargando} onClick={() => iniciar(async () => {
+  const boton = (
+    <Button type="button" variant={controlesCabecera ? "default" : "secondary"} className={controlesCabecera ? "h-9 gap-1.5 px-3 motion-reduce:transition-none" : undefined} disabled={cargando} onClick={() => iniciar(async () => {
       setError("");
       try { if (props.clienteId) setFicha(await cargarFichaComercial(props.clienteId)); setAbierto(true); }
       catch { setError("No fue posible cargar la ficha comercial. Revisa tu sesión y vuelve a intentar."); }
-    })}>{cargando ? "Cargando…" : props.clienteId ? "Editar cliente" : props.posible ? "Crear y asociar cliente" : "Crear cliente"}</Button>
+    })}>
+      {controlesCabecera && <UserPlus aria-hidden="true" className="size-4" />}
+      {cargando ? "Cargando…" : props.clienteId ? "Editar cliente" : props.posible ? "Crear y asociar cliente" : "Crear cliente"}
+    </Button>
+  );
+  const contenido = <>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {abierto && <Formulario key={ficha?.revision ?? "nuevo"} {...props} ficha={ficha} cerrar={() => setAbierto(false)} />}
+  </>;
+  if (controlesCabecera) return <>
+    <div className="min-w-0 space-y-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        {controlesCabecera.mensajes}
+        {boton}
+      </div>
+      {controlesCabecera.buscador}
+    </div>
+    {(error || abierto) && <div className="col-span-full min-w-0 space-y-3">{contenido}</div>}
+  </>;
+  return <div className="space-y-3">
+    {boton}
+    {contenido}
   </div>;
 }
 

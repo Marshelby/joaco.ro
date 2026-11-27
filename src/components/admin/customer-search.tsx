@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -33,21 +34,24 @@ export function CustomerSearch({ busqueda, total }: { busqueda: string; total: n
   }, [valor, router]);
 
   const cargando = pendiente || valor.trim() !== busqueda;
-  return <section aria-label="Buscar clientes" className="grid min-w-0 gap-x-4 gap-y-1.5 rounded-xl border border-border bg-card p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-    <label htmlFor="buscar-clientes" className="text-sm font-semibold text-foreground">Buscar clientes</label>
-    <div className="flex min-w-0 flex-wrap items-center gap-2 md:col-start-1 md:row-start-2">
-      <input id="buscar-clientes" type="search" value={valor} maxLength={120}
-        onChange={(evento) => { editando.current = true; setValor(evento.target.value); }}
-        placeholder="Nombre, teléfono o correo electrónico" autoComplete="off"
-        aria-controls="resultados-clientes" aria-describedby="estado-busqueda-clientes"
-        className="h-9 w-full min-w-0 flex-auto sm:w-auto sm:flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50" />
-      {valor || busqueda ? <Button type="button" variant="outline" className="h-9 px-3" onClick={() => {
+  return <section aria-label="Buscar clientes" className="ml-auto w-full max-w-sm space-y-1">
+    <label htmlFor="buscar-clientes" className="sr-only">Buscar clientes</label>
+    <div className="flex items-center gap-2">
+      <div className="relative min-w-0 flex-1">
+        <Search aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-muted-foreground" />
+        <input id="buscar-clientes" type="search" value={valor} maxLength={120}
+          onChange={(evento) => { editando.current = true; setValor(evento.target.value); }}
+          placeholder="Nombre, teléfono o correo" autoComplete="off"
+          aria-controls="resultados-clientes" aria-describedby="estado-busqueda-clientes"
+          className="h-9 w-full min-w-0 rounded-lg border border-border bg-background pr-2 pl-9 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50" />
+      </div>
+      {valor || busqueda ? <Button type="button" variant="outline" aria-label="Limpiar búsqueda" className="h-9 px-2.5" onClick={() => {
         editando.current = true;
         setValor("");
         document.getElementById("buscar-clientes")?.focus();
-      }}>Limpiar búsqueda</Button> : null}
+      }}>Limpiar</Button> : null}
     </div>
-    <p id="estado-busqueda-clientes" role="status" aria-live="polite" className="text-xs text-muted-foreground tabular-nums md:col-start-2 md:row-start-2">
+    <p id="estado-busqueda-clientes" role="status" aria-live="polite" className="text-right text-xs text-muted-foreground tabular-nums">
       {cargando ? "Buscando clientes…" : `${total} ${total === 1 ? "cliente encontrado" : "clientes encontrados"}`}
     </p>
   </section>;

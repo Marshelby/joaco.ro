@@ -55,7 +55,6 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   const [cantidad, setCantidad] = useState("");
   const [resultadoAgregar, setResultadoAgregar] = useState<{ tipo: "exito" | "error"; mensaje: string } | null>(null);
   const incorporando = useRef(false);
-  const panelProductos = useRef<HTMLElement>(null);
   const buscador = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [intento, setIntento] = useState(0);
@@ -69,10 +68,6 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   const claveInicial = inicial?.inicial?.cliente.id && inicial.ubicacionId ? `${inicial.inicial?.cliente.id}:${inicial.ubicacionId}` : "";
 
   useEffect(() => { incorporando.current = false; }, [lineas]);
-
-  useEffect(() => {
-    if (panelProductos.current) panelProductos.current.scrollTop = 0;
-  }, [activo]);
 
   useEffect(() => {
     if (!productoId) buscador.current?.focus();
@@ -264,8 +259,8 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   </>;
 
   return <>
-    <section ref={panelProductos} hidden={activo !== 1 && activo !== 2} id={seccion} aria-labelledby={`${seccion}-titulo`}
-      className="max-h-[52dvh] space-y-3 overflow-y-auto rounded-xl border border-border bg-card p-3 sm:max-h-[60dvh] sm:p-4 [dialog_&]:max-h-[48dvh]">
+    <section hidden={activo !== 1 && activo !== 2} id={seccion} aria-labelledby={`${seccion}-titulo`}
+      className="space-y-3 rounded-xl border border-border bg-card p-3 sm:p-4">
       <h2 tabIndex={-1} id={`${seccion}-titulo`} className="text-xl font-semibold">
         {enPrecios ? "3. Precios" : "2. Productos y cantidades"}
       </h2>
@@ -353,12 +348,11 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
       </ul>
       {enPrecios ? <p className="text-xs text-muted-foreground">Cada ajuste requiere un motivo. Al cambiar la cantidad, se recalcula la referencia y se conservan los totales ajustados.</p> : null}
       {enPrecios && !validas ? <p role="status" className="text-sm">Completa cliente, ubicación, productos y cantidades válidas para continuar.</p> : null}
-      {controlesProductos}
+      {activo === 1 ? controlesProductos : null}
       <div className="rounded-lg border border-border bg-primary/5 px-3 py-2">
-        {enPrecios ? <>
+        {enPrecios ?
           <p className="font-semibold tabular-nums" aria-live="polite">Subtotal aplicado: {subtotalEdicion !== null ? formatCLP(subtotalEdicion) : "Pendiente de importes válidos dentro del rango seguro"}</p>
-          {subtotalEdicion !== null ? <p className="mt-1 text-sm tabular-nums" aria-live="polite">Despacho: {formatCLP(despacho)} · Total del pedido: {formatCLP(subtotalEdicion + despacho - (aceptacion?.entrega.descuento ?? 0))}</p> : null}
-        </> : <p className="font-semibold tabular-nums" aria-live="polite">Subtotal de referencia en CLP: {validas && Number.isSafeInteger(subtotal) ? formatCLP(subtotal) : "Pendiente de líneas válidas"}</p>}
+          : <p className="font-semibold tabular-nums" aria-live="polite">Subtotal de referencia en CLP: {validas && Number.isSafeInteger(subtotal) ? formatCLP(subtotal) : "Pendiente de líneas válidas"}</p>}
       </div>
     </section>
     <OrderDeliverySelection

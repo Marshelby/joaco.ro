@@ -54,7 +54,11 @@ function OrderWizardSteps({ children, pasoInicial, descartar, alBloquear }: { ch
   const primerInvalido = estados.findIndex((estado) => !estado.valido);
   const limite = original ? 4 : Math.min(desbloqueado, primerInvalido === -1 ? 4 :
     pasoInicial === 4 && primerInvalido === 1 ? 2 : primerInvalido);
-  const visible = bloqueado ? 4 : Math.min(activo, limite);
+  // Precios permite editar cantidades; una entrada incompleta no debe desmontar sus controles.
+  const visible = bloqueado ? 4 : activo === 2 && primerInvalido === 1 ? activo : Math.min(activo, limite);
+  const edicionProductos = visible === 1 || visible === 2;
+  const pasoPendiente = visible < 4 && primerInvalido >= 0 && primerInvalido <= visible
+    ? estados[primerInvalido] : null;
   useEffect(() => {
     setActivo(visible);
     cabecera.current?.focus();
@@ -70,7 +74,7 @@ function OrderWizardSteps({ children, pasoInicial, descartar, alBloquear }: { ch
         <ol className="grid grid-cols-5 gap-1 sm:gap-3">
           {pasos.map((paso, indice) => {
             const actual = indice === visible;
-            const pasoBloqueado = indice > limite || bloqueado;
+            const pasoBloqueado = (!actual && indice > limite) || bloqueado;
             const completado = indice < desbloqueado && (indice === 4 || estados[indice].valido) && !pasoBloqueado;
             return <li key={paso.id} className="min-w-0">
               <button type="button" aria-label={`${indice + 1}. ${paso.titulo}`} aria-current={actual ? "step" : undefined} disabled={pasoBloqueado} title={bloqueado ? "Recupera el resultado de la confirmación antes de editar." : pasoBloqueado ? "Completa los pasos anteriores para desbloquear este paso." : paso.titulo} onClick={() => ir(indice)} className={`flex min-h-20 w-full min-w-0 flex-col items-center gap-2 rounded-lg px-1 py-3 text-center text-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm ${actual ? "bg-primary/10 font-semibold text-primary" : completado ? "bg-muted text-foreground" : "text-muted-foreground"} disabled:opacity-50`}>
@@ -85,14 +89,16 @@ function OrderWizardSteps({ children, pasoInicial, descartar, alBloquear }: { ch
       <p ref={cabecera} tabIndex={-1} className="text-sm font-medium outline-none" aria-live="polite">Paso {visible + 1} de 5 · {pasos[visible].titulo}</p>
       {/* Los pasos permanecen montados para conservar todo el borrador. */}
       {children}
-      <div className="rounded-xl border border-border bg-card p-4">
-        {visible < 4 && !estados[visible].valido ? <p id="bloqueo-paso" role="status" className="mb-4 text-sm text-muted-foreground">{estados[visible].motivo}</p> : null}
-        <div className="flex flex-wrap justify-between gap-3">
+      <div className={visible === 0 || edicionProductos
+        ? "sticky bottom-0 z-10 rounded-xl border border-border bg-card p-2 shadow-sm sm:p-3"
+        : "rounded-xl border border-border bg-card p-4"}>
+        {pasoPendiente ? <p id="bloqueo-paso" role="status" className="mb-4 text-sm text-muted-foreground">{pasoPendiente.motivo}</p> : null}
+        <div className={`flex flex-wrap justify-between ${edicionProductos ? "gap-2" : "gap-3"}`}>
           {pasoInicial === 4 && !bloqueado && visible < 4 ? <ActionLink href={ROUTES.adminOrders} variant="quiet">Volver a pedidos</ActionLink> : null}
           {pasoInicial === 4 && !bloqueado && (!original || visible < 4) ? <button type="button" className={buttonVariants({ variant: "secondary" })} onClick={descartar}>Descartar cambios y volver al resumen</button> : null}
           <button type="button" className={buttonVariants({ variant: "secondary" })} disabled={visible === 0 || bloqueado} onClick={() => ir(visible - 1)}>← Anterior</button>
-          {visible < 4 ? <button type="button" className={`${buttonVariants()} max-w-full whitespace-normal text-center`} disabled={!estados[visible].valido} aria-describedby={!estados[visible].valido ? "bloqueo-paso" : undefined} onClick={() => {
-            if (!estados[visible].valido) return;
+          {visible < 4 ? <button type="button" className={`${buttonVariants()} max-w-full whitespace-normal text-center${edicionProductos ? " ml-auto" : ""}`} disabled={Boolean(pasoPendiente)} aria-describedby={pasoPendiente ? "bloqueo-paso" : undefined} onClick={() => {
+            if (pasoPendiente) return;
             setDesbloqueado((previo) => Math.max(previo, visible + 1));
             setActivo(visible + 1);
           }}>{pasos[visible].siguiente} · Siguiente →</button> : null}

@@ -165,13 +165,13 @@ async function leerCatalogoPedido() {
   type PresentacionCatalogo = {
     id: string; nombre: string; cantidad: number | string; unidad: string;
     precio_final: number | string; es_principal: boolean; orden: number;
-    productos: { id: string; nombre: string };
+    productos: { id: string; nombre: string; ruta_imagen: string | null };
   };
   const items: PresentacionCatalogo[] = [];
   let desde = 0;
   while (true) {
     const { data, error } = await supabase.from("presentaciones_producto")
-      .select("id,nombre,cantidad,unidad,precio_final,es_principal,orden,productos!inner(id,nombre,activo,disponible,categorias!inner(activa))")
+      .select("id,nombre,cantidad,unidad,precio_final,es_principal,orden,productos!inner(id,nombre,ruta_imagen,activo,disponible,categorias!inner(activa))")
       .eq("activa", true).eq("productos.activo", true).eq("productos.disponible", true)
       .eq("productos.categorias.activa", true)
       .order("id").range(desde, desde + 199);
@@ -189,6 +189,7 @@ async function leerCatalogoPedido() {
       productoId: item.productos.id, nombre: item.productos.nombre, presentacionId: item.id,
       presentacionNombre: item.nombre, cantidadPresentacion: Number(item.cantidad),
       unidad: item.unidad, precioFinalReferencia: Number(item.precio_final),
+      ...(item.productos.ruta_imagen ? { rutaImagen: item.productos.ruta_imagen } : {}),
     }))
     .filter((item) => Number.isFinite(item.precioFinalReferencia) && item.precioFinalReferencia > 0
       && Number.isFinite(item.cantidadPresentacion) && item.cantidadPresentacion > 0);
@@ -254,7 +255,7 @@ export async function cargarPedidoParaAceptar(id: string) {
 
   const leerLineas = async () => {
     const consulta = () => db.from("items_pedido")
-      .select("id,producto_id,presentacion_producto_id,cantidad,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,precio_final_unitario_snapshot,modo_cantidad_snapshot,total_linea,vinculos_items_posible_pedido(item_pedido_id),auditoria_precios_pedido_administrativo(motivo,total_original,precio_referencia)")
+      .select("id,producto_id,presentacion_producto_id,cantidad,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,precio_final_unitario_snapshot,modo_cantidad_snapshot,total_linea,productos(ruta_imagen),vinculos_items_posible_pedido(item_pedido_id),auditoria_precios_pedido_administrativo(motivo,total_original,precio_referencia)")
       .eq("pedido_id", pedidoId).order("id");
     const items = [];
     for (;;) {
@@ -301,7 +302,7 @@ export async function cargarPedidoParaAceptar(id: string) {
       productoId: item.producto_id ?? item.id, presentacionId: item.presentacion_producto_id ?? item.id,
       nombre: item.nombre_producto_snapshot, presentacionNombre: item.nombre_presentacion_snapshot ?? "",
       unidad: item.unidad_snapshot, cantidadPresentacion: 0,
-      precioFinalReferencia: precioOriginal,
+      precioFinalReferencia: precioOriginal, rutaImagen: item.productos?.ruta_imagen ?? undefined,
     };
     const vinculo = item.vinculos_items_posible_pedido;
     const protegida = Boolean(auditoria || (Array.isArray(vinculo) ? vinculo.length : vinculo));

@@ -2,13 +2,16 @@
 
 import { useOrderStep, useOrderWizard } from "@/components/admin/order-wizard";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { CalendarDays, Check, CreditCard, MapPin, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cargarFechasEntregaPedido, confirmarPedidoAdministrativo, confirmarPedidoRecibido, type cargarPedidoParaAceptar, type EdicionPedidoRecibido } from "@/app/(admin)/admin/pedidos/nuevo/actions";
-import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, crearBorradorEntrega, type CrearPedidoAdministrativoParametros, type LineaPedidoBorrador, type PedidoBorrador, type PedidoPreciosBorrador } from "@/lib/admin/pedido-borrador";
+import { CONFIRMACION_ADMINISTRATIVA_HABILITADA, IMPORTE_MAXIMO_PEDIDO, crearBorradorEntrega, type CrearPedidoAdministrativoParametros, type LineaPedidoBorrador, type PedidoBorrador, type PedidoPreciosBorrador, type PresentacionPedido } from "@/lib/admin/pedido-borrador";
 import { PAYMENT_INTENT_LABELS, PAYMENT_INTENT_OPTIONS, formatearMetodosPagoPrevistos, normalizarMetodosPagoPrevistos, type MetodoPagoPrevisto } from "@/lib/payment-intent";
 import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import type { FechaEntregaDisponible } from "@/types/delivery";
 import { cotizarDespacho } from "@/lib/delivery-pricing";
+import { isFractionalKgItem } from "@/lib/cart-quantity";
+import { CatalogImage } from "@/components/media/catalog-image";
 import { formatCLP } from "@/lib/formatters";
 import { buttonVariants } from "@/components/ui/button";
 import { ActionLink } from "@/components/ui/action-link";
@@ -16,15 +19,16 @@ import { ROUTES } from "@/config/routes";
 
 type Aceptacion = Awaited<ReturnType<typeof cargarPedidoParaAceptar>>["entrega"];
 
-export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicacionResumen, aceptacion, modificado, edicion, despachoEditado = 0, resumenLineas, fechaInicial }: {
+export function OrderDeliverySelection({ precios, lineas, catalogo, clienteNombre, ubicacionResumen, aceptacion, modificado, edicion, despachoEditado = 0, resumenLineas, fechaInicial }: {
   fechaInicial?: string;
   aceptacion?: Aceptacion;
   modificado?: boolean;
   edicion?: Omit<EdicionPedidoRecibido, "fechaEntrega" | "metodosPagoPrevistos" | "costoEntrega" | "total"> | null;
   despachoEditado?: number;
-  resumenLineas?: Pick<Aceptacion["lineas"][number], "id" | "presentacion" | "cantidad" | "totalOriginal" | "totalFinal" | "motivoAjuste">[];
+  resumenLineas?: Pick<Aceptacion["lineas"][number], "id" | "presentacion" | "cantidad" | "totalOriginal" | "totalFinal" | "motivoAjuste" | "fraccionable">[];
   precios: PedidoPreciosBorrador | null;
   lineas: LineaPedidoBorrador[];
+  catalogo: PresentacionPedido[];
   clienteNombre?: string;
   ubicacionResumen?: string;
 }) {
@@ -282,33 +286,87 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
       <p className="mt-4 text-sm text-muted-foreground">Estas preferencias no representan pagos realizados, no generan abonos ni modifican la cuenta corriente.</p>
 
     </section>
-    <section hidden={activo !== 4} id="confirmacion" aria-labelledby="confirmacion-titulo" className="scroll-mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
-      <h2 tabIndex={-1} id="confirmacion-titulo" className="text-xl font-semibold">5. Resumen preliminar</h2>
-      {lineasResumen ? <div className="mt-4 space-y-3 text-sm">
-        <p><strong>Cliente:</strong> {original?.clienteNombre ?? clienteNombre}</p>
-        <p><strong>Ubicación de entrega:</strong> {aceptacion ? (original?.ubicacionResumen ?? ubicacionResumen) || "Sin ubicación registrada" : ubicacionResumen}</p>
-        <p><strong>Entrega:</strong> {entregaResumen}</p>
-        <p><strong>Métodos previstos:</strong> {formatearMetodosPagoPrevistos(original?.metodosPagoPrevistos ?? resumenEditado?.metodosPagoPrevistos ?? resumen?.metodosPagoPrevistos) ?? "Sin métodos registrados"}</p>
-        <ul className="space-y-3">{lineasResumen.map((linea) => {
-          const item = linea.presentacion;
-          return <li key={linea.id} className="rounded-lg border border-border p-3">
-            <p className="font-medium">{item?.nombre} · {item?.presentacionNombre} · {item?.cantidadPresentacion || ""} {item?.unidad}</p>
-            <p>Cantidad: {linea.cantidad} · Total original: {formatCLP(linea.totalOriginal)} · Total final: {formatCLP(linea.totalFinal)}</p>
-            {linea.motivoAjuste ? <p>Ajuste de total: {formatCLP(linea.totalOriginal)} → {formatCLP(linea.totalFinal)} ({formatCLP(linea.totalFinal - linea.totalOriginal)}). Motivo: {linea.motivoAjuste}</p> : null}
-          </li>;
-        })}</ul>
-        <p className="font-semibold">Subtotal: {formatCLP(subtotal)}</p>
-        <p>Despacho: {formatCLP(despacho)}</p>
-        {descuento > 0 ? <p>Descuento: {formatCLP(descuento)}</p> : null}
-        <p className="font-semibold">Total: {formatCLP(total)}</p>
+    <section hidden={activo !== 4} id="confirmacion" aria-labelledby="confirmacion-titulo" className="scroll-mt-6 rounded-2xl border border-border bg-card p-4 sm:p-6">
+      <h2 tabIndex={-1} id="confirmacion-titulo" className="text-xl font-semibold tracking-tight">5. Resumen preliminar</h2>
+      {lineasResumen ? <div className="mt-4 space-y-5 text-sm">
+        <dl className="grid gap-3 rounded-xl bg-muted/50 p-3 min-[480px]:grid-cols-2 sm:gap-4 sm:p-4 xl:grid-cols-4">
+          {[
+            { titulo: "Cliente", valor: original?.clienteNombre ?? clienteNombre, Icono: UserRound },
+            { titulo: "Ubicación de entrega", valor: aceptacion ? (original?.ubicacionResumen ?? ubicacionResumen) || "Sin ubicación registrada" : ubicacionResumen, Icono: MapPin },
+            { titulo: "Entrega", valor: entregaResumen, Icono: CalendarDays },
+            { titulo: "Métodos previstos", valor: formatearMetodosPagoPrevistos(original?.metodosPagoPrevistos ?? resumenEditado?.metodosPagoPrevistos ?? resumen?.metodosPagoPrevistos) ?? "Sin métodos registrados", Icono: CreditCard },
+          ].map(({ titulo, valor, Icono }) => (
+            <div key={titulo} className="relative min-h-8 min-w-0 pl-[2.625rem]">
+              <dt className="text-xs text-muted-foreground">
+                <span className="absolute top-0 left-0 grid size-8 place-items-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+                  <Icono className="size-4" />
+                </span>
+                {titulo}
+              </dt>
+              <dd className="font-medium wrap-break-word">{valor}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem]">
+          <div>
+            <h3 className="mb-2 font-semibold">Productos</h3>
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {lineasResumen.map((linea) => {
+                const item = linea.presentacion;
+                const vigente = catalogo.find((presentacion) => presentacion.productoId === item?.productoId
+                  && presentacion.presentacionId === item?.presentacionId);
+                const rutaImagen = vigente?.rutaImagen ?? item?.rutaImagen;
+                const ajustada = linea.totalOriginal !== linea.totalFinal;
+                const fraccionable = "fraccionable" in linea ? linea.fraccionable : Boolean(item && isFractionalKgItem(vigente ?? item));
+                const unidad = fraccionable ? "kg" : linea.cantidad === 1 ? "presentación" : "presentaciones";
+                const formato = item?.cantidadPresentacion ? `${item.cantidadPresentacion} ${item.unidad}` : item?.unidad;
+                return <li key={linea.id} className="p-3 sm:p-4">
+                  <div className="flex items-start gap-2.5 sm:gap-3">
+                    <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-14">
+                      <CatalogImage image={rutaImagen ? { src: rutaImagen, alt: "", fit: "contain" } : undefined} fallback="package" sizes="(min-width: 640px) 56px, 40px" fallbackIconClassName="size-5 opacity-50 sm:size-6" />
+                    </div>
+                    <div className="min-w-0 flex-1 wrap-break-word">
+                      <p className="font-semibold">{item?.nombre}</p>
+                      <p className="text-xs leading-5 text-muted-foreground">{[item?.presentacionNombre, formato].filter(Boolean).join(" · ")}</p>
+                      <p className="mt-0.5 text-xs font-medium">Cantidad: {linea.cantidad} {unidad}</p>
+                    </div>
+                    <div className="shrink-0 text-right tabular-nums">
+                      <p className="text-xs text-muted-foreground">Total final</p>
+                      <p className="font-semibold text-primary sm:text-base">{formatCLP(linea.totalFinal)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="block">Total original</span>
+                        <span className={ajustada ? "line-through" : undefined}>{formatCLP(linea.totalOriginal)}</span>
+                      </p>
+                    </div>
+                  </div>
+                  {linea.motivoAjuste ? <p className="mt-2 rounded-md bg-muted/60 px-2.5 py-2 text-xs leading-5 wrap-break-word text-muted-foreground">
+                    <span className="font-medium text-foreground">Ajuste de total:</span> {formatCLP(linea.totalOriginal)} → {formatCLP(linea.totalFinal)} ({formatCLP(linea.totalFinal - linea.totalOriginal)}). Motivo: {linea.motivoAjuste}
+                  </p> : null}
+                </li>;
+              })}
+            </ul>
+          </div>
+          <div>
+            <h3 className="mb-2 font-semibold">Resumen económico</h3>
+            <dl className="space-y-2 rounded-xl border border-primary/15 bg-primary/5 p-4 tabular-nums">
+              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subtotal</dt><dd className="font-medium">{formatCLP(subtotal)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Despacho</dt><dd className="font-medium">{formatCLP(despacho)}</dd></div>
+              {descuento > 0 ? <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium">{formatCLP(descuento)}</dd></div> : null}
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-primary/20 pt-3 text-primary">
+                <dt className="font-semibold">Total final</dt>
+                <dd className="ml-auto text-2xl font-bold tracking-tight">{formatCLP(total)}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
       </div> : <p role="status" className="mt-4 text-sm">Completa las etapas anteriores, selecciona una fecha vigente y al menos un método previsto para ver el resumen.</p>}
-      <p id="confirmacion-pendiente" className="mt-4 text-sm text-muted-foreground">{aceptacion && bloqueado ? "Guardando la confirmación del pedido." : bloqueado ? "Conservamos el intento original. Reintenta para recuperar su resultado antes de editar o iniciar otro pedido." : "Revisa el resumen antes de confirmar. El pedido se guardará con estos totales; los métodos previstos no registran pagos."}</p>
+      <p id="confirmacion-pendiente" className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">{aceptacion && bloqueado ? "Guardando la confirmación del pedido." : bloqueado ? "Conservamos el intento original. Reintenta para recuperar su resultado antes de editar o iniciar otro pedido." : "Revisa el resumen antes de confirmar. El pedido se guardará con estos totales; los métodos previstos no registran pagos."}</p>
       {enviando ? <p role="status" className="mt-3 text-sm">Confirmando pedido…</p> : null}
       {edicionValida && !importesValidos ? <p role="alert" className="mt-3 text-sm text-destructive">Revisa los importes. El total debe estar dentro del rango admitido y el descuento no puede superar el subtotal más despacho.</p> : null}
       {errorConfirmacion ? <p role="alert" className="mt-3 text-sm text-destructive">{errorConfirmacion}</p> : null}
       {destinoCreado ? <p role="status" className="mt-3 text-sm">Pedido creado. <a href={destinoCreado} className="underline">Ir al detalle del pedido</a></p> : null}
-      <div className="mt-5 flex flex-wrap gap-3">
-        <button type="button" disabled={aceptacion ? bloqueado || (!original && (!edicionValida || !importesValidos || !pasosValidos || activo !== 4)) : !CONFIRMACION_ADMINISTRATIVA_HABILITADA || (!bloqueado && (!borrador || !pasosValidos || activo !== 4)) || enviando || Boolean(destinoCreado)} aria-busy={enviando} aria-describedby="confirmacion-pendiente" onClick={confirmar} className={buttonVariants()}>{enviando ? "Confirmando…" : bloqueado ? "Reintentar confirmación" : "Confirmar pedido"}</button>
+      <div className="mt-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <button type="button" disabled={aceptacion ? bloqueado || (!original && (!edicionValida || !importesValidos || !pasosValidos || activo !== 4)) : !CONFIRMACION_ADMINISTRATIVA_HABILITADA || (!bloqueado && (!borrador || !pasosValidos || activo !== 4)) || enviando || Boolean(destinoCreado)} aria-busy={enviando} aria-describedby="confirmacion-pendiente" onClick={confirmar} className={buttonVariants({ size: "lg", className: "w-full font-semibold enabled:shadow-sm enabled:hover:shadow-md motion-safe:transition-[background-color,border-color,color,opacity,transform,box-shadow] motion-safe:duration-200 motion-reduce:transition-none sm:w-auto" })}><Check aria-hidden="true" />{enviando ? "Confirmando…" : bloqueado ? "Reintentar confirmación" : "Confirmar pedido"}</button>
         {!bloqueado ? <ActionLink href={ROUTES.adminOrders} variant="quiet">Volver a pedidos</ActionLink> : null}
       </div>
     </section>

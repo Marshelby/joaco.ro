@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { esFechaCalendario } from "@/lib/operational-date";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
@@ -23,4 +24,13 @@ export async function obtenerNoEntregados(filtros: FiltrosNoEntregados) {
   });
   if (error) return { error: error.code === "PGRST202" ? "La sección requiere instalar el SQL manual de Fase 3 para habilitar sus lecturas." : "No se pudieron consultar los pedidos. Intenta nuevamente.", pedidos: [], total: 0, pagina: 1 };
   return { error: null, pedidos: (data?.pedidos ?? []) as PedidoNoEntregado[], total: Number(data?.total ?? 0), pagina: Math.floor(pagina) };
+}
+
+export const obtenerNoEntregadosSinFiltros = cache(() => obtenerNoEntregados({}));
+
+export async function obtenerFechasSolicitudNoEntregados(pedidos: PedidoNoEntregado[]) {
+  if (!pedidos.length) return new Map<string, string>();
+  const supabase = await crearClienteSupabaseServidor();
+  const { data } = await supabase.from("pedidos").select("id,fecha_creacion").in("id", pedidos.map(pedido => pedido.id));
+  return new Map((data ?? []).map(pedido => [pedido.id, pedido.fecha_creacion]));
 }

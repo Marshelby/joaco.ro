@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { accionesPedido, filaPedido, OrderListData, OrderListIdentity, tarjetaPedido } from "@/components/admin/order-list-row";
 import { bloqueJornada, cuadriculaDetalleJornada, encabezadoProductoJornada, importeJornada, presentacionProductoJornada, tonoJornada } from "@/components/admin/jornada-colores";
 import { ChevronDown } from "lucide-react";
 import { DeliveryObservation } from "@/components/admin/delivery-observation";
@@ -89,7 +90,28 @@ export function claseResultadoEntrega(tipo: ResultadoVisual) {
   return estilos[tipo].clase;
 }
 
-export function DeliveryResult({ children, ...resumen }: Resumen & { children: ReactNode }) {
+export function DeliveryResult({ children, compact, ...resumen }: Resumen & {
+  children: ReactNode;
+  compact?: { solicitud?: string | null; entrega?: string | null; ubicacion?: string | null; acciones: ReactNode };
+}) {
+  if (compact && resumen.importe) {
+    return <div className={tarjetaPedido}>
+      <div className={filaPedido}>
+        <OrderListIdentity cliente={resumen.cliente ?? ""} referencia={resumen.numero && `Pedido ${resumen.numero}`} ubicacion={compact.ubicacion} />
+        <span className={`justify-self-start rounded-full px-2 py-0.5 text-xs font-semibold ${estilos[resumen.tipo].etiqueta}`}>{estilos[resumen.tipo].titulo}</span>
+        <OrderListData solicitud={compact.solicitud} entrega={compact.entrega} etiquetaEntrega="Entrega programada" importe={formatCLP(resumen.importe.valor)} etiquetaImporte={resumen.importe.etiqueta} />
+        <div className={accionesPedido}>{compact.acciones}</div>
+      </div>
+      <details className="group/resultado border-t border-border">
+        <summary className="flex min-h-8 cursor-pointer list-none items-center gap-1.5 rounded-b-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+          <ChevronDown className="size-3.5 shrink-0 group-open/resultado:rotate-180 motion-safe:transition-transform" aria-hidden="true" />
+          Detalles de la entrega
+        </summary>
+        <div className="space-y-2 border-t border-border p-3 text-sm wrap-anywhere">{children}</div>
+      </details>
+    </div>;
+  }
+
   return <details className={`group/resultado min-w-0 rounded-xl border ${claseResultadoEntrega(resumen.tipo)}`}>
     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
       <DeliveryResultHeader {...resumen} />

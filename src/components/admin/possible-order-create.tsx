@@ -5,9 +5,10 @@ import { X } from "lucide-react";
 import { cargarPosibleParaPedido } from "@/app/(admin)/admin/posibles-pedidos/precarga-actions";
 import { OrderCustomerSelection } from "@/components/admin/order-customer-selection";
 import { OrderWizard } from "@/components/admin/order-wizard";
+import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-export function PossibleOrderCreate({ id, version }: { id: string; version: number }) {
+export function PossibleOrderCreate({ id, version, compact = false }: { id: string; version: number; compact?: boolean }) {
   const titulo = useId();
   const dialogo = useRef<HTMLDialogElement>(null);
   const carga = useRef(0);
@@ -27,7 +28,7 @@ export function PossibleOrderCreate({ id, version }: { id: string; version: numb
   }
 
   return <>
-    <button type="button" className={buttonVariants()} onClick={() => {
+    <button type="button" className={cn(buttonVariants(), compact && "h-9 px-2.5 text-xs")} onClick={() => {
       dialogo.current?.showModal();
       void cargar();
     }}>Crear pedido</button>

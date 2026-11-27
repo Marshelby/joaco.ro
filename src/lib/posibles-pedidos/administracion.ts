@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { obtenerNombresResponsables, responsableAdmin } from "@/lib/admin/responsables";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 import { fasePosiblesPedidosHabilitada } from "./configuracion";
@@ -29,10 +30,21 @@ export async function clienteAdministradorPosibles() {
   if (errorAdmin || admin !== true) throw new Error("NO_AUTORIZADO");
   return supabase;
 }
+const estadosPendientes = ["registrado", "en_gestion"] as const;
+
+export const contarPosiblesPedidos = cache(async (estado: string) => {
+  const supabase = await clienteAdministradorPosibles();
+  let consulta = supabase.from("solicitudes_posibles_pedidos").select("id", { count: "exact", head: true });
+  if (estado === "pendientes") consulta = consulta.in("estado", estadosPendientes);
+  else if (estado === "convertido" || estado === "descartado") consulta = consulta.eq("estado", estado);
+  const { count, error } = await consulta;
+  return error ? null : count;
+});
+
 export async function listarPosiblesPedidos(estado: string, pagina: number) {
   const supabase = await clienteAdministradorPosibles();
   let consulta = supabase.from("solicitudes_posibles_pedidos").select(`${columnas},codigo_solicitud`, { count: "exact" });
-  if (estado === "pendientes") consulta = consulta.in("estado", ["registrado","en_gestion"]);
+  if (estado === "pendientes") consulta = consulta.in("estado", estadosPendientes);
   else if (["convertido","descartado"].includes(estado)) consulta = consulta.eq("estado", estado);
   const { data, error, count } = await consulta.order("fecha_creacion", { ascending: false }).order("id").range((pagina-1)*25,pagina*25-1);
   if (error) throw new Error("LECTURA_NO_DISPONIBLE");

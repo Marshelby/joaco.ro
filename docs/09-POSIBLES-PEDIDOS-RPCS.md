@@ -179,8 +179,8 @@ autorizado recupera el resultado existente aun con otra clave/versión. Ese caso
 no reinterpreta parámetros nuevos ni crea otro evento. El UUID idempotente del
 pedido oficial se genera en servidor y no reutiliza claves de visitantes.
 
-La venta recibida sí integra cuenta corriente al finalizar correctamente la
-conversión. Antes de convertir, las intenciones no participan de vistas contables.
+Con el régimen `entrega_v1`, la conversión registra un pedido recibido. Los
+movimientos contables se generan al registrar la entrega efectiva.
 
 ## Plan reproducible: pendiente, sin resultados simulados
 

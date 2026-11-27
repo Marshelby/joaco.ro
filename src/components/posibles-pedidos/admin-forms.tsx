@@ -3,9 +3,8 @@ import { useActionState, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { operarPosiblePedido, type EstadoOperacionPosible } from "@/app/(admin)/admin/posibles-pedidos/actions";
 import { huellaSolicitud } from "@/lib/posibles-pedidos/intentos";
-import type { ClientePosible, DireccionPosible, LineaPosible, PosiblePedido, PresentacionPosible } from "@/lib/posibles-pedidos/administracion";
+import type { ClientePosible, LineaPosible, PosiblePedido, PresentacionPosible } from "@/lib/posibles-pedidos/administracion";
 import { formatCLP } from "@/lib/formatters";
-import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { Button } from "@/components/ui/button";
 export const campoAdmin = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 function OperacionForm({ pedido, tipo, titulo, children, peligro = false }: { pedido: PosiblePedido; tipo: string; titulo: string; children: ReactNode; peligro?: boolean }) {
@@ -44,14 +43,9 @@ export function AsociarPosibleForm({ pedido, clientes }: { pedido: PosiblePedido
 export function PrecioPosibleForm({ pedido, linea }: { pedido: PosiblePedido; linea: LineaPosible }) {
   return <OperacionForm pedido={pedido} tipo="precio" titulo="Autorizar precio"><input type="hidden" name="item" value={linea.id} /><p className="text-sm">{linea.nombre_producto_snapshot} · {linea.nombre_presentacion_snapshot}</p><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Neto unitario<input name="neto" type="number" min="0" max="9000000000000" step="1" required defaultValue={linea.precio_neto_autorizado ?? linea.precio_neto_original_snapshot} className={campoAdmin} /></label><label className="text-sm">Venta unitaria<input name="venta" type="number" min="0" max="9000000000000" step="1" required defaultValue={linea.precio_venta_autorizado ?? linea.precio_venta_original_snapshot} className={campoAdmin} /></label></div><label className="block text-sm">Motivo de la autorización<textarea name="motivo" required maxLength={1000} rows={2} className={campoAdmin} /></label><p className="text-xs leading-5 text-muted-foreground">La autorización queda registrada con actor, fecha, motivo y precios. El snapshot original permanece intacto.</p></OperacionForm>;
 }
-export function CerrarPosibleForms({ pedido, direcciones, fechas }: { pedido: PosiblePedido; direcciones: DireccionPosible[]; fechas: string[] }) {
-  const validas = direcciones.filter((d) => d.latitud !== null && d.longitud !== null);
-  return <div className="grid gap-5 lg:grid-cols-2"><OperacionForm pedido={pedido} tipo="convertir" titulo="Convertir en pedido oficial">
-    <p className="text-sm leading-6 text-muted-foreground">Se creará una venta en estado recibido y su cargo en cuenta corriente. No se registrará ningún pago ni se marcará como aceptado.</p>
-    <label className="block text-sm">Dirección del cliente asociado<select name="direccion" required className={campoAdmin} defaultValue=""><option value="">Selecciona una dirección con ubicación</option>{validas.map((d) => <option key={d.id} value={d.id}>{d.direccion}, {d.comuna}</option>)}</select></label>
-    {!validas.length ? <p className="text-sm text-amber-800">Asocia un cliente y completa una dirección activa con ubicación antes de convertir.</p> : null}
-    <label className="block text-sm">Fecha efectiva<select name="fecha" required defaultValue="" className={campoAdmin}><option value="">Selecciona una fecha</option>{fechas.map((f) => <option key={f} value={f}>{formatFechaEntregaLarga(f)}</option>)}</select></label>
-    <label className="block text-sm">Forma de pago prevista<select name="metodo" required defaultValue="" className={campoAdmin}><option value="">Selecciona una opción</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option></select></label>
-    <label className="flex items-start gap-3 text-sm leading-6"><input name="confirmacion" type="checkbox" required className="mt-1 size-4 shrink-0 accent-primary" />Confirmo cliente, dirección, productos y precios. Entiendo que convertir crea el pedido oficial y su cargo contable.</label>
-  </OperacionForm><OperacionForm pedido={pedido} tipo="descartar" titulo="Descartar solicitud" peligro><p className="text-sm leading-6 text-muted-foreground">Cierra la solicitud sin crear un pedido ni un cargo.</p><label className="block text-sm">Motivo del descarte<textarea name="motivo" required maxLength={1000} rows={3} className={campoAdmin} /></label></OperacionForm></div>;
+export function DescartarPosibleForm({ pedido }: { pedido: PosiblePedido }) {
+  return <OperacionForm pedido={pedido} tipo="descartar" titulo="Descartar solicitud" peligro>
+    <p className="text-sm leading-6 text-muted-foreground">Cierra la solicitud sin crear un pedido ni un cargo.</p>
+    <label className="block text-sm">Motivo del descarte<textarea name="motivo" required maxLength={1000} rows={3} className={campoAdmin} /></label>
+  </OperacionForm>;
 }

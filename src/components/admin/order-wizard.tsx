@@ -34,16 +34,17 @@ export function useOrderStep(paso: number, valido: boolean, motivo: string) {
   useEffect(() => { registrar(paso, valido, motivo); }, [registrar, paso, valido, motivo]);
 }
 
-export function OrderWizard({ children, pasoInicial = 0 }: { children: ReactNode; pasoInicial?: 0 | 1 | 2 | 4 }) {
+export function OrderWizard({ children, pasoInicial = 0, alBloquear }: { children: ReactNode; pasoInicial?: 0 | 1 | 2 | 4; alBloquear?: (valor: boolean) => void }) {
   const [version, reiniciar] = useState(0);
-  return <OrderWizardSteps key={version} pasoInicial={pasoInicial} descartar={() => reiniciar((actual) => actual + 1)}>{children}</OrderWizardSteps>;
+  return <OrderWizardSteps key={version} pasoInicial={pasoInicial} alBloquear={alBloquear} descartar={() => reiniciar((actual) => actual + 1)}>{children}</OrderWizardSteps>;
 }
 
-function OrderWizardSteps({ children, pasoInicial, descartar }: { children: ReactNode; pasoInicial: 0 | 1 | 2 | 4; descartar: () => void }) {
+function OrderWizardSteps({ children, pasoInicial, descartar, alBloquear }: { children: ReactNode; pasoInicial: 0 | 1 | 2 | 4; descartar: () => void; alBloquear?: (valor: boolean) => void }) {
   const [original, conservarOriginal] = useState(pasoInicial === 4);
   const [activo, setActivo] = useState<number>(pasoInicial);
   const [bloqueado, bloquear] = useState(false);
   const [destino, completar] = useState("");
+  useEffect(() => { alBloquear?.(bloqueado && !destino); }, [alBloquear, bloqueado, destino]);
   const [desbloqueado, setDesbloqueado] = useState<number>(pasoInicial);
   const [estados, setEstados] = useState<Estado[]>(Array.from({ length: 4 }, (_, indice) => ({ valido: indice < pasoInicial, motivo: "Completa los datos obligatorios de este paso." })));
   const cabecera = useRef<HTMLParagraphElement>(null);

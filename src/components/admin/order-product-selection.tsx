@@ -18,7 +18,8 @@ const normalizar = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u
 type Aceptacion = Awaited<ReturnType<typeof cargarPedidoParaAceptar>>;
 type Precarga = Pick<Aceptacion, "inicial" | "ubicacionId" | "lineas"> & { catalogo: Presentacion[] | null };
 
-export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, ubicacionResumen, inicial, aceptacion, ubicacionModificada, referenciasEntrega, ubicacionValida }: {
+export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, ubicacionResumen, inicial, aceptacion, ubicacionModificada, referenciasEntrega, ubicacionValida, fechaSolicitada }: {
+  fechaSolicitada?: string;
   inicial?: Precarga | null;
   aceptacion?: Aceptacion;
   ubicacionModificada?: boolean;
@@ -46,6 +47,7 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
   const cargarCatalogo = !aceptacion || activo === 1 || activo === 2;
   const catalogoLeido = useRef<{ clave: string; intento: number } | null>(null);
   const precarga = useRef(Boolean(inicial?.catalogo));
+  const ajustarReferenciasSolicitadas = useRef(Boolean(fechaSolicitada));
   const claveInicial = inicial?.inicial?.cliente.id && inicial.ubicacionId ? `${inicial.inicial?.cliente.id}:${inicial.ubicacionId}` : "";
 
   useEffect(() => { incorporando.current = false; }, [lineas]);
@@ -68,6 +70,13 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
     cargarCatalogoPedido(clienteId, ubicacionId, aceptacion?.entrega.pedidoId).then((items) => {
       if (vigente) {
         catalogoLeido.current = { clave, intento };
+        if (ajustarReferenciasSolicitadas.current) {
+          ajustarReferenciasSolicitadas.current = false;
+          setLineas((previas) => previas.map((linea) => {
+            const actual = items.find((item) => item.presentacionId === linea.presentacion.presentacionId && item.productoId === linea.presentacion.productoId);
+            return actual ? { ...linea, presentacion: actual, precioReferencia: actual.precioFinalReferencia } : linea;
+          }));
+        }
         setCatalogo({ clave, items });
         setError("");
       }
@@ -299,6 +308,6 @@ export function OrderProductSelection({ clienteId, ubicacionId, clienteNombre, u
       {subtotalEdicion !== null ? <p className="mt-2 text-sm" aria-live="polite">Despacho: {formatCLP(despacho)} · Total del pedido: {formatCLP(subtotalEdicion + despacho - (aceptacion?.entrega.descuento ?? 0))}</p> : null}
       <p className="mt-2 text-sm text-muted-foreground">El borrador se conserva solo en esta página; todavía no se guarda ni confirma.</p>
     </section>
-    <OrderDeliverySelection aceptacion={aceptacion?.entrega} modificado={ubicacionModificada || lineasModificadas} edicion={edicion} despachoEditado={despacho} resumenLineas={aceptacion ? resueltas.map((linea) => ({ id: linea.presentacion.presentacionId, presentacion: linea.presentacion, cantidad: Number(linea.cantidad), totalOriginal: linea.totalOriginal ?? 0, totalFinal: Number(linea.totalFinal), motivoAjuste: linea.motivoAjuste.trim() || null })) : undefined} precios={borrador} lineas={lineas} clienteNombre={clienteNombre} ubicacionResumen={ubicacionResumen} />
+    <OrderDeliverySelection fechaInicial={fechaSolicitada} aceptacion={aceptacion?.entrega} modificado={ubicacionModificada || lineasModificadas} edicion={edicion} despachoEditado={despacho} resumenLineas={aceptacion ? resueltas.map((linea) => ({ id: linea.presentacion.presentacionId, presentacion: linea.presentacion, cantidad: Number(linea.cantidad), totalOriginal: linea.totalOriginal ?? 0, totalFinal: Number(linea.totalFinal), motivoAjuste: linea.motivoAjuste.trim() || null })) : undefined} precios={borrador} lineas={lineas} clienteNombre={clienteNombre} ubicacionResumen={ubicacionResumen} />
   </>;
 }

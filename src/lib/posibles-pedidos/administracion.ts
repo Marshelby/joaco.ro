@@ -18,7 +18,6 @@ export type LineaPosible = {
 };
 export type EventoPosible = { id: string; evento: string; version_resultante: number; fecha_creacion: string; motivo: string | null; administrador_id: string | null; administrador_nombre: string; cambios: Record<string,unknown> };
 export type ClientePosible = { id: string; nombre: string; telefono: string | null };
-export type DireccionPosible = { id: string; direccion: string; comuna: string; latitud: number | null; longitud: number | null };
 export type PresentacionPosible = { id: string; nombre: string; precio_final: number; productos: { nombre: string } };
 const columnas = "solicitud_id,numero_version,id,codigo_publico,nombre_solicitante,telefono_contacto,fecha_entrega_solicitada,observaciones,estado,version,subtotal_estimado,costo_entrega_estimado,total_estimado,cliente_id,pedido_oficial_id,fecha_creacion";
 export async function clienteAdministradorPosibles() {
@@ -49,16 +48,14 @@ export async function detallePosiblePedido(id: string, buscarCliente = "") {
   const cierre = versiones.find((v) => ["convertido","descartado"].includes(v.estado));
   let clientesQuery = supabase.from("clientes").select("id,nombre,telefono").eq("activo",true).order("nombre").limit(100);
   if (buscarCliente) clientesQuery = clientesQuery.ilike("nombre", `%${buscarCliente.replace(/[\\%_]/g,"\\$&")}%`);
-  const [lineas, eventos, clientes, direcciones, fechas, presentaciones, asociado] = await Promise.all([
+  const [lineas, eventos, clientes, presentaciones, asociado] = await Promise.all([
     supabase.from("items_posible_pedido").select("posible_pedido_id,id,presentacion_producto_id,nombre_producto_snapshot,nombre_presentacion_snapshot,unidad_snapshot,cantidad,cantidad_original,activo,orden,subtotal,precio_neto_original_snapshot,precio_venta_original_snapshot,precio_neto_autorizado,precio_venta_autorizado,motivo_autorizacion_precio,fecha_autorizacion_precio,precio_autorizado_por").in("posible_pedido_id", versiones.map((v) => v.id)).order("orden"),
     supabase.from("historial_posibles_pedidos").select("id,evento,version_resultante,fecha_creacion,motivo,administrador_id,cambios").eq("posible_pedido_id",id).order("version_resultante", { ascending: false }),
     clientesQuery,
-    pedido.cliente_id ? supabase.from("direcciones_cliente").select("id,direccion,comuna,latitud,longitud").eq("cliente_id",pedido.cliente_id).eq("activa",true) : Promise.resolve({ data: [], error: null }),
-    supabase.rpc("obtener_fechas_posibles_pedidos"),
     supabase.from("presentaciones_producto").select("id,nombre,precio_final,productos!inner(nombre,activo,disponible)").eq("activa",true).eq("es_principal",true).eq("productos.activo",true).eq("productos.disponible",true).order("nombre").limit(500),
     pedido.cliente_id ? supabase.from("clientes").select("id,nombre,telefono").eq("id",pedido.cliente_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
-  if ([lineas,eventos,clientes,direcciones,fechas,presentaciones,asociado].some((r) => r.error)) throw new Error("LECTURA_NO_DISPONIBLE");
+  if ([lineas,eventos,clientes,presentaciones,asociado].some((r) => r.error)) throw new Error("LECTURA_NO_DISPONIBLE");
   const nombre = await obtenerNombresResponsables([
     ...(lineas.data ?? []).map(l => responsableAdmin(l.precio_autorizado_por)),
     ...(eventos.data ?? []).map(e => responsableAdmin(e.administrador_id)),
@@ -69,5 +66,5 @@ export async function detallePosiblePedido(id: string, buscarCliente = "") {
   const eventosConAutor = (eventos.data ?? []).map(e => ({
     ...e, administrador_nombre: nombre(responsableAdmin(e.administrador_id)),
   })) as EventoPosible[];
-  return { versiones: versiones as PosiblePedido[], cierre: cierre as PosiblePedido | undefined, pedido: pedido as PosiblePedido, lineasVersiones: lineasConAutor, lineas: lineasConAutor.filter(l => l.posible_pedido_id === id), eventos: eventosConAutor, clientes: (clientes.data ?? []) as ClientePosible[], direcciones: (direcciones.data ?? []) as DireccionPosible[], fechas: (fechas.data ?? []).map((f: { fecha: string }) => f.fecha) as string[], presentaciones: (presentaciones.data ?? []) as unknown as PresentacionPosible[], asociado: asociado.data as ClientePosible | null };
+  return { versiones: versiones as PosiblePedido[], cierre: cierre as PosiblePedido | undefined, pedido: pedido as PosiblePedido, lineasVersiones: lineasConAutor, lineas: lineasConAutor.filter(l => l.posible_pedido_id === id), eventos: eventosConAutor, clientes: (clientes.data ?? []) as ClientePosible[], presentaciones: (presentaciones.data ?? []) as unknown as PresentacionPosible[], asociado: asociado.data as ClientePosible | null };
 }

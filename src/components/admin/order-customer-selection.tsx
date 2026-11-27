@@ -17,8 +17,10 @@ type Reciclado = Awaited<ReturnType<typeof import("@/app/(admin)/admin/pedidos/n
 
 type Aceptacion = Awaited<ReturnType<typeof cargarPedidoParaAceptar>>;
 
-export function OrderCustomerSelection({ inicial, reciclado, aceptacion }: { inicial: Seleccion | null; reciclado?: Reciclado | null; aceptacion?: Aceptacion }) {
-  const precarga = aceptacion ?? reciclado;
+type Solicitud = Awaited<ReturnType<typeof import("@/app/(admin)/admin/posibles-pedidos/precarga-actions").cargarPosibleParaPedido>>;
+
+export function OrderCustomerSelection({ inicial, reciclado, aceptacion, solicitud }: { inicial: Seleccion | null; reciclado?: Reciclado | null; aceptacion?: Aceptacion; solicitud?: Solicitud }) {
+  const precarga = aceptacion ?? reciclado ?? solicitud;
   const [seleccion, setSeleccion] = useState(inicial);
   const [clienteIdElegido, setClienteIdElegido] = useState(aceptacion?.entrega.clienteId ?? inicial?.cliente.id ?? null);
   const [ubicacionId, setUbicacionId] = useState(precarga?.ubicacionId ?? (inicial?.ubicaciones.length === 1 ? inicial.ubicaciones[0].id : ""));
@@ -203,6 +205,7 @@ export function OrderCustomerSelection({ inicial, reciclado, aceptacion }: { ini
   </section>
     <OrderProductSelection
       inicial={precarga}
+      fechaSolicitada={solicitud?.fechaEntrega}
       aceptacion={aceptacion}
       ubicacionModificada={ubicacionModificada}
       clienteId={!cargando ? seleccion?.cliente.id : undefined}

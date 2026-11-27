@@ -16,7 +16,8 @@ import { ROUTES } from "@/config/routes";
 
 type Aceptacion = Awaited<ReturnType<typeof cargarPedidoParaAceptar>>["entrega"];
 
-export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicacionResumen, aceptacion, modificado, edicion, despachoEditado = 0, resumenLineas }: {
+export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicacionResumen, aceptacion, modificado, edicion, despachoEditado = 0, resumenLineas, fechaInicial }: {
+  fechaInicial?: string;
   aceptacion?: Aceptacion;
   modificado?: boolean;
   edicion?: Omit<EdicionPedidoRecibido, "fechaEntrega" | "metodosPagoPrevistos" | "costoEntrega" | "total"> | null;
@@ -28,8 +29,8 @@ export function OrderDeliverySelection({ precios, lineas, clienteNombre, ubicaci
   ubicacionResumen?: string;
 }) {
   const [fechas, setFechas] = useState<FechaEntregaDisponible[]>([]);
-  const [fecha, setFecha] = useState(aceptacion?.fechaEntrega ?? "");
-  const [editandoFecha, setEditandoFecha] = useState(!aceptacion?.fechaEntrega);
+  const [fecha, setFecha] = useState(aceptacion?.fechaEntrega ?? fechaInicial ?? "");
+  const [editandoFecha, setEditandoFecha] = useState(!(aceptacion?.fechaEntrega ?? fechaInicial));
   const pagosTitulo = useRef<HTMLLegendElement>(null);
   const opcionesFecha = useRef<HTMLFieldSetElement>(null);
   const desplazarAPagos = useRef(false);

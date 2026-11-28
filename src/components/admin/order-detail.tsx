@@ -33,6 +33,7 @@ import { DeliveryObservation } from "@/components/admin/delivery-observation";
 import { obtenerHistorialPedido } from "@/lib/admin/pedido-historial";
 import { obtenerContextoEntrega } from "@/lib/admin/entrega-contexto";
 import { obtenerResumenContablePedido } from "@/lib/admin/pedido-contabilidad";
+import { OrderAccountingSection } from "@/components/admin/order-accounting-section";
 import { ExternalLink } from "lucide-react";
 
 export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, aceptarEditable = false }: { id: string; modal?: boolean; vistaRuta?: boolean; aceptarEditable?: boolean }) {
@@ -97,8 +98,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
       {resultado && <DeliveryResult vistaRuta={vistaRuta} tipo={resultado.tipo}>
         <DeliveryResultDetails vistaRuta={vistaRuta} datos={resultado} contexto={contextoEntrega} fallo={fallo} responsableHistorico={entregaAuditada?.actorNombre} ocultarOriginal />
       </DeliveryResult>}
-      <section className="min-w-0 rounded-xl border border-border bg-card p-3" aria-labelledby="resumen-contable-title">
-        <h2 id="resumen-contable-title" className="text-sm font-semibold tracking-tight text-foreground">Resumen contable de la entrega</h2>
+      <OrderAccountingSection>
         <div className="mt-2 grid gap-2 text-xs leading-snug tabular-nums sm:grid-cols-2 [&_dd]:mt-0.5 [&_dd]:text-sm [&_dd]:font-semibold [&_dt]:font-medium">
           <dl className={`${cuadriculaDetalleJornada} sm:col-span-2`}>
             <div className={indicadorContable(contabilidad?.importe_definitivo != null || importeRegistrado != null ? "venta" : "informativo")}><dt>{contabilidad?.importe_definitivo == null && importeRegistrado != null ? "Importe definitivo registrado" : "Importe definitivo vigente"}</dt><dd>{contabilidad?.importe_definitivo != null ? formatCLP(contabilidad.importe_definitivo) : importeRegistrado != null ? formatCLP(importeRegistrado) : "No registrado"}</dd></div>
@@ -118,7 +118,7 @@ export async function AdminOrderDetail({ id, modal = false, vistaRuta = false, a
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Los cobros de entrega pueden generar crédito. Las aplicaciones incluyen pagos anteriores o posteriores y sólo su parte atribuida a este pedido. El saldo mostrado no es la deuda acumulada del cliente.</p>
         {contabilidad?.regimen === "legado" ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Pedido histórico: el saldo sigue el régimen contable legado; no se reconstruye una venta definitiva sin snapshot.</p> : null}
         {!contabilidad ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Resumen no disponible: requiere instalar el SQL manual de resumen contable.</p> : null}
-      </section>
+      </OrderAccountingSection>
       {!resultado && <DeliveryObservation contexto={contextoEntrega} />}
       {pedido.estado === "entregado" ? <AdministrativeCorrection tipo="venta" id={pedido.id} vistaRuta={vistaRuta} /> : null}
 

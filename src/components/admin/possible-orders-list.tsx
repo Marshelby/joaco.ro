@@ -1,13 +1,16 @@
 import { OrderDeliveryDateGroups } from "@/components/admin/order-delivery-date-groups";
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
+import { CalendarDays, ClipboardList, MapPin, MessageCircle, Wallet } from "lucide-react";
+import { CatalogImage } from "@/components/media/catalog-image";
 import { PageHeader } from "@/components/shared/page-header";
 import { fasePosiblesPedidosHabilitada } from "@/lib/posibles-pedidos/configuracion";
 import { contarPosiblesPedidos, listarPosiblesPedidos } from "@/lib/posibles-pedidos/administracion";
 import { formatCLP } from "@/lib/formatters";
+import { formatFechaEntregaLarga } from "@/lib/delivery-date";
 import { ActionLink } from "@/components/ui/action-link";
-import { accionesPedido, filaPedido, OrderListData, OrderListIdentity, tarjetaPedido } from "./order-list-row";
+import { OrderListData, OrderListIdentity } from "./order-list-row";
 import { PossibleOrderCreate } from "./possible-order-create";
+import { PossibleOrderDisclosure } from "./possible-order-disclosure";
 import { ROUTES } from "@/config/routes";
 
 function PossibleOrdersHeader({ embedded, description }: { embedded: boolean; description?: string }) {
@@ -32,6 +35,51 @@ const estadosPosibles = {
   descartado: { etiqueta: "Descartada", clase: "bg-muted text-muted-foreground" },
 };
 
+const formatoCantidad = new Intl.NumberFormat("es-CL");
+
+function ResumenSolicitud({ solicitud }: {
+  solicitud: Awaited<ReturnType<typeof listarPosiblesPedidos>>["solicitudes"][number];
+}) {
+  const localidad = /^Localidad: ([^\r\n]*)/.exec(solicitud.observaciones ?? "")?.[1]?.trim();
+  const datos = [
+    { etiqueta: "Entrega solicitada", valor: formatFechaEntregaLarga(solicitud.fecha_entrega_solicitada), Icono: CalendarDays },
+    { etiqueta: "Localidad", valor: localidad || "Sin especificar", Icono: MapPin },
+    { etiqueta: "Total referencial", valor: formatCLP(solicitud.total_estimado), Icono: Wallet },
+  ];
+
+  return <div className="mt-1.5 space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+    <dl className="grid gap-2 @min-[36rem]:grid-cols-3">
+      {datos.map(({ etiqueta, valor, Icono }) => <div key={etiqueta} className="flex min-w-0 gap-2">
+        <Icono aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+        <div className="min-w-0 wrap-anywhere">
+          <dt className="text-xs text-muted-foreground">{etiqueta}</dt>
+          <dd className="text-sm font-semibold tabular-nums">{valor}</dd>
+        </div>
+      </div>)}
+    </dl>
+    <div className="space-y-2 border-t border-primary/15 pt-2.5">
+      <h3 className="text-sm font-semibold text-primary">Productos solicitados</h3>
+      {solicitud.productos.length ? (
+        <ul className="grid gap-2 @min-[36rem]:grid-cols-2 @min-[64rem]:grid-cols-3">
+          {solicitud.productos.map((producto) => <li key={producto.id}
+            className="flex min-w-0 items-center gap-2.5 rounded-md border border-border bg-card p-2">
+            <div className="relative size-11 shrink-0 overflow-hidden rounded bg-muted">
+              <CatalogImage image={producto.rutaImagen ? { src: producto.rutaImagen, alt: "", fit: "contain" } : undefined}
+                fallback="package" sizes="44px" fallbackIconClassName="size-4 sm:size-4 opacity-50" />
+            </div>
+            <div className="min-w-0 flex-1 wrap-anywhere">
+              <p className="text-sm font-semibold leading-tight">{producto.nombre_producto_snapshot}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{producto.nombre_presentacion_snapshot}</p>
+              <p className="mt-0.5 text-xs tabular-nums">Cantidad <span className="font-medium">{formatoCantidad.format(producto.cantidad)}</span></p>
+            </div>
+            <p className="shrink-0 text-sm font-semibold tabular-nums text-primary">{formatCLP(producto.subtotal)}</p>
+          </li>)}
+        </ul>
+      ) : <p className="text-sm text-muted-foreground">Sin productos solicitados.</p>}
+    </div>
+  </div>;
+}
+
 export async function PossibleOrdersList({ params, baseHref, embedded = false, agruparPorEntrega = false }: { params: { estado?: string; pagina?: string }; baseHref: string; embedded?: boolean; agruparPorEntrega?: boolean }) {
   const enlace = (estado: string, pagina = 1) => `${baseHref}${baseHref.includes("?") ? "&" : "?"}estado=${estado}&pagina=${pagina}`;
   const estado = filtrosPosibles.find(([valor]) => valor === params.estado)?.[0] ?? "pendientes";
@@ -50,15 +98,18 @@ export async function PossibleOrdersList({ params, baseHref, embedded = false, a
     <div className="space-y-1.5">
       {solicitudes.map(p => {
         const estadoVisual = estadosPosibles[p.estado];
-        return <article key={p.solicitud_id} className={`${tarjetaPedido} ${filaPedido}`}>
-          <OrderListIdentity cliente={p.nombre_solicitante} referencia={`+${p.telefono_contacto}`} ubicacion={`Versión ${p.numero_version} de 5`} />
-          <span className={`justify-self-start rounded-full px-2 py-0.5 text-xs font-semibold ${estadoVisual.clase}`}>{estadoVisual.etiqueta}</span>
-          <OrderListData solicitud={p.fecha_creacion} entrega={p.fecha_entrega_solicitada} etiquetaEntrega="Entrega solicitada" ocultarEntrega={agruparPorEntrega} importe={formatCLP(p.total_estimado)} etiquetaImporte="Total referencial" />
-          <div className={accionesPedido}>
+        return <PossibleOrderDisclosure key={`${p.solicitud_id}:${p.id}`} tarjeta={<>
+            <OrderListIdentity cliente={p.nombre_solicitante} referencia={`+${p.telefono_contacto}`} ubicacion={`Versión ${p.numero_version} de 5`} />
+            <span className={`justify-self-start rounded-full px-2 py-0.5 text-xs font-semibold ${estadoVisual.clase}`}>{estadoVisual.etiqueta}</span>
+            <OrderListData solicitud={p.fecha_creacion} entrega={p.fecha_entrega_solicitada} etiquetaEntrega="Entrega solicitada" ocultarEntrega={agruparPorEntrega} importe={formatCLP(p.total_estimado)} etiquetaImporte="Total referencial" />
+          </>} acciones={<>
             {(p.estado === "registrado" || p.estado === "en_gestion") && <PossibleOrderCreate id={p.id} version={p.version} compact />}
-            <ActionLink href={ROUTES.adminPossibleOrder(p.id)} variant="quiet">Ver solicitud</ActionLink>
-          </div>
-        </article>;
+            <ActionLink href={ROUTES.adminPossibleOrder(p.id)} variant="quiet" className="gap-1">
+              <ClipboardList aria-hidden="true" className="size-4" /> Gestión avanzada
+            </ActionLink>
+          </>}>
+          <ResumenSolicitud solicitud={p} />
+        </PossibleOrderDisclosure>;
       })}
     </div>
   );

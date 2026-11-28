@@ -17,6 +17,10 @@ export type LineaPosible = {
   precio_neto_autorizado: number | null; precio_venta_autorizado: number | null; motivo_autorizacion_precio: string | null; fecha_autorizacion_precio: string | null;
   precio_autorizado_por?: string | null; precio_autorizador_nombre?: string;
 };
+type ProductoCatalogo = { ruta_imagen: string | null };
+type LineaResumenPosible = Pick<LineaPosible, "id" | "posible_pedido_id" | "nombre_producto_snapshot" | "nombre_presentacion_snapshot" | "cantidad" | "subtotal"> & {
+  productos: ProductoCatalogo | ProductoCatalogo[] | null;
+};
 export type EventoPosible = { id: string; evento: string; version_resultante: number; fecha_creacion: string; motivo: string | null; administrador_id: string | null; administrador_nombre: string; cambios: Record<string,unknown> };
 export type ClientePosible = { id: string; nombre: string; telefono: string | null };
 export type PresentacionPosible = { id: string; nombre: string; unidad: string; cantidad: number; precio_final: number; productos: { nombre: string } };
@@ -48,7 +52,38 @@ export async function listarPosiblesPedidos(estado: string, pagina: number) {
   else if (["convertido","descartado"].includes(estado)) consulta = consulta.eq("estado", estado);
   const { data, error, count } = await consulta.order("fecha_creacion", { ascending: false }).order("id").range((pagina-1)*25,pagina*25-1);
   if (error) throw new Error("LECTURA_NO_DISPONIBLE");
-  return { solicitudes: (data ?? []) as PosiblePedido[], total: count ?? 0 };
+  const solicitudes = (data ?? []) as PosiblePedido[];
+  const lineasPorPedido = new Map<string, LineaResumenPosible[]>();
+  if (solicitudes.length) {
+    const ids = solicitudes.map((solicitud) => solicitud.id);
+    const limite = 500;
+    for (let desde = 0; ; desde += limite) {
+      const { data: lineas, error: errorLineas } = await supabase.from("items_posible_pedido")
+        .select("id,posible_pedido_id,nombre_producto_snapshot,nombre_presentacion_snapshot,cantidad,subtotal,productos(ruta_imagen)")
+        .in("posible_pedido_id", ids)
+        .eq("activo", true)
+        .order("orden")
+        .order("id")
+        .range(desde, desde + limite - 1);
+      if (errorLineas) throw new Error("LECTURA_NO_DISPONIBLE");
+      for (const linea of lineas ?? []) {
+        const grupo = lineasPorPedido.get(linea.posible_pedido_id);
+        if (grupo) grupo.push(linea);
+        else lineasPorPedido.set(linea.posible_pedido_id, [linea]);
+      }
+      if ((lineas?.length ?? 0) < limite) break;
+    }
+  }
+  return {
+    solicitudes: solicitudes.map((solicitud) => ({
+      ...solicitud,
+      productos: (lineasPorPedido.get(solicitud.id) ?? []).map(({ productos, ...linea }) => ({
+        ...linea,
+        rutaImagen: (Array.isArray(productos) ? productos[0] : productos)?.ruta_imagen ?? null,
+      })),
+    })),
+    total: count ?? 0,
+  };
 }
 export async function detallePosiblePedido(id: string, buscarCliente = "") {
   const supabase = await clienteAdministradorPosibles();
